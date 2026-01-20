@@ -1,0 +1,2987 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>LKT Tracker 2026</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #1a1a2e;
+            --bg-card: #16213e;
+            --accent-yellow: #f5c518;
+            --accent-gold: #ffd700;
+            --accent-green: #4ade80;
+            --accent-red: #ef4444;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .loading-overlay.hidden { display: none; }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--accent-yellow);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 1rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--bg-card) 0%, #0f0f23 100%);
+            padding: 1rem;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 3px solid var(--accent-yellow);
+        }
+        
+        .header h1 {
+            font-family: 'Bangers', cursive;
+            font-size: 1.6rem;
+            color: var(--accent-yellow);
+            letter-spacing: 2px;
+        }
+        
+        .header .user-info {
+            display: inline-block;
+            background: var(--accent-yellow);
+            color: var(--bg-dark);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+        
+        .header .user-info.gericht {
+            background: var(--accent-gold);
+        }
+        
+        /* Navigation */
+        .nav-tabs {
+            display: flex;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+        }
+        
+        .nav-tab {
+            flex: 1;
+            min-width: max-content;
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            background: none;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        
+        .nav-tab.active {
+            color: var(--accent-yellow);
+            border-bottom: 3px solid var(--accent-yellow);
+        }
+        
+        /* Screens */
+        .screen { display: none; padding: 1rem; }
+        .screen.active { display: block; }
+        
+        /* Setup Screen */
+        .setup-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        .setup-screen h1 {
+            font-family: 'Bangers', cursive;
+            font-size: 2.5rem;
+            color: var(--accent-yellow);
+            margin-bottom: 0.5rem;
+        }
+        
+        .setup-screen .subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+        
+        .setup-box {
+            background: var(--bg-card);
+            padding: 2rem;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .role-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .role-btn {
+            padding: 1.5rem;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            background: transparent;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+        }
+        
+        .role-btn:hover, .role-btn.selected {
+            border-color: var(--accent-yellow);
+            background: rgba(255, 215, 0, 0.1);
+        }
+        
+        .role-btn .icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .role-btn .title {
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        
+        .role-btn .desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Forms */
+        .input-group {
+            margin-bottom: 1rem;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .input-group input, .input-group textarea, .input-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
+        
+        .input-group input:focus, .input-group textarea:focus {
+            outline: none;
+            border-color: var(--accent-yellow);
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1rem;
+        }
+        
+        .btn-primary {
+            background: var(--accent-yellow);
+            color: var(--bg-dark);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+        
+        .btn-danger {
+            background: var(--accent-red);
+            color: white;
+        }
+        
+        .btn-success {
+            background: var(--accent-green);
+            color: var(--bg-dark);
+        }
+        
+        .btn-block { width: 100%; }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .event-card {
+            border-left: 4px solid var(--border-color);
+        }
+        
+        .event-card.attended { border-left-color: var(--accent-green); }
+        .event-card.absent { border-left-color: var(--accent-red); }
+        
+        .event-card .date {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .event-card .title {
+            font-weight: 700;
+            margin: 0.25rem 0;
+        }
+        
+        .event-card .location {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .event-card .status {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        
+        .event-card .status.present {
+            background: rgba(74, 222, 128, 0.2);
+            color: var(--accent-green);
+        }
+        
+        .event-card .status.absent {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--accent-red);
+        }
+        
+        .event-card .actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        
+        .event-card .actions .btn {
+            flex: 1;
+            padding: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        /* Week Header */
+        .week-header {
+            background: linear-gradient(90deg, var(--accent-yellow), transparent);
+            color: var(--bg-dark);
+            font-weight: 700;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            margin: 1rem 0 0.5rem;
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            padding: 1rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .stat-card .number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-yellow);
+        }
+        
+        .stat-card .label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Leaderboard */
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--bg-card);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .leaderboard-item .rank {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            margin-right: 1rem;
+        }
+        
+        .leaderboard-item:nth-child(1) .rank { background: gold; color: #000; }
+        .leaderboard-item:nth-child(2) .rank { background: silver; color: #000; }
+        .leaderboard-item:nth-child(3) .rank { background: #cd7f32; color: #fff; }
+        
+        .leaderboard-item .name { flex: 1; }
+        .leaderboard-item .score { font-weight: 700; color: var(--accent-green); }
+        .leaderboard-item .score.bad { color: var(--accent-red); }
+        
+        /* Anzeige Card */
+        .anzeige-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid var(--accent-red);
+        }
+        
+        .anzeige-card .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        
+        .anzeige-card .vs {
+            font-weight: 700;
+            color: var(--accent-yellow);
+        }
+        
+        .anzeige-card .date {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .anzeige-card .tatbestand {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            padding: 0.5rem;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            margin: 0.5rem 0;
+        }
+        
+        .anzeige-card .strafe {
+            font-size: 0.85rem;
+            color: var(--accent-red);
+            font-weight: 600;
+        }
+        
+        /* Info Box */
+        .info-box {
+            background: rgba(245, 197, 24, 0.1);
+            border: 1px solid var(--accent-yellow);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .info-box p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Section Header */
+        .section-header {
+            margin: 1.5rem 0 1rem;
+        }
+        
+        .section-header h2 {
+            font-size: 1.1rem;
+            color: var(--accent-yellow);
+            border-bottom: 2px solid var(--accent-yellow);
+            padding-bottom: 0.5rem;
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+        
+        .toast.error {
+            border-left: 4px solid var(--accent-red);
+        }
+        
+        .toast.success {
+            border-left: 4px solid var(--accent-green);
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+            padding: 1rem;
+        }
+        
+        .modal-overlay.active { display: flex; }
+        
+        .modal {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal h3 {
+            margin-bottom: 1rem;
+            color: var(--accent-yellow);
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .modal-actions .btn { flex: 1; }
+        
+        /* Offline indicator */
+        .offline-banner {
+            display: none;
+            background: var(--accent-red);
+            color: white;
+            text-align: center;
+            padding: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .offline-banner.show { display: block; }
+        
+        /* Config button */
+        .config-btn {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 2px solid var(--border-color);
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 100;
+        }
+        
+        .hidden { display: none !important; }
+        
+        /* QR Scanner */
+        #qr-reader {
+            border: 2px solid var(--accent-yellow);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        #qr-reader video {
+            border-radius: 10px;
+        }
+        
+        #scan-success {
+            animation: pulse 0.5s ease-in-out;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* Attendance Table Styles */
+        .attendance-row {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--bg-card);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            gap: 0.75rem;
+        }
+        
+        .attendance-row .member-name {
+            flex: 1;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        
+        .attendance-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .att-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--border-color);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .att-btn:hover {
+            border-color: var(--accent-yellow);
+        }
+        
+        .att-btn.present {
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+            color: white;
+        }
+        
+        .att-btn.absent {
+            background: var(--accent-red);
+            border-color: var(--accent-red);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Laden...</div>
+    </div>
+    
+    <!-- Offline Banner -->
+    <div class="offline-banner" id="offline-banner">
+        ⚠️ Offline - Daten werden lokal gespeichert
+    </div>
+    
+    <!-- Setup Screen -->
+    <div class="setup-screen" id="setup-screen">
+        <h1>🎺 LKT TRACKER</h1>
+        <p class="subtitle">Saison 2026</p>
+        
+        <div class="setup-box">
+            <!-- Step 1: Not needed anymore - API URL is built in -->
+            <div id="setup-step-1" class="hidden"></div>
+            
+            <!-- Step 2: Role Selection -->
+            <div id="setup-step-2" class="hidden">
+                <h3 style="margin-bottom: 1rem;">Wer bist du?</h3>
+                <div class="role-buttons">
+                    <button class="role-btn" onclick="selectRole('member')">
+                        <div class="icon">🎺</div>
+                        <div class="title">Mitglied</div>
+                        <div class="desc">Anwesenheit tracken & Strafanzeigen erstellen</div>
+                    </button>
+                    <button class="role-btn" onclick="selectRole('gericht')">
+                        <div class="icon">⚖️</div>
+                        <div class="title">Hohes Gericht</div>
+                        <div class="desc">Statistiken, Ranglisten & Anzeigen verwalten</div>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Step 3: Member Login -->
+            <div id="setup-step-3" class="hidden">
+                <h3 style="margin-bottom: 1rem;">🎺 Mitglied Login</h3>
+                <div class="input-group">
+                    <label>Dein Name</label>
+                    <input type="text" id="member-name-input" placeholder="Max Mustermann">
+                </div>
+                <div class="input-group">
+                    <label>Deine PIN (4 Ziffern)</label>
+                    <input type="number" id="member-pin-input" placeholder="1234" maxlength="4" pattern="[0-9]{4}">
+                </div>
+                <button class="btn btn-primary btn-block" onclick="loginMember()">Einloggen</button>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 1rem; text-align: center;">
+                    Noch nicht registriert? <a href="#" onclick="showStep(4); return false;" style="color: var(--accent-yellow);">Hier registrieren</a>
+                </p>
+            </div>
+            
+            <!-- Step 4: Member Registration (new users) -->
+            <div id="setup-step-4" class="hidden">
+                <h3 style="margin-bottom: 1rem;">🎺 Neu registrieren</h3>
+                <div class="input-group">
+                    <label>Dein Name</label>
+                    <input type="text" id="register-name-input" placeholder="Max Mustermann">
+                </div>
+                <div class="input-group">
+                    <label>Wähle eine PIN (4 Ziffern)</label>
+                    <input type="number" id="register-pin-input" placeholder="1234" maxlength="4" pattern="[0-9]{4}">
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                    Merke dir deine PIN! Du brauchst sie zum Einloggen.
+                </p>
+                <button class="btn btn-primary btn-block" onclick="registerMember()">Registrieren</button>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 1rem; text-align: center;">
+                    Bereits registriert? <a href="#" onclick="showStep(3); return false;" style="color: var(--accent-yellow);">Zum Login</a>
+                </p>
+            </div>
+            
+            <!-- Step 5: Gericht PIN -->
+            <div id="setup-step-5" class="hidden">
+                <h3 style="margin-bottom: 1rem;">⚖️ Hohes Gericht Login</h3>
+                <div class="input-group">
+                    <label>Gericht-PIN</label>
+                    <input type="password" id="gericht-pin-input" placeholder="****">
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                    Frag das aktuelle Hohe Gericht nach dem PIN
+                </p>
+                <button class="btn btn-primary btn-block" onclick="loginGericht()">Einloggen</button>
+                <button class="btn btn-secondary btn-block" style="margin-top: 0.5rem;" onclick="showStep(2)">
+                    Zurück
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main App -->
+    <div id="main-app" class="hidden">
+        <div class="header">
+            <h1>🎺 LKT TRACKER 2026</h1>
+            <div class="user-info" id="user-info">Mitglied</div>
+        </div>
+        
+        <!-- Member Navigation -->
+        <nav class="nav-tabs" id="member-nav">
+            <button class="nav-tab active" data-tab="events">📅 Auftritte</button>
+            <button class="nav-tab" data-tab="scanner">📷 Scannen</button>
+            <button class="nav-tab" data-tab="anzeige">⚖️ Anzeige</button>
+            <button class="nav-tab" data-tab="stats">📊 Stats</button>
+        </nav>
+        
+        <!-- Gericht Navigation -->
+        <nav class="nav-tabs hidden" id="gericht-nav">
+            <button class="nav-tab active" data-tab="overview">📊 Übersicht</button>
+            <button class="nav-tab" data-tab="attendance">✅ Anwesenheit</button>
+            <button class="nav-tab" data-tab="qrcodes">📱 QR-Codes</button>
+            <button class="nav-tab" data-tab="members">👥 Mitglieder</button>
+            <button class="nav-tab" data-tab="anzeigen">⚖️ Anzeigen</button>
+            <button class="nav-tab" data-tab="rankings">🏆 Ranglisten</button>
+        </nav>
+        
+        <!-- Member Screens -->
+        <div id="member-screens">
+            <!-- Events Tab -->
+            <div id="events-tab" class="screen active">
+                <div class="section-header">
+                    <h2>Deine Auftritte</h2>
+                </div>
+                <div id="events-list"></div>
+            </div>
+            
+            <!-- Scanner Tab -->
+            <div id="scanner-tab" class="screen">
+                <div class="section-header">
+                    <h2>📷 QR-Code Scannen</h2>
+                </div>
+                <div class="info-box">
+                    <p>📱 Scanne den QR-Code, den das Hohe Gericht beim Auftritt zeigt!</p>
+                </div>
+                
+                <div id="qr-reader" style="width: 100%; max-width: 400px; margin: 1rem auto;"></div>
+                
+                <button class="btn btn-primary btn-block" id="start-scan-btn" onclick="startScanner()">
+                    📷 Scanner starten
+                </button>
+                <button class="btn btn-secondary btn-block hidden" id="stop-scan-btn" onclick="stopScanner()">
+                    ⏹ Scanner stoppen
+                </button>
+                
+                <!-- Scan Success Animation -->
+                <div id="scan-success" class="hidden" style="text-align: center; padding: 2rem;">
+                    <div style="font-size: 4rem;">✅</div>
+                    <p style="font-size: 1.2rem; font-weight: 700; margin-top: 1rem;" id="success-text">Eingecheckt!</p>
+                </div>
+            </div>
+            
+            <!-- Anzeige Tab -->
+            <div id="anzeige-tab" class="screen">
+                <div class="section-header">
+                    <h2>⚖️ Strafanzeige erstatten</h2>
+                </div>
+                <div class="info-box" style="background: rgba(239,68,68,0.1); border-color: var(--accent-red);">
+                    <p>🚨 Entsprechend der Satzung des Vereins wird es dem Anzeigenden ermöglicht, einen Vorschlag für ein angemessenes Strafmaß vorzuschlagen.</p>
+                </div>
+                <div class="input-group">
+                    <label>Name des Beschuldigten *</label>
+                    <input type="text" id="anzeige-beschuldigter" placeholder="Wer hat was verbrochen?">
+                </div>
+                <div class="input-group">
+                    <label>Tatbestand *</label>
+                    <textarea id="anzeige-tatbestand" rows="3" placeholder="Was ist passiert? Wann, wo?"></textarea>
+                </div>
+                <div class="input-group">
+                    <label>Zeugen</label>
+                    <input type="text" id="anzeige-zeugen" placeholder="Namen der Zeugen (optional)">
+                </div>
+                <div class="input-group">
+                    <label>Strafvorschlag *</label>
+                    <input type="text" id="anzeige-strafe" placeholder="z.B. 1 Kasten Bier">
+                </div>
+                <button class="btn btn-danger btn-block" onclick="submitAnzeige()">
+                    ⚖️ Anzeige einreichen
+                </button>
+            </div>
+            
+            <!-- Stats Tab -->
+            <div id="stats-tab" class="screen">
+                <div class="section-header">
+                    <h2>Deine Statistik</h2>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="number" id="my-attended">0</div>
+                        <div class="label">Teilgenommen</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" id="my-missed">0</div>
+                        <div class="label">Verpasst</div>
+                    </div>
+                </div>
+                <div class="stat-card" style="text-align: center;">
+                    <div class="number" id="my-rate">0%</div>
+                    <div class="label">Anwesenheitsquote</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gericht Screens -->
+        <div id="gericht-screens" class="hidden">
+            <!-- Overview Tab -->
+            <div id="overview-tab" class="screen active">
+                <div class="section-header">
+                    <h2>📊 Übersicht</h2>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="number" id="total-members">0</div>
+                        <div class="label">Mitglieder</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" id="total-events">0</div>
+                        <div class="label">Auftritte</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" id="total-checkins">0</div>
+                        <div class="label">Check-ins</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="number" id="total-anzeigen">0</div>
+                        <div class="label">Anzeigen</div>
+                    </div>
+                </div>
+                <div class="stat-card" style="text-align: center;">
+                    <div class="number" id="overall-rate">0%</div>
+                    <div class="label">Gesamte Anwesenheitsquote</div>
+                </div>
+                <button class="btn btn-primary btn-block" style="margin-top: 1rem;" onclick="refreshData()">
+                    🔄 Daten aktualisieren
+                </button>
+                <button class="btn btn-secondary btn-block" style="margin-top: 0.5rem;" onclick="exportReportPDF()">
+                    📄 Saison-Report als PDF
+                </button>
+            </div>
+            
+            <!-- Attendance Tab (Anwesenheitsverwaltung) -->
+            <div id="attendance-tab" class="screen">
+                <div class="section-header">
+                    <h2>✅ Anwesenheitsverwaltung</h2>
+                </div>
+                <div class="info-box">
+                    <p>Hier kannst du für jeden Auftritt die Zu- und Absagen der Mitglieder verwalten.</p>
+                </div>
+                
+                <div class="input-group">
+                    <label>Auftritt auswählen</label>
+                    <select id="attendance-event-select" onchange="loadEventAttendance()">
+                        <option value="">-- Auftritt wählen --</option>
+                    </select>
+                </div>
+                
+                <div id="attendance-table-container" class="hidden">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin: 1rem 0;">
+                        <div>
+                            <span style="color: var(--accent-green);">✓ <span id="att-count-present">0</span></span> | 
+                            <span style="color: var(--accent-red);">✗ <span id="att-count-absent">0</span></span> | 
+                            <span style="color: var(--text-secondary);">? <span id="att-count-unknown">0</span></span>
+                        </div>
+                        <button class="btn btn-secondary" onclick="saveAllAttendance()" style="padding: 0.5rem 1rem;">
+                            💾 Speichern
+                        </button>
+                    </div>
+                    
+                    <div id="attendance-table" style="max-height: 60vh; overflow-y: auto;"></div>
+                </div>
+            </div>
+            
+            <!-- Members Tab -->
+            <div id="members-tab" class="screen">
+                <div class="section-header">
+                    <h2>👥 Mitglieder</h2>
+                </div>
+                <button class="btn btn-secondary btn-block" style="margin-bottom: 1rem;" onclick="exportAllMembersPDF()">
+                    📄 Alle Mitglieder als PDF
+                </button>
+                <div id="members-list"></div>
+                
+                <!-- Member Detail Modal -->
+                <div class="modal-overlay" id="member-detail-modal">
+                    <div class="modal" style="max-width: 500px;">
+                        <h3 id="member-detail-name">Mitglied</h3>
+                        <div class="stats-grid" style="margin: 1rem 0;">
+                            <div class="stat-card">
+                                <div class="number" id="member-detail-present">0</div>
+                                <div class="label">Dabei</div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="number" id="member-detail-absent">0</div>
+                                <div class="label">Gefehlt</div>
+                            </div>
+                        </div>
+                        <div class="stat-card" style="text-align: center; margin-bottom: 1rem;">
+                            <div class="number" id="member-detail-rate">0%</div>
+                            <div class="label">Anwesenheitsquote</div>
+                        </div>
+                        <div class="section-header">
+                            <h2>Auftritte</h2>
+                        </div>
+                        <div id="member-detail-events" style="max-height: 300px; overflow-y: auto;"></div>
+                        <div class="modal-actions" style="margin-top: 1rem;">
+                            <button class="btn btn-secondary" onclick="closeMemberDetail()">Schließen</button>
+                            <button class="btn btn-primary" onclick="exportMemberPDF()">📄 PDF</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- QR Codes Tab -->
+            <div id="qrcodes-tab" class="screen">
+                <div class="section-header">
+                    <h2>📱 Auftritts-QR-Codes</h2>
+                </div>
+                <div class="info-box">
+                    <p>Zeige den QR-Code beim Auftritt - Mitglieder können ihn scannen um einzuchecken (in Entwicklung).</p>
+                </div>
+                
+                <div class="input-group">
+                    <label>Auftritt auswählen</label>
+                    <select id="qr-event-select" onchange="showEventQR()">
+                        <option value="">-- Auftritt wählen --</option>
+                    </select>
+                </div>
+                
+                <div id="event-qr-display" class="hidden" style="text-align: center; margin: 1.5rem 0;">
+                    <div id="event-qr-canvas" style="display: inline-block; background: white; padding: 1rem; border-radius: 12px;"></div>
+                    <p style="margin-top: 1rem; font-weight: 700;" id="event-qr-label"></p>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem;" id="event-qr-sublabel"></p>
+                </div>
+                
+                <button class="btn btn-primary btn-block" onclick="downloadEventQRPDF()" id="download-qr-btn" style="display: none;">
+                    📄 QR-Code als PDF
+                </button>
+                
+                <button class="btn btn-secondary btn-block" style="margin-top: 1rem;" onclick="downloadAllQRsPDF()">
+                    📄 Alle QR-Codes als PDF
+                </button>
+            </div>
+            
+            <!-- Anzeigen Tab -->
+            <div id="anzeigen-tab" class="screen">
+                <div class="section-header">
+                    <h2>⚖️ Strafanzeigen</h2>
+                </div>
+                <button class="btn btn-secondary btn-block" style="margin-bottom: 1rem;" onclick="exportAnzeigenPDF()">
+                    📄 Alle Anzeigen als PDF
+                </button>
+                <div id="anzeigen-list"></div>
+            </div>
+            
+            <!-- Rankings Tab -->
+            <div id="rankings-tab" class="screen">
+                <div class="section-header">
+                    <h2>🏆 Top 10 Fleißigste</h2>
+                </div>
+                <div id="top-attenders"></div>
+                
+                <div class="section-header">
+                    <h2>😴 Top 10 Faulste</h2>
+                </div>
+                <div id="top-absent"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Comment Modal -->
+    <div class="modal-overlay" id="comment-modal">
+        <div class="modal">
+            <h3>📝 Warum warst du nicht dabei?</h3>
+            <div class="input-group">
+                <textarea id="comment-input" rows="3" placeholder="z.B. Krank, Arbeit, Urlaub..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal()">Abbrechen</button>
+                <button class="btn btn-primary" onclick="saveAbsent()">Speichern</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Config Button -->
+    <button class="config-btn" onclick="showConfig()">⚙️</button>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ============================================================
+        // CONFIG
+        // ============================================================
+        const DEFAULT_API_URL = 'https://script.google.com/macros/s/AKfycby0l0ykBJwUnzl8E_CCfl0GRoBE__7po1j95Ld-Sv1Yr_zD4g2l18NC47gp-npOCcv2/exec';
+        let API_URL = localStorage.getItem('lkt-api-url') || DEFAULT_API_URL;
+        let currentUser = JSON.parse(localStorage.getItem('lkt-user') || 'null');
+        let isOfflineMode = localStorage.getItem('lkt-offline') === 'true';
+        
+        // Data cache
+        let eventsData = [];
+        let attendanceData = {};
+        let commentsData = {};
+        let statsData = {};
+        let currentAbsentEventId = null;
+        
+        // Offline Queue - speichert Aktionen wenn kein Netz
+        let offlineQueue = JSON.parse(localStorage.getItem('lkt-offline-queue') || '[]');
+        
+        // ============================================================
+        // INITIALIZATION
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', init);
+        
+        function init() {
+            // Check online status
+            updateOnlineStatus();
+            window.addEventListener('online', onOnline);
+            window.addEventListener('offline', updateOnlineStatus);
+            
+            // API URL is now built-in, skip step 1
+            if (currentUser) {
+                showMainApp();
+            } else {
+                hideLoading();
+                showStep(2); // Go directly to role selection
+            }
+        }
+        
+        function onOnline() {
+            updateOnlineStatus();
+            // Auto-sync when back online
+            if (offlineQueue.length > 0 && navigator.onLine) {
+                syncOfflineQueue();
+            }
+        }
+        
+        function updateOnlineStatus() {
+            const banner = document.getElementById('offline-banner');
+            if (!navigator.onLine) {
+                banner.classList.add('show');
+                banner.innerHTML = `⚠️ Offline - ${offlineQueue.length} Aktion(en) warten auf Sync`;
+            } else {
+                if (offlineQueue.length > 0) {
+                    banner.classList.add('show');
+                    banner.innerHTML = `🔄 Online - Synchronisiere ${offlineQueue.length} Aktion(en)...`;
+                    banner.style.background = '#4ade80';
+                } else {
+                    banner.classList.remove('show');
+                    banner.style.background = '#ef4444';
+                }
+            }
+        }
+        
+        // ============================================================
+        // OFFLINE QUEUE SYSTEM
+        // ============================================================
+        function addToOfflineQueue(action) {
+            offlineQueue.push({
+                ...action,
+                timestamp: Date.now(),
+                id: Date.now() + '-' + Math.random().toString(36).substr(2, 9)
+            });
+            localStorage.setItem('lkt-offline-queue', JSON.stringify(offlineQueue));
+            updateOnlineStatus();
+        }
+        
+        async function syncOfflineQueue() {
+            if (offlineQueue.length === 0 || !navigator.onLine || isOfflineMode) return;
+            
+            showToast(`Synchronisiere ${offlineQueue.length} Aktion(en)...`);
+            
+            const queue = [...offlineQueue];
+            let successCount = 0;
+            let failCount = 0;
+            
+            for (const item of queue) {
+                try {
+                    const result = await apiPost(item.action);
+                    if (!result.error) {
+                        // Remove from queue on success
+                        offlineQueue = offlineQueue.filter(q => q.id !== item.id);
+                        successCount++;
+                    } else {
+                        failCount++;
+                    }
+                } catch (e) {
+                    failCount++;
+                }
+            }
+            
+            localStorage.setItem('lkt-offline-queue', JSON.stringify(offlineQueue));
+            updateOnlineStatus();
+            
+            if (successCount > 0) {
+                showToast(`✓ ${successCount} Aktion(en) synchronisiert!`);
+                // Reload data after sync
+                await loadData();
+            }
+            if (failCount > 0) {
+                showToast(`${failCount} Aktion(en) fehlgeschlagen`, true);
+            }
+        }
+        
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+        }
+        
+        function showLoading() {
+            document.getElementById('loading').classList.remove('hidden');
+        }
+        
+        // ============================================================
+        // SETUP STEPS
+        // ============================================================
+        function showStep(step) {
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`setup-step-${i}`).classList.add('hidden');
+            }
+            document.getElementById(`setup-step-${step}`).classList.remove('hidden');
+        }
+        
+        function saveApiUrl() {
+            const url = document.getElementById('api-url-input').value.trim();
+            if (!url) {
+                showToast('Bitte URL eingeben', true);
+                return;
+            }
+            
+            API_URL = url;
+            localStorage.setItem('lkt-api-url', url);
+            isOfflineMode = false;
+            localStorage.setItem('lkt-offline', 'false');
+            showToast('Verbunden!');
+            showStep(2);
+        }
+        
+        function useOfflineMode() {
+            isOfflineMode = true;
+            localStorage.setItem('lkt-offline', 'true');
+            showToast('Offline-Modus aktiviert');
+            showStep(2);
+        }
+        
+        function selectRole(role) {
+            if (role === 'member') {
+                showStep(3);
+            } else {
+                showStep(5);
+            }
+        }
+        
+        async function registerMember() {
+            const name = document.getElementById('register-name-input').value.trim();
+            const pin = document.getElementById('register-pin-input').value.trim();
+            
+            if (!name || !pin || pin.length !== 4) {
+                showToast('Name und 4-stellige PIN erforderlich', true);
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                if (isOfflineMode) {
+                    currentUser = { role: 'member', name: name, pin: pin };
+                    localStorage.setItem('lkt-user', JSON.stringify(currentUser));
+                    showToast('Registriert (Offline-Modus)');
+                    showMainApp();
+                } else {
+                    const result = await apiPost({ action: 'registerMember', name: name, pin: pin });
+                    if (result.error) {
+                        showToast(result.error, true);
+                        hideLoading();
+                        return;
+                    }
+                    currentUser = { role: 'member', name: name, pin: pin };
+                    localStorage.setItem('lkt-user', JSON.stringify(currentUser));
+                    showToast('Erfolgreich registriert!');
+                    showMainApp();
+                }
+            } catch (e) {
+                showToast('Fehler: ' + e.message, true);
+                hideLoading();
+            }
+        }
+        
+        async function loginMember() {
+            const name = document.getElementById('member-name-input').value.trim();
+            const pin = document.getElementById('member-pin-input').value.trim();
+            
+            if (!name || !pin || pin.length !== 4) {
+                showToast('Name und 4-stellige PIN erforderlich', true);
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                if (isOfflineMode) {
+                    currentUser = { role: 'member', name: name, pin: pin };
+                    localStorage.setItem('lkt-user', JSON.stringify(currentUser));
+                    showMainApp();
+                } else {
+                    // Get member by name and verify PIN
+                    const result = await apiGet('getMemberAttendance', { name: name });
+                    if (result.error) {
+                        showToast('Name nicht gefunden - bitte registrieren', true);
+                        hideLoading();
+                        return;
+                    }
+                    // Check if PIN matches
+                    if (String(result.pin) !== String(pin)) {
+                        showToast('Falscher PIN', true);
+                        hideLoading();
+                        return;
+                    }
+                    currentUser = { role: 'member', name: result.name, pin: pin };
+                    localStorage.setItem('lkt-user', JSON.stringify(currentUser));
+                    showToast('Willkommen, ' + result.name + '!');
+                    showMainApp();
+                }
+            } catch (e) {
+                showToast('Fehler: ' + e.message, true);
+                hideLoading();
+            }
+        }
+        
+        function loginGericht() {
+            const pin = document.getElementById('gericht-pin-input').value.trim();
+            
+            if (pin !== '8356') {
+                showToast('Falscher PIN', true);
+                return;
+            }
+            
+            currentUser = { role: 'gericht', name: 'Hohes Gericht' };
+            localStorage.setItem('lkt-user', JSON.stringify(currentUser));
+            showToast('Willkommen, Hohes Gericht!');
+            showMainApp();
+        }
+        
+        // ============================================================
+        // MAIN APP
+        // ============================================================
+        async function showMainApp() {
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            
+            // Reset data for fresh load
+            attendanceData = {};
+            commentsData = {};
+            
+            const userInfo = document.getElementById('user-info');
+            
+            if (currentUser.role === 'gericht') {
+                userInfo.textContent = '⚖️ Hohes Gericht';
+                userInfo.classList.add('gericht');
+                document.getElementById('member-nav').classList.add('hidden');
+                document.getElementById('gericht-nav').classList.remove('hidden');
+                document.getElementById('member-screens').classList.add('hidden');
+                document.getElementById('gericht-screens').classList.remove('hidden');
+                initGerichtNav();
+            } else {
+                userInfo.textContent = '👤 ' + currentUser.name;
+                initMemberNav();
+            }
+            
+            await loadData();
+            hideLoading();
+        }
+        
+        function initMemberNav() {
+            const tabs = document.querySelectorAll('#member-nav .nav-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    document.querySelectorAll('#member-screens .screen').forEach(s => s.classList.remove('active'));
+                    document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+                });
+            });
+        }
+        
+        function initGerichtNav() {
+            const tabs = document.querySelectorAll('#gericht-nav .nav-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    
+                    document.querySelectorAll('#gericht-screens .screen').forEach(s => s.classList.remove('active'));
+                    document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+                });
+            });
+        }
+        
+        // ============================================================
+        // DATA LOADING
+        // ============================================================
+        async function loadData() {
+            try {
+                // Load events - always try server first, fallback to offline
+                if (!isOfflineMode && navigator.onLine) {
+                    try {
+                        const eventsResult = await apiGet('getEvents');
+                        if (eventsResult.events && eventsResult.events.length > 0) {
+                            eventsData = eventsResult.events.map(e => formatEventDates(e));
+                        } else {
+                            console.log('No events from server, using offline events');
+                            eventsData = getOfflineEvents();
+                        }
+                    } catch (e) {
+                        console.log('Failed to load events from server:', e);
+                        eventsData = getOfflineEvents();
+                    }
+                } else {
+                    eventsData = getOfflineEvents();
+                }
+                
+                console.log('Loaded events:', eventsData.length);
+                
+                // Load user-specific data
+                if (currentUser.role === 'member') {
+                    if (!isOfflineMode && navigator.onLine) {
+                        try {
+                            const attResult = await apiGet('getMemberAttendance', { name: currentUser.name });
+                            console.log('Server attendance:', attResult);
+                            if (!attResult.error) {
+                                // Server-Daten zuerst laden
+                                attendanceData = attResult.attendance || {};
+                                commentsData = attResult.comments || {};
+                                // Lokal speichern
+                                saveLocalAttendance();
+                            }
+                        } catch (e) {
+                            // Offline - nutze lokale Daten
+                            console.log('Offline - nutze lokale Daten');
+                            loadLocalAttendance();
+                        }
+                        
+                        // Try to sync offline queue
+                        if (offlineQueue.length > 0) {
+                            syncOfflineQueue();
+                        }
+                    } else {
+                        // Offline mode - load local data
+                        loadLocalAttendance();
+                    }
+                    renderMemberView();
+                } else {
+                    if (!isOfflineMode && navigator.onLine) {
+                        try {
+                            statsData = await apiGet('getStats');
+                        } catch (e) {
+                            showToast('Fehler beim Laden der Statistiken', true);
+                        }
+                    }
+                    renderGerichtView();
+                }
+            } catch (e) {
+                console.error('loadData error:', e);
+                showToast('Fehler beim Laden: ' + e.message, true);
+                // Ensure we have events even on error
+                if (eventsData.length === 0) {
+                    eventsData = getOfflineEvents();
+                }
+            }
+        }
+        
+        async function refreshData() {
+            showLoading();
+            await loadData();
+            hideLoading();
+            showToast('Daten aktualisiert');
+        }
+        
+        // ============================================================
+        // MEMBER VIEW
+        // ============================================================
+        function renderMemberView() {
+            renderEventsList();
+            updateMemberStats();
+        }
+        
+        function renderEventsList() {
+            const container = document.getElementById('events-list');
+            let html = '';
+            let currentWeek = '';
+            
+            eventsData.forEach(event => {
+                if (event.week !== currentWeek) {
+                    currentWeek = event.week;
+                    html += `<div class="week-header">${currentWeek}</div>`;
+                }
+                
+                const status = attendanceData[event.id];
+                const isAttended = status === true;
+                const isAbsent = status === false;
+                
+                html += `
+                    <div class="card event-card ${isAttended ? 'attended' : ''} ${isAbsent ? 'absent' : ''}">
+                        <div class="date">${event.date} • ${event.time} Uhr</div>
+                        <div class="title">${event.name}</div>
+                        <div class="location">📍 ${event.location || 'TBA'}</div>
+                        
+                        ${isAttended ? '<span class="status present">✓ Teilgenommen</span>' : ''}
+                        ${isAbsent ? '<span class="status absent">✗ Nicht dabei</span>' : ''}
+                        
+                        ${!isAttended && !isAbsent ? `
+                            <div class="actions">
+                                <button class="btn btn-danger" onclick="markAbsentEvent('${event.id}')">✗ Nicht dabei</button>
+                            </div>
+                        ` : `
+                            <div class="actions">
+                                <button class="btn btn-secondary" onclick="resetEvent('${event.id}')">↩ Zurücksetzen</button>
+                            </div>
+                        `}
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html || '<div class="empty-state">Keine Auftritte gefunden</div>';
+        }
+        
+        // renderCheckInSelect removed - only QR scan allowed
+        
+        function updateMemberStats() {
+            const attended = Object.values(attendanceData).filter(v => v === true).length;
+            const absent = Object.values(attendanceData).filter(v => v === false).length;
+            const total = attended + absent;
+            const rate = total > 0 ? Math.round(attended / total * 100) : 0;
+            
+            document.getElementById('my-attended').textContent = attended;
+            document.getElementById('my-missed').textContent = absent;
+            document.getElementById('my-rate').textContent = rate + '%';
+        }
+        
+        // ============================================================
+        // MEMBER ACTIONS
+        // ============================================================
+        async function checkInEvent(eventId) {
+            console.log('checkInEvent called for:', eventId);
+            
+            // Sofort lokal speichern (optimistic update)
+            attendanceData[eventId] = true;
+            delete commentsData[eventId];
+            saveLocalAttendance();
+            renderMemberView();
+            
+            if (isOfflineMode) {
+                showToast('Eingecheckt (Offline-Modus)');
+                return;
+            }
+            
+            // Online? Direkt senden. Offline? In Queue.
+            if (navigator.onLine) {
+                try {
+                    console.log('Sending checkIn to server:', { name: currentUser.name, eventId: eventId });
+                    const result = await apiPost({ action: 'checkIn', name: currentUser.name, eventId: eventId });
+                    console.log('Server response:', result);
+                    if (result.error) {
+                        showToast(result.error, true);
+                    } else {
+                        showToast('✓ ' + (result.message || 'Eingecheckt!'));
+                    }
+                } catch (e) {
+                    console.error('checkIn error:', e);
+                    // Netzwerkfehler - in Queue
+                    addToOfflineQueue({ 
+                        action: { action: 'checkIn', name: currentUser.name, eventId: eventId }
+                    });
+                    showToast('Gespeichert - wird synchronisiert sobald online');
+                }
+            } else {
+                addToOfflineQueue({ 
+                    action: { action: 'checkIn', name: currentUser.name, eventId: eventId }
+                });
+                showToast('📴 Offline gespeichert - sync bei Empfang');
+            }
+        }
+        
+        function saveLocalAttendance() {
+            if (!currentUser || !currentUser.name) return;
+            localStorage.setItem('lkt-attendance-' + currentUser.name, JSON.stringify(attendanceData));
+            localStorage.setItem('lkt-comments-' + currentUser.name, JSON.stringify(commentsData));
+        }
+        
+        function loadLocalAttendance() {
+            if (!currentUser || !currentUser.name) return;
+            const local = localStorage.getItem('lkt-attendance-' + currentUser.name);
+            const localComments = localStorage.getItem('lkt-comments-' + currentUser.name);
+            if (local) {
+                attendanceData = { ...attendanceData, ...JSON.parse(local) };
+            }
+            if (localComments) {
+                commentsData = { ...commentsData, ...JSON.parse(localComments) };
+            }
+        }
+        
+        function markAbsentEvent(eventId) {
+            currentAbsentEventId = eventId;
+            document.getElementById('comment-input').value = '';
+            document.getElementById('comment-modal').classList.add('active');
+        }
+        
+        function closeModal() {
+            document.getElementById('comment-modal').classList.remove('active');
+            currentAbsentEventId = null;
+        }
+        
+        async function saveAbsent() {
+            if (!currentAbsentEventId) return;
+            
+            const comment = document.getElementById('comment-input').value.trim();
+            const eventId = currentAbsentEventId;
+            closeModal();
+            
+            // Sofort lokal speichern
+            attendanceData[eventId] = false;
+            commentsData[eventId] = comment;
+            saveLocalAttendance();
+            renderMemberView();
+            
+            if (isOfflineMode) {
+                showToast('Markiert (Offline-Modus)');
+                return;
+            }
+            
+            if (navigator.onLine) {
+                try {
+                    const result = await apiPost({ 
+                        action: 'markAbsent', 
+                        name: currentUser.name, 
+                        eventId: eventId,
+                        comment: comment 
+                    });
+                    if (result.error) {
+                        showToast(result.error, true);
+                    } else {
+                        showToast('Als abwesend markiert');
+                    }
+                } catch (e) {
+                    addToOfflineQueue({ 
+                        action: { action: 'markAbsent', name: currentUser.name, eventId: eventId, comment: comment }
+                    });
+                    showToast('📴 Offline gespeichert');
+                }
+            } else {
+                addToOfflineQueue({ 
+                    action: { action: 'markAbsent', name: currentUser.name, eventId: eventId, comment: comment }
+                });
+                showToast('📴 Offline gespeichert - sync bei Empfang');
+            }
+        }
+        
+        async function resetEvent(eventId) {
+            if (!confirm('Status zurücksetzen?')) return;
+            
+            // Sofort lokal löschen
+            delete attendanceData[eventId];
+            delete commentsData[eventId];
+            saveLocalAttendance();
+            renderMemberView();
+            showToast('Zurückgesetzt');
+            
+            if (isOfflineMode) return;
+            
+            if (navigator.onLine) {
+                try {
+                    await apiPost({ action: 'resetAttendance', name: currentUser.name, eventId: eventId });
+                } catch (e) {
+                    addToOfflineQueue({ 
+                        action: { action: 'resetAttendance', name: currentUser.name, eventId: eventId }
+                    });
+                }
+            } else {
+                addToOfflineQueue({ 
+                    action: { action: 'resetAttendance', name: currentUser.name, eventId: eventId }
+                });
+            }
+        }
+        
+        // quickCheckIn removed - only QR scan allowed
+        
+        // ============================================================
+        // ANZEIGEN
+        // ============================================================
+        async function submitAnzeige() {
+            const beschuldigter = document.getElementById('anzeige-beschuldigter').value.trim();
+            const tatbestand = document.getElementById('anzeige-tatbestand').value.trim();
+            const zeugen = document.getElementById('anzeige-zeugen').value.trim();
+            const strafe = document.getElementById('anzeige-strafe').value.trim();
+            
+            if (!beschuldigter || !tatbestand || !strafe) {
+                showToast('Pflichtfelder ausfüllen!', true);
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                if (isOfflineMode) {
+                    showToast('Anzeige gespeichert (Offline)');
+                } else {
+                    const result = await apiPost({
+                        action: 'submitAnzeige',
+                        melder: currentUser.name,
+                        beschuldigter: beschuldigter,
+                        tatbestand: tatbestand,
+                        zeugen: zeugen,
+                        strafe: strafe
+                    });
+                    
+                    if (result.error) {
+                        showToast(result.error, true);
+                    } else {
+                        showToast('Anzeige eingereicht!');
+                        // Clear form
+                        document.getElementById('anzeige-beschuldigter').value = '';
+                        document.getElementById('anzeige-tatbestand').value = '';
+                        document.getElementById('anzeige-zeugen').value = '';
+                        document.getElementById('anzeige-strafe').value = '';
+                    }
+                }
+            } catch (e) {
+                showToast('Fehler: ' + e.message, true);
+            }
+            
+            hideLoading();
+        }
+        
+        // ============================================================
+        // GERICHT VIEW
+        // ============================================================
+        
+        // Attendance management variables
+        let currentAttendanceEventId = null;
+        let attendanceByMember = {}; // { memberName: true/false/undefined }
+        
+        function populateAttendanceEventSelect() {
+            const select = document.getElementById('attendance-event-select');
+            if (!select) return;
+            
+            let html = '<option value="">-- Auftritt wählen --</option>';
+            
+            let currentWeek = '';
+            eventsData.forEach(event => {
+                if (event.week !== currentWeek) {
+                    if (currentWeek !== '') html += '</optgroup>';
+                    currentWeek = event.week;
+                    html += '<optgroup label="' + currentWeek + '">';
+                }
+                html += '<option value="' + event.id + '">' + event.date + ' - ' + event.name + '</option>';
+            });
+            if (currentWeek !== '') html += '</optgroup>';
+            
+            select.innerHTML = html;
+        }
+        
+        async function loadEventAttendance() {
+            const eventId = document.getElementById('attendance-event-select').value;
+            const container = document.getElementById('attendance-table-container');
+            
+            if (!eventId) {
+                container.classList.add('hidden');
+                return;
+            }
+            
+            currentAttendanceEventId = eventId;
+            container.classList.remove('hidden');
+            
+            // Reset attendance
+            attendanceByMember = {};
+            
+            // Load attendance from server if available
+            if (!isOfflineMode && navigator.onLine) {
+                try {
+                    const result = await apiGet('getEventAttendance&eventId=' + eventId);
+                    if (result.attendance) {
+                        attendanceByMember = result.attendance;
+                    }
+                } catch (e) {
+                    console.log('Could not load attendance from server');
+                }
+            }
+            
+            renderAttendanceTable();
+        }
+        
+        function renderAttendanceTable() {
+            const container = document.getElementById('attendance-table');
+            
+            if (allMembersData.length === 0) {
+                container.innerHTML = '<div class="empty-state">Keine Mitglieder registriert</div>';
+                return;
+            }
+            
+            // Sort members alphabetically
+            const sortedMembers = [...allMembersData].sort((a, b) => a.name.localeCompare(b.name));
+            
+            let html = '';
+            sortedMembers.forEach(member => {
+                const status = attendanceByMember[member.name];
+                const isPresent = status === true;
+                const isAbsent = status === false;
+                
+                html += `
+                    <div class="attendance-row">
+                        <span class="member-name">${member.name}</span>
+                        <div class="attendance-buttons">
+                            <button class="att-btn ${isPresent ? 'present' : ''}" 
+                                    onclick="setMemberAttendance('${member.name}', true)" 
+                                    title="Dabei">✓</button>
+                            <button class="att-btn ${isAbsent ? 'absent' : ''}" 
+                                    onclick="setMemberAttendance('${member.name}', false)" 
+                                    title="Nicht dabei">✗</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            updateAttendanceCounts();
+        }
+        
+        function setMemberAttendance(memberName, isPresent) {
+            const currentStatus = attendanceByMember[memberName];
+            
+            // Toggle: if clicking same status, remove it
+            if ((isPresent && currentStatus === true) || (!isPresent && currentStatus === false)) {
+                delete attendanceByMember[memberName];
+            } else {
+                attendanceByMember[memberName] = isPresent;
+            }
+            
+            renderAttendanceTable();
+        }
+        
+        function updateAttendanceCounts() {
+            let present = 0, absent = 0, unknown = 0;
+            
+            allMembersData.forEach(member => {
+                const status = attendanceByMember[member.name];
+                if (status === true) present++;
+                else if (status === false) absent++;
+                else unknown++;
+            });
+            
+            document.getElementById('att-count-present').textContent = present;
+            document.getElementById('att-count-absent').textContent = absent;
+            document.getElementById('att-count-unknown').textContent = unknown;
+        }
+        
+        async function saveAllAttendance() {
+            if (!currentAttendanceEventId) {
+                showToast('Kein Auftritt ausgewählt', true);
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                if (isOfflineMode || !navigator.onLine) {
+                    // Save locally
+                    localStorage.setItem('lkt-event-attendance-' + currentAttendanceEventId, JSON.stringify(attendanceByMember));
+                    showToast('Lokal gespeichert (Offline)');
+                } else {
+                    // Save to server
+                    const result = await apiPost({
+                        action: 'saveEventAttendance',
+                        eventId: currentAttendanceEventId,
+                        attendance: attendanceByMember
+                    });
+                    
+                    if (result.error) {
+                        showToast(result.error, true);
+                    } else {
+                        showToast('✓ Anwesenheit gespeichert!');
+                    }
+                }
+            } catch (e) {
+                // Fallback to local storage
+                localStorage.setItem('lkt-event-attendance-' + currentAttendanceEventId, JSON.stringify(attendanceByMember));
+                showToast('Lokal gespeichert (Netzwerkfehler)');
+            }
+            
+            hideLoading();
+        }
+        
+        async function renderGerichtView() {
+            // Populate QR event selector
+            populateQREventSelect();
+            
+            // Populate Attendance event selector
+            populateAttendanceEventSelect();
+            
+            if (isOfflineMode) {
+                showToast('Gericht-Ansicht nur online verfügbar', true);
+                return;
+            }
+            
+            // Overview stats
+            document.getElementById('total-members').textContent = statsData.totalMembers || 0;
+            document.getElementById('total-events').textContent = statsData.totalEvents || 0;
+            document.getElementById('total-checkins').textContent = statsData.totalAttended || 0;
+            document.getElementById('total-anzeigen').textContent = statsData.totalAnzeigen || 0;
+            document.getElementById('overall-rate').textContent = (statsData.attendanceRate || 0) + '%';
+            
+            // Members list
+            const membersResult = await apiGet('getMembers');
+            allMembersData = membersResult.members || [];
+            
+            // Build member stats from all attendance data
+            allMemberStats = {};
+            if (statsData.memberStats) {
+                // Use memberStats from server if available
+                allMemberStats = statsData.memberStats;
+            } else {
+                // Fallback: build from topAttenders and topAbsent
+                (statsData.topAttenders || []).forEach(m => {
+                    allMemberStats[m.name] = { attended: m.attended, absent: 0 };
+                });
+                (statsData.topAbsent || []).forEach(m => {
+                    if (allMemberStats[m.name]) {
+                        allMemberStats[m.name].absent = m.absent;
+                    } else {
+                        allMemberStats[m.name] = { attended: 0, absent: m.absent };
+                    }
+                });
+            }
+            
+            // Ensure all members have stats entry
+            allMembersData.forEach(m => {
+                if (!allMemberStats[m.name]) {
+                    allMemberStats[m.name] = { attended: 0, absent: 0 };
+                }
+            });
+            
+            renderMembersList(allMembersData);
+            
+            // Anzeigen list
+            const anzeigeResult = await apiGet('getAnzeigen');
+            allAnzeigenData = anzeigeResult.anzeigen || [];
+            renderAnzeigenList(allAnzeigenData);
+            
+            // Rankings
+            renderRankings(statsData.topAttenders || [], statsData.topAbsent || []);
+        }
+        
+        let allAnzeigenData = [];
+        
+        function renderMembersList(members) {
+            const container = document.getElementById('members-list');
+            
+            if (members.length === 0) {
+                container.innerHTML = '<div class="empty-state">Keine Mitglieder registriert</div>';
+                return;
+            }
+            
+            let html = '';
+            members.forEach(m => {
+                // Calculate stats for this member
+                const memberStats = allMemberStats[m.name] || { attended: 0, absent: 0 };
+                const total = memberStats.attended + memberStats.absent;
+                const rate = total > 0 ? Math.round(memberStats.attended / total * 100) : 0;
+                
+                html += `
+                    <div class="card" style="cursor: pointer;" onclick="showMemberDetail('${m.name}')">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: 700;">${m.name}</div>
+                                <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                                    ✓ ${memberStats.attended} | ✗ ${memberStats.absent} | ${rate}%
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-secondary" style="padding: 0.5rem 0.75rem;" onclick="event.stopPropagation(); showMemberDetail('${m.name}')">
+                                    👁️
+                                </button>
+                                <button class="btn btn-danger" style="padding: 0.5rem 0.75rem;" onclick="event.stopPropagation(); deleteMember('${m.pin}', '${m.name}')">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Store all member stats globally for PDF export
+        let allMemberStats = {};
+        let allMembersData = [];
+        let currentDetailMember = null;
+        
+        async function showMemberDetail(name) {
+            currentDetailMember = name;
+            showLoading();
+            
+            try {
+                const result = await apiGet('getMemberAttendance', { name: name });
+                if (result.error) {
+                    showToast(result.error, true);
+                    hideLoading();
+                    return;
+                }
+                
+                const attendance = result.attendance || {};
+                const comments = result.comments || {};
+                
+                let present = 0;
+                let absent = 0;
+                
+                // Build events list
+                let eventsHtml = '';
+                eventsData.forEach(event => {
+                    const status = attendance[event.id];
+                    if (status === true) {
+                        present++;
+                        eventsHtml += `
+                            <div class="card event-card attended" style="padding: 0.5rem; margin-bottom: 0.5rem;">
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">${event.date}</div>
+                                <div style="font-weight: 600;">${event.name}</div>
+                                <span class="status present">✓ Dabei</span>
+                            </div>
+                        `;
+                    } else if (status === false) {
+                        absent++;
+                        eventsHtml += `
+                            <div class="card event-card absent" style="padding: 0.5rem; margin-bottom: 0.5rem;">
+                                <div style="font-size: 0.8rem; color: var(--text-secondary);">${event.date}</div>
+                                <div style="font-weight: 600;">${event.name}</div>
+                                <span class="status absent">✗ Gefehlt</span>
+                                ${comments[event.id] ? `<div style="font-size: 0.75rem; color: var(--text-secondary);">Grund: ${comments[event.id]}</div>` : ''}
+                            </div>
+                        `;
+                    }
+                });
+                
+                if (!eventsHtml) {
+                    eventsHtml = '<div class="empty-state">Noch keine Einträge</div>';
+                }
+                
+                const total = present + absent;
+                const rate = total > 0 ? Math.round(present / total * 100) : 0;
+                
+                document.getElementById('member-detail-name').textContent = name;
+                document.getElementById('member-detail-present').textContent = present;
+                document.getElementById('member-detail-absent').textContent = absent;
+                document.getElementById('member-detail-rate').textContent = rate + '%';
+                document.getElementById('member-detail-events').innerHTML = eventsHtml;
+                
+                document.getElementById('member-detail-modal').classList.add('active');
+            } catch (e) {
+                showToast('Fehler: ' + e.message, true);
+            }
+            
+            hideLoading();
+        }
+        
+        function closeMemberDetail() {
+            document.getElementById('member-detail-modal').classList.remove('active');
+            currentDetailMember = null;
+        }
+        
+        async function deleteMember(pin, name) {
+            if (!confirm(name + ' wirklich löschen?\n\nAlle Anwesenheitsdaten werden gelöscht!')) {
+                return;
+            }
+            
+            showLoading();
+            
+            try {
+                const result = await apiPost({ action: 'deleteMember', name: name });
+                if (result.error) {
+                    showToast(result.error, true);
+                } else {
+                    showToast(result.message);
+                    await refreshData();
+                }
+            } catch (e) {
+                showToast('Fehler: ' + e.message, true);
+            }
+            
+            hideLoading();
+        }
+        
+        function renderAnzeigenList(anzeigen) {
+            const container = document.getElementById('anzeigen-list');
+            
+            if (anzeigen.length === 0) {
+                container.innerHTML = '<div class="empty-state">Keine Anzeigen eingegangen</div>';
+                return;
+            }
+            
+            let html = '';
+            anzeigen.forEach(a => {
+                html += `
+                    <div class="anzeige-card">
+                        <div class="header">
+                            <span class="vs">${a.melder} ⚔️ ${a.beschuldigter}</span>
+                            <span class="date">${a.datum}</span>
+                        </div>
+                        <div class="tatbestand">${a.tatbestand}</div>
+                        ${a.zeugen ? `<div style="font-size: 0.8rem; color: var(--text-secondary);">Zeugen: ${a.zeugen}</div>` : ''}
+                        <div class="strafe">Strafvorschlag: ${a.strafe}</div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        function renderRankings(topAttenders, topAbsent) {
+            const attendersContainer = document.getElementById('top-attenders');
+            const absentContainer = document.getElementById('top-absent');
+            
+            if (topAttenders.length === 0) {
+                attendersContainer.innerHTML = '<div class="empty-state">Keine Daten</div>';
+            } else {
+                attendersContainer.innerHTML = topAttenders.map((m, i) => `
+                    <div class="leaderboard-item">
+                        <div class="rank">${i + 1}</div>
+                        <div class="name">${m.name}</div>
+                        <div class="score">${m.attended} ✓</div>
+                    </div>
+                `).join('');
+            }
+            
+            if (topAbsent.length === 0) {
+                absentContainer.innerHTML = '<div class="empty-state">Keine Daten</div>';
+            } else {
+                absentContainer.innerHTML = topAbsent.map((m, i) => `
+                    <div class="leaderboard-item">
+                        <div class="rank">${i + 1}</div>
+                        <div class="name">${m.name}</div>
+                        <div class="score bad">${m.absent} ✗</div>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        // ============================================================
+        // CONFIG / LOGOUT
+        // ============================================================
+        function showConfig() {
+            if (confirm('Ausloggen?')) {
+                localStorage.removeItem('lkt-user');
+                location.reload();
+            }
+        }
+        
+        // ============================================================
+        // API HELPERS
+        // ============================================================
+        async function apiGet(action, params = {}) {
+            const url = new URL(API_URL);
+            url.searchParams.set('action', action);
+            Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+            
+            try {
+                const response = await fetch(url.toString(), {
+                    method: 'GET',
+                    redirect: 'follow'
+                });
+                return response.json();
+            } catch (e) {
+                console.error('API GET Error:', e);
+                throw e;
+            }
+        }
+        
+        async function apiPost(data) {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    redirect: 'follow',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(data)
+                });
+                return response.json();
+            } catch (e) {
+                console.error('API POST Error:', e);
+                throw e;
+            }
+        }
+        
+        // ============================================================
+        // OFFLINE EVENTS
+        // ============================================================
+        // Format date/time from server (handles ISO strings)
+        function formatEventDates(event) {
+            let dateStr = event.date;
+            let timeStr = event.time;
+            
+            // Format date if it's an ISO string
+            if (typeof dateStr === 'string' && dateStr.includes('T')) {
+                const d = new Date(dateStr);
+                dateStr = ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear();
+            }
+            
+            // Format time if it's an ISO string
+            if (typeof timeStr === 'string' && timeStr.includes('T')) {
+                const t = new Date(timeStr);
+                timeStr = ('0' + t.getHours()).slice(-2) + ':' + ('0' + t.getMinutes()).slice(-2);
+            }
+            
+            return {
+                ...event,
+                date: dateStr,
+                time: timeStr
+            };
+        }
+        
+        function getOfflineEvents() {
+            return [
+                // WE 1
+                { id: 'WE1-1', week: 'WE 1', date: '09.01.2026', name: 'Narrenbaumstellen Taldorf', location: 'LK Taldorf', time: '' },
+                { id: 'WE1-2', week: 'WE 1', date: '10.01.2026', name: 'Narrenbaumstellen Taldorf', location: 'LK Taldorf', time: '' },
+                { id: 'WE1-3', week: 'WE 1', date: '11.01.2026', name: 'Narrenbaumstellen Taldorf', location: 'LK Taldorf', time: '' },
+                // WE 2
+                { id: 'WE2-1', week: 'WE 2', date: '16.01.2026', name: 'Jugendball Bitzenhofen', location: 'NZ Bitzenhofen', time: '21:00' },
+                { id: 'WE2-2', week: 'WE 2', date: '16.01.2026', name: 'Elchball', location: 'MV Ettenkirch', time: '00:30' },
+                { id: 'WE2-3', week: 'WE 2', date: '17.01.2026', name: 'Umzug Neuravensburg', location: 'NZ Neuravensburg Bären', time: '13:30' },
+                { id: 'WE2-4', week: 'WE 2', date: '17.01.2026', name: 'Butzlumpa-Ball', location: 'LaJu KO/LK Butzlumpa', time: '21:00' },
+                { id: 'WE2-5', week: 'WE 2', date: '17.01.2026', name: 'Mädla-Ball', location: 'LK Leupolz', time: '23:00' },
+                { id: 'WE2-6', week: 'WE 2', date: '18.01.2026', name: 'Umzug Langenargen', location: 'NZ Dammglonker', time: '13:00' },
+                // WE 3
+                { id: 'WE3-1', week: 'WE 3', date: '23.01.2026', name: 'Urknall-Ball', location: 'LK Allgaier Urband', time: '20:00' },
+                { id: 'WE3-2', week: 'WE 3', date: '23.01.2026', name: 'Interne Veranstaltung', location: 'LK Fötzlesbrass', time: '00:00' },
+                { id: 'WE3-3', week: 'WE 3', date: '24.01.2026', name: 'Jubiläumsumzug Erbisreute', location: 'Erbisreuter Dorfnarren', time: '13:00' },
+                { id: 'WE3-4', week: 'WE 3', date: '25.01.2026', name: 'Narrensprung Kluftern', location: 'NZ Kluftern', time: '13:30' },
+                { id: 'WE4-1', week: 'WE 4', date: '30.01.2026', name: 'Zirkusball', location: 'LK Mecka', time: '23:30' },
+                { id: 'WE4-2', week: 'WE 4', date: '31.01.2026', name: 'Narrenbaumstellen Bitzenhofen', location: 'NZ Bitzenhofen', time: '13:00' },
+                { id: 'WE5-1', week: 'WE 5', date: '07.02.2026', name: 'Dämmerumzug Hergensweiler', location: 'NZ Federfuxer', time: '16:00' },
+                { id: 'WE5-2', week: 'WE 5', date: '07.02.2026', name: 'Aprés-Ski Ball', location: 'NZ Ettenkirch', time: '23:30' },
+                { id: 'WE5-3', week: 'WE 5', date: '08.02.2026', name: 'Umzug Meersburg', location: 'NZ Meersburg', time: '13:00' },
+                { id: 'HF-1', week: 'Hauptfasnet', date: '11.02.2026', name: 'Weiberball', location: 'Löwen Urnau', time: '22:00' },
+                { id: 'HF-2', week: 'Hauptfasnet', date: '12.02.2026', name: 'Golm', location: 'Berggasthof Golm', time: '11:00' },
+                { id: 'HF-3', week: 'Hauptfasnet', date: '13.02.2026', name: 'Kindergartenbefreiung', location: 'Taldorf', time: '09:00' },
+                { id: 'HF-4', week: 'Hauptfasnet', date: '13.02.2026', name: 'Schülerbefreiung', location: 'Wilhelmsschule RV', time: '10:00' },
+                { id: 'HF-5', week: 'Hauptfasnet', date: '13.02.2026', name: 'OWB', location: 'OWB Ravensburg', time: '11:30' },
+                { id: 'HF-6', week: 'Hauptfasnet', date: '13.02.2026', name: 'Narrenbaumstellen Bavendorf', location: 'NV Bavendorf', time: '14:00' },
+                { id: 'HF-7', week: 'Hauptfasnet', date: '14.02.2026', name: 'Narrensprung Aitrach', location: 'NZ Aitrach', time: '13:30' },
+                { id: 'HF-8', week: 'Hauptfasnet', date: '14.02.2026', name: 'Ball Aitrach', location: 'NZ Aitrach', time: '23:30' },
+                { id: 'HF-9', week: 'Hauptfasnet', date: '15.02.2026', name: 'Narrensprung Brochenzell', location: 'NZ Brochenzell', time: '14:00' },
+                { id: 'HF-10', week: 'Hauptfasnet', date: '16.02.2026', name: 'Rosenmontagssprung Fulda', location: 'Wolkenkratzer Fulda', time: '13:30' },
+                { id: 'HF-11', week: 'Hauptfasnet', date: '17.02.2026', name: 'Heimfahrt Fulda', location: '', time: '' },
+            ];
+        }
+        
+        // ============================================================
+        // QR SCANNER (MEMBER)
+        // ============================================================
+        let html5QrCode = null;
+        
+        function startScanner() {
+            document.getElementById('start-scan-btn').classList.add('hidden');
+            document.getElementById('stop-scan-btn').classList.remove('hidden');
+            document.getElementById('scan-success').classList.add('hidden');
+            
+            html5QrCode = new Html5Qrcode("qr-reader");
+            html5QrCode.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                onScanSuccess,
+                () => {}
+            ).catch(err => {
+                showToast('Kamera-Zugriff fehlgeschlagen', true);
+                stopScanner();
+            });
+        }
+        
+        function stopScanner() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
+            }
+            document.getElementById('start-scan-btn').classList.remove('hidden');
+            document.getElementById('stop-scan-btn').classList.add('hidden');
+        }
+        
+        async function onScanSuccess(decodedText) {
+            if (decodedText.startsWith('LKT-EVENT:')) {
+                const eventId = decodedText.replace('LKT-EVENT:', '');
+                const event = eventsData.find(e => e.id === eventId);
+                
+                if (event) {
+                    if (attendanceData[eventId] === true) {
+                        showToast('Bereits eingecheckt bei ' + event.name, true);
+                        return;
+                    }
+                    
+                    stopScanner();
+                    await checkInEvent(eventId);
+                    showScanSuccess(event.name);
+                } else {
+                    showToast('Unbekannter Auftritt: ' + eventId, true);
+                }
+            }
+        }
+        
+        function showScanSuccess(eventName) {
+            document.getElementById('success-text').textContent = eventName + ' - Eingecheckt!';
+            document.getElementById('scan-success').classList.remove('hidden');
+            
+            setTimeout(() => {
+                document.getElementById('scan-success').classList.add('hidden');
+                // Switch to events tab
+                document.querySelectorAll('#member-nav .nav-tab').forEach(t => t.classList.remove('active'));
+                document.querySelector('[data-tab="events"]').classList.add('active');
+                document.querySelectorAll('#member-screens .screen').forEach(s => s.classList.remove('active'));
+                document.getElementById('events-tab').classList.add('active');
+            }, 2000);
+        }
+        
+        // ============================================================
+        // QR CODES FOR EVENTS
+        // ============================================================
+        let currentQREventId = null;
+        
+        function populateQREventSelect() {
+            const select = document.getElementById('qr-event-select');
+            if (!select) return;
+            
+            let html = '<option value="">-- Auftritt wählen --</option>';
+            
+            let currentWeek = '';
+            eventsData.forEach(event => {
+                if (event.week !== currentWeek) {
+                    if (currentWeek !== '') html += '</optgroup>';
+                    currentWeek = event.week;
+                    html += '<optgroup label="' + currentWeek + '">';
+                }
+                html += '<option value="' + event.id + '">' + event.date + ' - ' + event.name + '</option>';
+            });
+            if (currentWeek !== '') html += '</optgroup>';
+            
+            select.innerHTML = html;
+        }
+        
+        function showEventQR() {
+            const eventId = document.getElementById('qr-event-select').value;
+            if (!eventId) {
+                document.getElementById('event-qr-display').classList.add('hidden');
+                document.getElementById('download-qr-btn').style.display = 'none';
+                return;
+            }
+            
+            currentQREventId = eventId;
+            const event = eventsData.find(e => e.id === eventId);
+            if (!event) return;
+            
+            const qrData = 'LKT-EVENT:' + eventId;
+            const container = document.getElementById('event-qr-canvas');
+            
+            try {
+                const qr = qrcode(0, 'M');
+                qr.addData(qrData);
+                qr.make();
+                container.innerHTML = qr.createImgTag(6, 8);
+                
+                document.getElementById('event-qr-display').classList.remove('hidden');
+                document.getElementById('event-qr-label').textContent = event.name;
+                document.getElementById('event-qr-sublabel').textContent = 
+                    event.date ? event.date + ' • ' + event.time + ' Uhr • ' + event.location : 'Extra-Auftritt';
+                document.getElementById('download-qr-btn').style.display = 'block';
+            } catch (error) {
+                showToast('QR-Code Fehler', true);
+                console.error(error);
+            }
+        }
+        
+        function downloadEventQRPDF() {
+            if (!currentQREventId) return;
+            const event = eventsData.find(e => e.id === currentQREventId);
+            if (!event) return;
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFillColor(26, 26, 46);
+            doc.rect(0, 0, 210, 50, 'F');
+            
+            doc.setTextColor(255, 215, 0);
+            doc.setFontSize(20);
+            doc.setFont(undefined, 'bold');
+            doc.text('LUMPENKAPELLE TALDORF', 105, 20, { align: 'center' });
+            
+            doc.setFontSize(12);
+            doc.setTextColor(255, 255, 255);
+            doc.text('Saison 2026', 105, 32, { align: 'center' });
+            
+            // Event Info
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text(event.name, 105, 65, { align: 'center' });
+            
+            if (event.date) {
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'normal');
+                doc.text(event.date + ' | ' + event.time + ' Uhr', 105, 77, { align: 'center' });
+                doc.text(event.location, 105, 87, { align: 'center' });
+            }
+            
+            // Generate QR for PDF
+            const qr = qrcode(0, 'M');
+            qr.addData('LKT-EVENT:' + event.id);
+            qr.make();
+            
+            // Draw QR to canvas for PDF
+            const canvas = document.createElement('canvas');
+            const cellSize = 8;
+            const margin = 4;
+            const size = qr.getModuleCount() * cellSize + margin * 2;
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+            ctx.fillStyle = '#1a1a2e';
+            
+            for (let row = 0; row < qr.getModuleCount(); row++) {
+                for (let col = 0; col < qr.getModuleCount(); col++) {
+                    if (qr.isDark(row, col)) {
+                        ctx.fillRect(margin + col * cellSize, margin + row * cellSize, cellSize, cellSize);
+                    }
+                }
+            }
+            
+            const imgData = canvas.toDataURL('image/png');
+            doc.addImage(imgData, 'PNG', 55, 100, 100, 100);
+            
+            // Instructions
+            doc.setFontSize(11);
+            doc.setTextColor(100, 100, 100);
+            doc.text('Scanne diesen QR-Code mit der LKT App', 105, 215, { align: 'center' });
+            doc.text('um deine Teilnahme zu registrieren!', 105, 223, { align: 'center' });
+            
+            // Footer
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            doc.text('LKT Tracker 2026', 105, 280, { align: 'center' });
+            
+            doc.save('LKT_QR_' + event.name.replace(/\s/g, '_') + '.pdf');
+            showToast('PDF erstellt!');
+        }
+        
+        function downloadAllQRsPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const realEvents = eventsData.filter(e => !e.id.startsWith('EX-'));
+            
+            realEvents.forEach((event, index) => {
+                if (index > 0) doc.addPage();
+                
+                // Header
+                doc.setFillColor(26, 26, 46);
+                doc.rect(0, 0, 210, 45, 'F');
+                
+                doc.setTextColor(255, 215, 0);
+                doc.setFontSize(16);
+                doc.setFont(undefined, 'bold');
+                doc.text('LUMPENKAPELLE TALDORF', 105, 18, { align: 'center' });
+                doc.setFontSize(10);
+                doc.setTextColor(255, 255, 255);
+                doc.text('Saison 2026', 105, 30, { align: 'center' });
+                
+                // Week badge
+                doc.setFillColor(255, 215, 0);
+                doc.rect(15, 52, 35, 10, 'F');
+                doc.setTextColor(26, 26, 46);
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.text(event.week, 32.5, 59, { align: 'center' });
+                
+                // Event name
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(16);
+                doc.text(event.name, 105, 75, { align: 'center' });
+                
+                // Event details
+                doc.setFontSize(11);
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(100, 100, 100);
+                doc.text(event.date + ' | ' + event.time + ' Uhr', 105, 87, { align: 'center' });
+                if (event.location) {
+                    doc.text(event.location, 105, 97, { align: 'center' });
+                }
+                
+                // Generate QR
+                const qr = qrcode(0, 'M');
+                qr.addData('LKT-EVENT:' + event.id);
+                qr.make();
+                
+                const canvas = document.createElement('canvas');
+                const cellSize = 8;
+                const margin = 4;
+                const size = qr.getModuleCount() * cellSize + margin * 2;
+                canvas.width = size;
+                canvas.height = size;
+                const ctx = canvas.getContext('2d');
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, size, size);
+                ctx.fillStyle = '#1a1a2e';
+                
+                for (let row = 0; row < qr.getModuleCount(); row++) {
+                    for (let col = 0; col < qr.getModuleCount(); col++) {
+                        if (qr.isDark(row, col)) {
+                            ctx.fillRect(margin + col * cellSize, margin + row * cellSize, cellSize, cellSize);
+                        }
+                    }
+                }
+                
+                const imgData = canvas.toDataURL('image/png');
+                doc.addImage(imgData, 'PNG', 55, 105, 100, 100);
+                
+                // Instructions
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+                doc.text('Mit LKT App scannen!', 105, 220, { align: 'center' });
+                
+                // Page number
+                doc.setFontSize(9);
+                doc.setTextColor(150, 150, 150);
+                doc.text('Seite ' + (index + 1) + ' von ' + realEvents.length, 105, 285, { align: 'center' });
+            });
+            
+            doc.save('LKT_Alle_QR_Codes_2026.pdf');
+            showToast('Alle QR-Codes als PDF erstellt!');
+        }
+        
+        // ============================================================
+        // PDF EXPORT
+        // ============================================================
+        function exportReportPDF() {
+            if (!statsData || !statsData.topAttenders) {
+                showToast('Bitte erst Daten laden', true);
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // ==================== PAGE 1: Overview ====================
+            // Header
+            doc.setFillColor(26, 26, 46);
+            doc.rect(0, 0, 210, 40, 'F');
+            
+            doc.setTextColor(255, 215, 0);
+            doc.setFontSize(22);
+            doc.setFont(undefined, 'bold');
+            doc.text('LUMPENKAPELLE TALDORF', 105, 18, { align: 'center' });
+            
+            doc.setFontSize(14);
+            doc.setTextColor(255, 255, 255);
+            doc.text('Saison-Report 2026', 105, 30, { align: 'center' });
+            
+            // Date
+            doc.setTextColor(100, 100, 100);
+            doc.setFontSize(10);
+            doc.text('Erstellt: ' + new Date().toLocaleDateString('de-DE'), 105, 50, { align: 'center' });
+            
+            // Stats Overview
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.text('Übersicht', 20, 65);
+            
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(11);
+            let y = 75;
+            doc.text('Registrierte Mitglieder: ' + (statsData.totalMembers || 0), 25, y);
+            y += 8;
+            doc.text('Anzahl Auftritte: ' + (statsData.totalEvents || 0), 25, y);
+            y += 8;
+            doc.text('Gesamte Check-ins: ' + (statsData.totalAttended || 0), 25, y);
+            y += 8;
+            doc.text('Anwesenheitsquote: ' + (statsData.attendanceRate || 0) + '%', 25, y);
+            y += 8;
+            doc.text('Strafanzeigen: ' + (statsData.totalAnzeigen || 0), 25, y);
+            
+            // Top 10 Fleißigste
+            y += 20;
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(74, 222, 128);
+            doc.text('Top 10 Fleissigste', 20, y);
+            
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            y += 10;
+            
+            (statsData.topAttenders || []).forEach((m, i) => {
+                doc.text((i + 1) + '. ' + m.name + ' - ' + m.attended + ' Teilnahmen', 25, y);
+                y += 6;
+            });
+            
+            // Top 10 Faulste
+            y += 10;
+            doc.setFontSize(14);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(239, 68, 68);
+            doc.text('Top 10 Faulste', 20, y);
+            
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            y += 10;
+            
+            (statsData.topAbsent || []).forEach((m, i) => {
+                doc.text((i + 1) + '. ' + m.name + ' - ' + m.absent + ' verpasst', 25, y);
+                y += 6;
+            });
+            
+            // Footer Page 1
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            doc.text('LKT Tracker 2026 - Seite 1', 105, 285, { align: 'center' });
+            
+            // ==================== PAGE 2: Members Table ====================
+            doc.addPage();
+            
+            // Header
+            doc.setFillColor(26, 26, 46);
+            doc.rect(0, 0, 210, 30, 'F');
+            doc.setTextColor(255, 215, 0);
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('Mitglieder-Übersicht', 105, 20, { align: 'center' });
+            
+            // Table header
+            y = 45;
+            doc.setFillColor(26, 26, 46);
+            doc.rect(15, y - 5, 180, 10, 'F');
+            doc.setTextColor(255, 215, 0);
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text('Name', 20, y);
+            doc.text('Dabei', 100, y);
+            doc.text('Gefehlt', 130, y);
+            doc.text('Quote', 165, y);
+            
+            // Table rows - sort by attended count (most first)
+            y += 10;
+            doc.setFont(undefined, 'normal');
+            
+            const sortedMembers = allMembersData.map(m => {
+                const stats = allMemberStats[m.name] || { attended: 0, absent: 0 };
+                const total = stats.attended + stats.absent;
+                const rate = total > 0 ? Math.round(stats.attended / total * 100) : 0;
+                return { ...m, ...stats, rate };
+            }).sort((a, b) => b.attended - a.attended);
+            
+            sortedMembers.forEach((m, i) => {
+                if (y > 270) {
+                    doc.addPage();
+                    y = 20;
+                }
+                
+                // Alternating row colors
+                if (i % 2 === 0) {
+                    doc.setFillColor(245, 245, 245);
+                    doc.rect(15, y - 4, 180, 8, 'F');
+                }
+                
+                doc.setTextColor(0, 0, 0);
+                doc.text(m.name, 20, y);
+                doc.setTextColor(74, 222, 128);
+                doc.text(String(m.attended || 0), 105, y);
+                doc.setTextColor(239, 68, 68);
+                doc.text(String(m.absent || 0), 135, y);
+                
+                // Color code the rate
+                if (m.rate >= 80) {
+                    doc.setTextColor(74, 222, 128);
+                } else if (m.rate >= 50) {
+                    doc.setTextColor(255, 165, 0);
+                } else {
+                    doc.setTextColor(239, 68, 68);
+                }
+                doc.text(m.rate + '%', 167, y);
+                
+                y += 8;
+            });
+            
+            // Footer Page 2
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            doc.text('LKT Tracker 2026 - Seite 2', 105, 285, { align: 'center' });
+            
+            // ==================== PAGE 3: Absences List ====================
+            doc.addPage();
+            
+            // Header
+            doc.setFillColor(26, 26, 46);
+            doc.rect(0, 0, 210, 30, 'F');
+            doc.setTextColor(255, 215, 0);
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('Absagen-Liste', 105, 20, { align: 'center' });
+            
+            y = 45;
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            
+            // Get all absences from statsData
+            if (statsData.absences && statsData.absences.length > 0) {
+                // Group by event
+                const absencesByEvent = {};
+                statsData.absences.forEach(a => {
+                    if (!absencesByEvent[a.eventId]) {
+                        absencesByEvent[a.eventId] = {
+                            event: eventsData.find(e => e.id === a.eventId) || { name: a.eventId, date: '' },
+                            members: []
+                        };
+                    }
+                    absencesByEvent[a.eventId].members.push({ name: a.name, comment: a.comment });
+                });
+                
+                Object.values(absencesByEvent).forEach(group => {
+                    if (y > 260) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    
+                    // Event header
+                    doc.setFillColor(255, 240, 240);
+                    doc.rect(15, y - 4, 180, 8, 'F');
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(239, 68, 68);
+                    doc.text(group.event.date + ' - ' + group.event.name, 20, y);
+                    y += 10;
+                    
+                    // Members who were absent
+                    doc.setFont(undefined, 'normal');
+                    doc.setTextColor(0, 0, 0);
+                    group.members.forEach(m => {
+                        if (y > 275) {
+                            doc.addPage();
+                            y = 20;
+                        }
+                        const text = '• ' + m.name + (m.comment ? ' (' + m.comment + ')' : '');
+                        doc.text(text.substring(0, 80), 25, y);
+                        y += 6;
+                    });
+                    y += 5;
+                });
+            } else {
+                doc.text('Keine Absagen vorhanden.', 20, y);
+            }
+            
+            // Footer Page 3
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            doc.text('LKT Tracker 2026 - Seite 3', 105, 285, { align: 'center' });
+            
+            doc.save('LKT_Saison_Report_2026.pdf');
+            showToast('PDF erstellt!');
+        }
+        
+        // Export single member PDF
+        async function exportMemberPDF() {
+            if (!currentDetailMember) return;
+            
+            const result = await apiGet('getMemberAttendance', { name: currentDetailMember });
+            if (result.error) {
+                showToast(result.error, true);
+                return;
+            }
+            
+            const attendance = result.attendance || {};
+            const comments = result.comments || {};
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFillColor(26, 26, 46);
+            doc.rect(0, 0, 210, 40, 'F');
+            
+            doc.setTextColor(255, 215, 0);
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('LUMPENKAPELLE TALDORF', 105, 15, { align: 'center' });
+            
+            doc.setFontSize(14);
+            doc.setTextColor(255, 255, 255);
+            doc.text('Mitglieder-Report: ' + currentDetailMember, 105, 28, { align: 'center' });
+            
+            doc.setFontSize(10);
+            doc.text('Erstellt: ' + new Date().toLocaleDateString('de-DE'), 105, 36, { align: 'center' });
+            
+            // Stats
+            let present = 0, absent = 0;
+            eventsData.forEach(e => {
+                if (attendance[e.id] === true) present++;
+                if (attendance[e.id] === false) absent++;
+            });
+            const total = present + absent;
+            const rate = total > 0 ? Math.round(present / total * 100) : 0;
+            
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(12);
+            let y = 55;
+            doc.text('Teilgenommen: ' + present + '  |  Gefehlt: ' + absent + '  |  Quote: ' + rate + '%', 105, y, { align: 'center' });
+            
+            // Events table header
+            y += 15;
+            doc.setFillColor(240, 240, 240);
+            doc.rect(15, y - 5, 180, 10, 'F');
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text('Datum', 20, y);
+            doc.text('Veranstaltung', 50, y);
+            doc.text('Status', 150, y);
+            
+            // Events
+            y += 10;
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(9);
+            
+            eventsData.forEach(event => {
+                const status = attendance[event.id];
+                if (status !== undefined) {
+                    if (y > 270) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    
+                    doc.text(event.date || '', 20, y);
+                    doc.text(event.name.substring(0, 40), 50, y);
+                    
+                    if (status === true) {
+                        doc.setTextColor(74, 222, 128);
+                        doc.text('Dabei', 150, y);
+                    } else {
+                        doc.setTextColor(239, 68, 68);
+                        doc.text('Gefehlt', 150, y);
+                    }
+                    doc.setTextColor(0, 0, 0);
+                    
+                    y += 7;
+                }
+            });
+            
+            // Footer
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            doc.text('LKT Tracker 2026', 105, 285, { align: 'center' });
+            
+            doc.save('LKT_' + currentDetailMember.replace(/\s/g, '_') + '_Report.pdf');
+            showToast('PDF erstellt!');
+        }
+        
+        // Export all members PDF with table
+        function exportAllMembersPDF() {
+            if (allMembersData.length === 0) {
+                showToast('Keine Mitglieder vorhanden', true);
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFillColor(26, 26, 46);
+            doc.rect(0, 0, 210, 40, 'F');
+            
+            doc.setTextColor(255, 215, 0);
+            doc.setFontSize(20);
+            doc.setFont(undefined, 'bold');
+            doc.text('LUMPENKAPELLE TALDORF', 105, 18, { align: 'center' });
+            
+            doc.setFontSize(14);
+            doc.setTextColor(255, 255, 255);
+            doc.text('Mitglieder-Übersicht 2026', 105, 30, { align: 'center' });
+            
+            // Date
+            doc.setTextColor(100, 100, 100);
+            doc.setFontSize(10);
+            doc.text('Erstellt: ' + new Date().toLocaleDateString('de-DE'), 105, 50, { align: 'center' });
+            
+            // Table header
+            let y = 65;
+            doc.setFillColor(26, 26, 46);
+            doc.rect(15, y - 5, 180, 10, 'F');
+            doc.setTextColor(255, 215, 0);
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text('Name', 20, y);
+            doc.text('Dabei', 110, y);
+            doc.text('Gefehlt', 135, y);
+            doc.text('Quote', 165, y);
+            
+            // Table rows
+            y += 10;
+            doc.setFont(undefined, 'normal');
+            doc.setTextColor(0, 0, 0);
+            
+            // Sort by attended count (most first)
+            const sortedMembers = allMembersData.map(m => {
+                const stats = allMemberStats[m.name] || { attended: 0, absent: 0 };
+                const total = stats.attended + stats.absent;
+                const rate = total > 0 ? Math.round(stats.attended / total * 100) : 0;
+                return { ...m, ...stats, rate };
+            }).sort((a, b) => b.attended - a.attended);
+            
+            sortedMembers.forEach((m, i) => {
+                if (y > 270) {
+                    doc.addPage();
+                    y = 20;
+                }
+                
+                // Alternating row colors
+                if (i % 2 === 0) {
+                    doc.setFillColor(245, 245, 245);
+                    doc.rect(15, y - 4, 180, 8, 'F');
+                }
+                
+                doc.setTextColor(0, 0, 0);
+                doc.text(m.name, 20, y);
+                doc.setTextColor(74, 222, 128);
+                doc.text(String(m.attended), 115, y);
+                doc.setTextColor(239, 68, 68);
+                doc.text(String(m.absent), 140, y);
+                doc.setTextColor(0, 0, 0);
+                doc.text(m.rate + '%', 167, y);
+                
+                y += 8;
+            });
+            
+            // Footer
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            doc.text('LKT Tracker 2026 - Hohes Gericht', 105, 285, { align: 'center' });
+            
+            doc.save('LKT_Alle_Mitglieder_2026.pdf');
+            showToast('PDF erstellt!');
+        }
+        
+        // Export Anzeigen PDF
+        function exportAnzeigenPDF() {
+            if (allAnzeigenData.length === 0) {
+                showToast('Keine Anzeigen vorhanden', true);
+                return;
+            }
+            
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Header
+            doc.setFillColor(26, 26, 46);
+            doc.rect(0, 0, 210, 40, 'F');
+            
+            doc.setTextColor(255, 215, 0);
+            doc.setFontSize(20);
+            doc.setFont(undefined, 'bold');
+            doc.text('LUMPENKAPELLE TALDORF', 105, 18, { align: 'center' });
+            
+            doc.setFontSize(14);
+            doc.setTextColor(255, 255, 255);
+            doc.text('Strafanzeigen 2026', 105, 30, { align: 'center' });
+            
+            // Date
+            doc.setTextColor(100, 100, 100);
+            doc.setFontSize(10);
+            doc.text('Erstellt: ' + new Date().toLocaleDateString('de-DE') + ' | ' + allAnzeigenData.length + ' Anzeigen', 105, 50, { align: 'center' });
+            
+            let y = 65;
+            
+            allAnzeigenData.forEach((a, i) => {
+                if (y > 240) {
+                    doc.addPage();
+                    y = 20;
+                }
+                
+                // Anzeige box
+                doc.setFillColor(255, 240, 240);
+                doc.setDrawColor(239, 68, 68);
+                doc.rect(15, y - 5, 180, 45, 'FD');
+                
+                doc.setTextColor(239, 68, 68);
+                doc.setFontSize(12);
+                doc.setFont(undefined, 'bold');
+                doc.text('Anzeige #' + (i + 1), 20, y + 2);
+                
+                doc.setTextColor(100, 100, 100);
+                doc.setFontSize(9);
+                doc.setFont(undefined, 'normal');
+                doc.text(a.datum || '', 170, y + 2);
+                
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(10);
+                doc.text(a.melder + '  vs.  ' + a.beschuldigter, 20, y + 12);
+                
+                doc.setFontSize(9);
+                doc.text('Tatbestand: ' + (a.tatbestand || '').substring(0, 80), 20, y + 22);
+                if (a.zeugen) {
+                    doc.text('Zeugen: ' + a.zeugen, 20, y + 30);
+                }
+                doc.setTextColor(239, 68, 68);
+                doc.setFont(undefined, 'bold');
+                doc.text('Strafvorschlag: ' + a.strafe, 20, y + 38);
+                
+                y += 55;
+            });
+            
+            // Footer
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            doc.text('LKT Tracker 2026 - Hohes Gericht', 105, 285, { align: 'center' });
+            
+            doc.save('LKT_Strafanzeigen_2026.pdf');
+            showToast('PDF erstellt!');
+        }
+        
+        // ============================================================
+        // TOAST
+        // ============================================================
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + (isError ? 'error' : 'success');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

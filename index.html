@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>LKT Tracker 2026 - Setup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #1a1a2e;
+            --bg-card: #16213e;
+            --accent-yellow: #f5c518;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #2d1f3d 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.7;
+        }
+        
+        .hero {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            background: linear-gradient(180deg, rgba(255,215,0,0.1) 0%, transparent 100%);
+        }
+        
+        .hero h1 {
+            font-family: 'Bangers', cursive;
+            font-size: 2.5rem;
+            color: var(--accent-yellow);
+            letter-spacing: 3px;
+        }
+        
+        .hero .badge {
+            display: inline-block;
+            background: var(--accent-yellow);
+            color: var(--bg-dark);
+            padding: 0.5rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 700;
+            margin-top: 0.5rem;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 1.5rem 3rem;
+        }
+        
+        .cta-button {
+            display: block;
+            background: var(--accent-yellow);
+            color: var(--bg-dark);
+            padding: 1rem 2rem;
+            text-align: center;
+            border-radius: 12px;
+            font-weight: 700;
+            font-size: 1.1rem;
+            text-decoration: none;
+            margin: 1rem 0;
+        }
+        
+        .section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        
+        .section h2 {
+            color: var(--accent-yellow);
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .section h3 {
+            color: var(--accent-yellow);
+            margin: 1.5rem 0 0.75rem;
+            font-size: 1.1rem;
+        }
+        
+        .section p {
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+        
+        .section ol, .section ul {
+            color: var(--text-secondary);
+            padding-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .section li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .code-block {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #58a6ff;
+            margin: 1rem 0;
+        }
+        
+        .highlight {
+            background: rgba(255, 215, 0, 0.2);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            color: var(--accent-yellow);
+        }
+        
+        .warning {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid #ef4444;
+            padding: 1rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+        }
+        
+        .success {
+            background: rgba(74, 222, 128, 0.1);
+            border-left: 4px solid #4ade80;
+            padding: 1rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+        
+        th {
+            color: var(--accent-yellow);
+        }
+        
+        td {
+            color: var(--text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>🎺 LKT TRACKER 2026</h1>
+        <span class="badge">Google Sheets Version</span>
+        <p style="color: var(--text-secondary); margin-top: 1rem;">
+            Echtzeit-Synchronisation • Keine QR-Codes • Einfach
+        </p>
+    </div>
+    
+    <div class="container">
+        <a href="app.html" class="cta-button">🚀 App öffnen</a>
+        
+        <div class="section">
+            <h2>📋 Übersicht</h2>
+            <p>Der LKT Tracker für die Fasnet-Saison 2026. 
+            Alle Mitglieder können sich registrieren, ihre Anwesenheit eintragen und Strafanzeigen erstellen.</p>
+            
+            <table>
+                <tr>
+                    <th>Feature</th>
+                    <th>Mitglied</th>
+                    <th>Hohes Gericht</th>
+                </tr>
+                <tr>
+                    <td>Anwesenheit eintragen</td>
+                    <td>✅</td>
+                    <td>-</td>
+                </tr>
+                <tr>
+                    <td>Strafanzeigen erstellen</td>
+                    <td>✅</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td>Statistiken sehen</td>
+                    <td>Eigene</td>
+                    <td>Alle</td>
+                </tr>
+                <tr>
+                    <td>Ranglisten</td>
+                    <td>-</td>
+                    <td>✅</td>
+                </tr>
+                <tr>
+                    <td>Mitglieder verwalten</td>
+                    <td>-</td>
+                    <td>✅</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h2>📱 App installieren</h2>
+            
+            <h3>iPhone / iPad</h3>
+            <ol>
+                <li>Öffne die App in <strong>Safari</strong></li>
+                <li>Tippe auf das <strong>Teilen-Symbol</strong> (Quadrat mit Pfeil)</li>
+                <li>Wähle <strong>"Zum Home-Bildschirm"</strong></li>
+                <li>Tippe auf <strong>"Hinzufügen"</strong></li>
+            </ol>
+            
+            <h3>Android</h3>
+            <ol>
+                <li>Öffne die App in <strong>Chrome</strong></li>
+                <li>Tippe auf die <strong>drei Punkte</strong> (Menü)</li>
+                <li>Wähle <strong>"App installieren"</strong></li>
+            </ol>
+        </div>
+        
+        <div class="section">
+            <h2>🔑 Zugangsdaten</h2>
+            <table>
+                <tr>
+                    <th>Rolle</th>
+                    <th>PIN</th>
+                </tr>
+                <tr>
+                    <td>Hohes Gericht</td>
+                    <td><span class="highlight">Beim Hohen Gericht erfragen</span></td>
+                </tr>
+                <tr>
+                    <td>Mitglieder</td>
+                    <td>Eigene 4-stellige PIN bei Registrierung</td>
+                </tr>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h2>📴 Offline-Nutzung</h2>
+            <p>Kein Empfang beim Auftritt? Kein Problem!</p>
+            <ul>
+                <li>Check-ins werden <strong>lokal gespeichert</strong></li>
+                <li>Sobald du wieder Empfang hast, wird <strong>automatisch synchronisiert</strong></li>
+                <li>Du siehst oben einen Banner mit dem Sync-Status</li>
+            </ul>
+        </div>
+        
+        <a href="app.html" class="cta-button">🚀 App jetzt starten</a>
+    </div>
+    
+    <div class="footer">
+        <p>Lumpenkapelle Taldorf 🎺 Saison 2026</p>
+        <p style="font-size: 0.8rem; margin-top: 0.5rem;">
+            Keine Registrierung • Keine Kosten • Deine Daten
+        </p>
+    </div>
+</body>
+</html>
