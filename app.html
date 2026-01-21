@@ -1122,15 +1122,27 @@
             
             for (const item of queue) {
                 try {
-                    const result = await apiPost(item.action);
+                    // item.action enthält das eigentliche Action-Objekt
+                    const actionData = item.action;
+                    console.log('Syncing action:', actionData);
+                    
+                    const result = await apiPost(actionData);
+                    console.log('Sync result:', result);
+                    
                     if (!result.error) {
                         // Remove from queue on success
                         offlineQueue = offlineQueue.filter(q => q.id !== item.id);
                         successCount++;
                     } else {
+                        console.error('Sync error:', result.error);
+                        // Bei permanenten Fehlern (z.B. User nicht gefunden) auch entfernen
+                        if (result.error.includes('nicht gefunden')) {
+                            offlineQueue = offlineQueue.filter(q => q.id !== item.id);
+                        }
                         failCount++;
                     }
                 } catch (e) {
+                    console.error('Sync exception:', e);
                     failCount++;
                 }
             }
@@ -1143,8 +1155,27 @@
                 // Reload data after sync
                 await loadData();
             }
-            if (failCount > 0) {
+            if (failCount > 0 && successCount === 0) {
                 showToast(`${failCount} Aktion(en) fehlgeschlagen`, true);
+            }
+        }
+        
+        // Manueller Sync-Button Funktion
+        function forceSyncQueue() {
+            if (offlineQueue.length === 0) {
+                showToast('Keine Aktionen zum Synchronisieren');
+                return;
+            }
+            syncOfflineQueue();
+        }
+        
+        // Queue leeren (für Debug/Reset)
+        function clearOfflineQueue() {
+            if (confirm('Offline-Queue wirklich leeren? Nicht synchronisierte Daten gehen verloren!')) {
+                offlineQueue = [];
+                localStorage.setItem('lkt-offline-queue', JSON.stringify(offlineQueue));
+                updateOnlineStatus();
+                showToast('Queue geleert');
             }
         }
         
@@ -1989,15 +2020,20 @@
                 const attendance = result.attendance || {};
                 const comments = result.comments || {};
                 
+                // Zähle basierend auf den tatsächlichen Attendance-Daten (nicht eventsData)
                 let present = 0;
                 let absent = 0;
                 
-                // Build events list
+                Object.values(attendance).forEach(status => {
+                    if (status === true) present++;
+                    else if (status === false) absent++;
+                });
+                
+                // Build events list - nur Events anzeigen die im attendance sind
                 let eventsHtml = '';
                 eventsData.forEach(event => {
                     const status = attendance[event.id];
                     if (status === true) {
-                        present++;
                         eventsHtml += `
                             <div class="card event-card attended" style="padding: 0.5rem; margin-bottom: 0.5rem;">
                                 <div style="font-size: 0.8rem; color: var(--text-secondary);">${event.date}</div>
@@ -2006,7 +2042,6 @@
                             </div>
                         `;
                     } else if (status === false) {
-                        absent++;
                         eventsHtml += `
                             <div class="card event-card absent" style="padding: 0.5rem; margin-bottom: 0.5rem;">
                                 <div style="font-size: 0.8rem; color: var(--text-secondary);">${event.date}</div>
@@ -2125,9 +2160,26 @@
         // CONFIG / LOGOUT
         // ============================================================
         function showConfig() {
-            if (confirm('Ausloggen?')) {
-                localStorage.removeItem('lkt-user');
-                location.reload();
+            const queueCount = offlineQueue.length;
+            let message = 'Einstellungen:\n\n';
+            message += '1 = Ausloggen\n';
+            message += `2 = Sync jetzt (${queueCount} in Queue)\n`;
+            message += '3 = Queue leeren (Daten verwerfen)\n';
+            message += '0 = Abbrechen';
+            
+            const choice = prompt(message);
+            
+            switch(choice) {
+                case '1':
+                    localStorage.removeItem('lkt-user');
+                    location.reload();
+                    break;
+                case '2':
+                    forceSyncQueue();
+                    break;
+                case '3':
+                    clearOfflineQueue();
+                    break;
             }
         }
         
