@@ -1725,7 +1725,7 @@
             // Load attendance from server if available
             if (!isOfflineMode && navigator.onLine) {
                 try {
-                    const result = await apiGet('getEventAttendance&eventId=' + eventId);
+                    const result = await apiGet('getEventAttendance', { eventId: eventId });
                     console.log('Event attendance loaded:', result);
                     if (result.attendance) {
                         attendanceByMember = result.attendance;
