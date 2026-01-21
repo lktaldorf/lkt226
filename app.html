@@ -2272,7 +2272,8 @@
                     }
                     
                     stopScanner();
-                    await checkInEvent(eventId);
+                    // Nicht auf Server warten - checkInEvent macht optimistic update
+                    checkInEvent(eventId);
                     showScanSuccess(event.name);
                 } else {
                     showToast('Unbekannter Auftritt: ' + eventId, true);
