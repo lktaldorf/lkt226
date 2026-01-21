@@ -1708,6 +1708,7 @@
         async function loadEventAttendance() {
             const eventId = document.getElementById('attendance-event-select').value;
             const container = document.getElementById('attendance-table-container');
+            const tableContainer = document.getElementById('attendance-table');
             
             if (!eventId) {
                 container.classList.add('hidden');
@@ -1716,6 +1717,7 @@
             
             currentAttendanceEventId = eventId;
             container.classList.remove('hidden');
+            tableContainer.innerHTML = '<div style="text-align: center; padding: 2rem;">Laden...</div>';
             
             // Reset attendance
             attendanceByMember = {};
@@ -1724,12 +1726,21 @@
             if (!isOfflineMode && navigator.onLine) {
                 try {
                     const result = await apiGet('getEventAttendance&eventId=' + eventId);
+                    console.log('Event attendance loaded:', result);
                     if (result.attendance) {
                         attendanceByMember = result.attendance;
                     }
                 } catch (e) {
-                    console.log('Could not load attendance from server');
+                    console.log('Could not load attendance from server:', e);
                 }
+            }
+            
+            // Also check local storage for any offline-saved attendance
+            const localAttendance = localStorage.getItem('lkt-event-attendance-' + eventId);
+            if (localAttendance) {
+                const localData = JSON.parse(localAttendance);
+                // Merge with server data (local takes precedence for unsaved changes)
+                attendanceByMember = { ...attendanceByMember, ...localData };
             }
             
             renderAttendanceTable();
@@ -1739,7 +1750,7 @@
             const container = document.getElementById('attendance-table');
             
             if (allMembersData.length === 0) {
-                container.innerHTML = '<div class="empty-state">Keine Mitglieder registriert</div>';
+                container.innerHTML = '<div class="empty-state">Keine Mitglieder registriert. Bitte erst Daten aktualisieren.</div>';
                 return;
             }
             
@@ -1752,15 +1763,29 @@
                 const isPresent = status === true;
                 const isAbsent = status === false;
                 
+                // Status text for display
+                let statusText = '';
+                let statusColor = 'var(--text-secondary)';
+                if (isPresent) {
+                    statusText = '✓ Dabei';
+                    statusColor = 'var(--accent-green)';
+                } else if (isAbsent) {
+                    statusText = '✗ Fehlt';
+                    statusColor = 'var(--accent-red)';
+                }
+                
                 html += `
                     <div class="attendance-row">
-                        <span class="member-name">${member.name}</span>
+                        <div style="flex: 1;">
+                            <span class="member-name">${member.name}</span>
+                            ${statusText ? `<span style="margin-left: 0.5rem; font-size: 0.8rem; color: ${statusColor};">${statusText}</span>` : ''}
+                        </div>
                         <div class="attendance-buttons">
                             <button class="att-btn ${isPresent ? 'present' : ''}" 
-                                    onclick="setMemberAttendance('${member.name}', true)" 
+                                    onclick="setMemberAttendance('${member.name.replace(/'/g, "\\'")}', true)" 
                                     title="Dabei">✓</button>
                             <button class="att-btn ${isAbsent ? 'absent' : ''}" 
-                                    onclick="setMemberAttendance('${member.name}', false)" 
+                                    onclick="setMemberAttendance('${member.name.replace(/'/g, "\\'")}', false)" 
                                     title="Nicht dabei">✗</button>
                         </div>
                     </div>
