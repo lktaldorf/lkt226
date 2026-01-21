@@ -1310,10 +1310,17 @@
             } else {
                 userInfo.textContent = '👤 ' + currentUser.name;
                 initMemberNav();
+                
+                // Sofort lokale Daten laden und anzeigen
+                eventsData = getOfflineEvents();
+                loadLocalAttendance();
+                renderMemberView();
             }
             
-            await loadData();
             hideLoading();
+            
+            // Dann im Hintergrund Server-Daten laden
+            loadData();
         }
         
         function initMemberNav() {
