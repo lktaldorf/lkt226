@@ -204,6 +204,16 @@
         .member-attendance-row.unknown { border-left: 3px solid var(--border-color); opacity: 0.6; }
         --accent-orange: #f97316;
         --accent-red: #ef4444;
+        
+        /* Accordion Styles */
+        .settings-accordion { margin-bottom: 0.5rem; border-radius: 12px; overflow: hidden; background: var(--bg-card); }
+        .accordion-header { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--bg-card); border: none; color: var(--text-primary); font-size: 1rem; font-weight: 600; cursor: pointer; text-align: left; }
+        .accordion-header:hover { background: rgba(255,255,255,0.05); }
+        .accordion-header.active { border-bottom: 1px solid var(--border-color); }
+        .accordion-icon { transition: transform 0.3s ease; font-size: 0.8rem; }
+        .accordion-header.active .accordion-icon { transform: rotate(180deg); }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; padding: 0 1rem; }
+        .accordion-content.open { max-height: 2000px; padding: 1rem; }
     </style>
 </head>
 <body>
@@ -653,110 +663,161 @@
             <div id="settings-tab" class="screen">
                 <div class="section-header"><h2>⚙️ Vereinseinstellungen</h2></div>
                 
-                <!-- API-URL Konfiguration - nur für Admin -->
-                <div class="card" id="api-url-section">
-                    <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">🔗 API-Verbindung</h3>
-                    <div class="input-group">
-                        <label>Google Apps Script URL</label>
-                        <input type="text" id="setting-api-url" placeholder="https://script.google.com/...">
-                    </div>
-                    <button class="btn btn-primary btn-block" onclick="saveApiUrl()">💾 URL speichern</button>
-                    <p class="setting-desc" style="margin-top: 0.5rem;">Die Web-App URL deines Google Apps Script Deployments</p>
-                </div>
-                
-                <!-- App-Modi - nur für Admin -->
-                <div class="card" id="app-modi-section" style="margin-top: 1rem;">
-                    <h3 style="color: var(--accent-green); margin-bottom: 1rem;">📱 App-Modi</h3>
-                    <div class="setting-item">
-                        <label class="toggle-label">
-                            <span>📷 QR-Scanner aktiviert</span>
-                            <input type="checkbox" id="setting-qr-scanner" onchange="saveAppSettings()">
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <p class="setting-desc">Wenn deaktiviert, können Mitglieder direkt "Ich bin dabei" klicken</p>
-                    </div>
-                    <div class="setting-item">
-                        <label class="toggle-label">
-                            <span>⚖️ Strafen-System aktiviert</span>
-                            <input type="checkbox" id="setting-strafen" onchange="saveAppSettings()">
-                            <span class="toggle-slider"></span>
-                        </label>
-                        <p class="setting-desc">Wenn deaktiviert, werden Anzeigen-Funktionen ausgeblendet</p>
+                <!-- Accordion: API-Verbindung -->
+                <div class="settings-accordion">
+                    <button class="accordion-header" onclick="toggleAccordion(this)">
+                        <span>🔗 API-Verbindung</span>
+                        <span class="accordion-icon">▼</span>
+                    </button>
+                    <div class="accordion-content" id="api-url-section">
+                        <div class="input-group">
+                            <label>Google Apps Script URL</label>
+                            <input type="text" id="setting-api-url" placeholder="https://script.google.com/...">
+                        </div>
+                        <button class="btn btn-primary btn-block" onclick="saveApiUrl()">💾 URL speichern</button>
+                        <p class="setting-desc" style="margin-top: 0.5rem;">Die Web-App URL deines Google Apps Script Deployments</p>
                     </div>
                 </div>
                 
-                <!-- Register-Anfragen -->
-                <div class="card" id="register-anfragen-section" style="margin-top: 1rem;">
-                    <h3 style="color: var(--accent-orange); margin-bottom: 1rem;">📋 Register-Wechsel Anfragen <span class="badge" id="anfragen-count">0</span></h3>
-                    <div id="register-anfragen-list"></div>
-                </div>
-                
-                <!-- PIN-Reset Anfragen -->
-                <div class="card" id="pin-reset-section" style="margin-top: 1rem;">
-                    <h3 style="color: var(--accent-red); margin-bottom: 1rem;">🔑 PIN-Reset Anfragen <span class="badge" id="pin-reset-count">0</span></h3>
-                    <div id="pin-reset-list">
-                        <div class="empty-state">Keine offenen Anfragen</div>
+                <!-- Accordion: App-Modi -->
+                <div class="settings-accordion">
+                    <button class="accordion-header" onclick="toggleAccordion(this)">
+                        <span>📱 App-Modi</span>
+                        <span class="accordion-icon">▼</span>
+                    </button>
+                    <div class="accordion-content" id="app-modi-section">
+                        <div class="setting-item">
+                            <label class="toggle-label">
+                                <span>📷 QR-Scanner aktiviert</span>
+                                <input type="checkbox" id="setting-qr-scanner" onchange="saveAppSettings()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <p class="setting-desc">Wenn deaktiviert, können Mitglieder direkt "Ich bin dabei" klicken</p>
+                        </div>
+                        <div class="setting-item">
+                            <label class="toggle-label">
+                                <span>⚖️ Strafen-System aktiviert</span>
+                                <input type="checkbox" id="setting-strafen" onchange="saveAppSettings()">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <p class="setting-desc">Wenn deaktiviert, werden Anzeigen-Funktionen ausgeblendet</p>
+                        </div>
                     </div>
                 </div>
                 
-                <!-- Rollen verwalten - nur für Admin -->
-                <div class="card" id="rollen-section" style="margin-top: 1rem;">
-                    <h3 style="color: var(--accent-red); margin-bottom: 1rem;">👑 Rollen verwalten</h3>
-                    <div id="rollen-list"></div>
-                    <button class="btn btn-secondary btn-block" style="margin-top: 1rem;" onclick="showAddRolleModal()">+ Neue Rolle erstellen</button>
+                <!-- Accordion: Anfragen (immer offen wenn Anfragen da) -->
+                <div class="settings-accordion">
+                    <button class="accordion-header active" onclick="toggleAccordion(this)">
+                        <span>📋 Offene Anfragen <span class="badge" id="total-anfragen-count">0</span></span>
+                        <span class="accordion-icon">▲</span>
+                    </button>
+                    <div class="accordion-content open">
+                        <div style="margin-bottom: 1rem;">
+                            <h4 style="color: var(--accent-orange); margin-bottom: 0.5rem;">Register-Wechsel <span class="badge" id="anfragen-count">0</span></h4>
+                            <div id="register-anfragen-list"></div>
+                        </div>
+                        <div>
+                            <h4 style="color: var(--accent-red); margin-bottom: 0.5rem;">PIN-Reset <span class="badge" id="pin-reset-count">0</span></h4>
+                            <div id="pin-reset-list">
+                                <div class="empty-state">Keine offenen Anfragen</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
-                <!-- Forum-Bereiche verwalten -->
-                <div class="card" id="forum-bereiche-section" style="margin-top: 1rem;">
-                    <h3 style="color: var(--accent-green); margin-bottom: 1rem;">💬 Forum-Bereiche</h3>
-                    <div id="forum-bereiche-list"></div>
-                    <div class="input-group" style="margin-top: 1rem;">
-                        <input type="text" id="new-bereich-name" placeholder="Neuer Bereich-Name">
+                <!-- Accordion: Events verwalten -->
+                <div class="settings-accordion">
+                    <button class="accordion-header" onclick="toggleAccordion(this)">
+                        <span>📅 Veranstaltungen</span>
+                        <span class="accordion-icon">▼</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div style="margin-bottom: 1rem;">
+                            <h4>Bestehende Events</h4>
+                            <div id="events-manage-list" style="max-height: 250px; overflow-y: auto; margin: 0.5rem 0;"></div>
+                            <button class="btn btn-secondary btn-block" onclick="exportEventsPDF()">📄 Events als PDF</button>
+                        </div>
+                        <hr style="border-color: var(--border-color); margin: 1rem 0;">
+                        <h4>Neues Event erstellen</h4>
+                        <div class="input-group"><label>Name *</label><input type="text" id="new-event-name" placeholder="z.B. Zirkusball"></div>
+                        <div class="input-group">
+                            <label>Wochenende</label>
+                            <select id="new-event-week" onchange="checkNewWeekOption()">
+                                <option value="">-- Wochenende wählen --</option>
+                            </select>
+                        </div>
+                        <div class="input-group hidden" id="new-week-input-group">
+                            <label>Neue Woche (z.B. "WE 5" oder "Extra")</label>
+                            <input type="text" id="new-week-name" placeholder="WE 5">
+                        </div>
+                        <div class="input-group"><label>Datum</label><input type="date" id="new-event-date"></div>
+                        <div class="input-group"><label>Ort</label><input type="text" id="new-event-location" placeholder="z.B. Vereinsheim"></div>
+                        <div class="input-group"><label>Uhrzeit</label><input type="time" id="new-event-time" value="20:00"></div>
+                        <button class="btn btn-primary btn-block" onclick="addNewEvent()">+ Event hinzufügen</button>
                     </div>
-                    <div class="input-group">
-                        <select id="new-bereich-typ">
-                            <option value="custom">Allgemeiner Bereich</option>
-                            <option value="register">Register-Bereich (für alle Register)</option>
-                        </select>
-                    </div>
-                    <button class="btn btn-primary btn-block" onclick="addNewForumBereich()">+ Bereich hinzufügen</button>
                 </div>
                 
-                <!-- Busse verwalten -->
-                <div class="card" style="margin-top: 1rem;">
-                    <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">🚌 Busse verwalten</h3>
-                    <div id="busse-list"></div>
-                    <div class="input-group" style="margin-top: 1rem;">
-                        <input type="text" id="new-bus-name" placeholder="Neuer Bus-Name (z.B. Bus 1)">
+                <!-- Accordion: Rollen -->
+                <div class="settings-accordion" id="rollen-section">
+                    <button class="accordion-header" onclick="toggleAccordion(this)">
+                        <span>👑 Rollen verwalten</span>
+                        <span class="accordion-icon">▼</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div id="rollen-list"></div>
+                        <button class="btn btn-secondary btn-block" style="margin-top: 1rem;" onclick="showAddRolleModal()">+ Neue Rolle erstellen</button>
                     </div>
-                    <button class="btn btn-primary btn-block" onclick="addNewBus()">+ Bus hinzufügen</button>
                 </div>
                 
-                <!-- Register verwalten -->
-                <div class="card" style="margin-top: 1rem;">
-                    <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">🎵 Register verwalten</h3>
-                    <div id="register-list"></div>
-                    <div class="input-group" style="margin-top: 1rem;">
-                        <input type="text" id="new-register-name" placeholder="Neues Register (z.B. Klarinette)">
+                <!-- Accordion: Forum-Bereiche -->
+                <div class="settings-accordion" id="forum-bereiche-section">
+                    <button class="accordion-header" onclick="toggleAccordion(this)">
+                        <span>💬 Forum-Bereiche</span>
+                        <span class="accordion-icon">▼</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div id="forum-bereiche-list"></div>
+                        <div class="input-group" style="margin-top: 1rem;">
+                            <input type="text" id="new-bereich-name" placeholder="Neuer Bereich-Name">
+                        </div>
+                        <div class="input-group">
+                            <select id="new-bereich-typ">
+                                <option value="custom">Allgemeiner Bereich</option>
+                                <option value="register">Register-Bereich (für alle Register)</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary btn-block" onclick="addNewForumBereich()">+ Bereich hinzufügen</button>
                     </div>
-                    <button class="btn btn-primary btn-block" onclick="addNewRegister()">+ Register hinzufügen</button>
                 </div>
                 
-                <!-- Events verwalten -->
-                <div class="card" style="margin-top: 1rem;">
-                    <h3 style="color: var(--accent-yellow); margin-bottom: 1rem;">📅 Veranstaltungen verwalten</h3>
-                    
-                    <!-- Bestehende Events -->
-                    <div class="section-header"><h4>Bestehende Events</h4></div>
-                    <div id="events-manage-list" style="max-height: 300px; overflow-y: auto; margin-bottom: 1rem;"></div>
-                    
-                    <div class="section-header"><h4>Neues Event</h4></div>
-                    <div class="input-group"><label>Name *</label><input type="text" id="new-event-name" placeholder="z.B. Extraauftritt"></div>
-                    <div class="input-group"><label>Woche</label><input type="text" id="new-event-week" placeholder="z.B. WE 3 oder Extra"></div>
-                    <div class="input-group"><label>Datum</label><input type="text" id="new-event-date" placeholder="TT.MM.JJJJ"></div>
-                    <div class="input-group"><label>Ort</label><input type="text" id="new-event-location" placeholder="z.B. Vereinsheim"></div>
-                    <div class="input-group"><label>Uhrzeit</label><input type="text" id="new-event-time" placeholder="z.B. 20:00"></div>
-                    <button class="btn btn-primary btn-block" onclick="addNewEvent()">+ Event hinzufügen</button>
+                <!-- Accordion: Busse -->
+                <div class="settings-accordion">
+                    <button class="accordion-header" onclick="toggleAccordion(this)">
+                        <span>🚌 Busse verwalten</span>
+                        <span class="accordion-icon">▼</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div id="busse-list"></div>
+                        <div class="input-group" style="margin-top: 1rem;">
+                            <input type="text" id="new-bus-name" placeholder="Neuer Bus-Name (z.B. Bus 1)">
+                        </div>
+                        <button class="btn btn-primary btn-block" onclick="addNewBus()">+ Bus hinzufügen</button>
+                    </div>
+                </div>
+                
+                <!-- Accordion: Register -->
+                <div class="settings-accordion">
+                    <button class="accordion-header" onclick="toggleAccordion(this)">
+                        <span>🎵 Register verwalten</span>
+                        <span class="accordion-icon">▼</span>
+                    </button>
+                    <div class="accordion-content">
+                        <div id="register-list"></div>
+                        <div class="input-group" style="margin-top: 1rem;">
+                            <input type="text" id="new-register-name" placeholder="Neues Register (z.B. Klarinette)">
+                        </div>
+                        <button class="btn btn-primary btn-block" onclick="addNewRegister()">+ Register hinzufügen</button>
+                    </div>
                 </div>
                 
                 <button class="btn btn-danger btn-block" style="margin-top: 2rem;" onclick="logout()">🚪 Ausloggen</button>
@@ -768,10 +829,15 @@
                     <h3>Event bearbeiten</h3>
                     <input type="hidden" id="edit-event-id">
                     <div class="input-group"><label>Name *</label><input type="text" id="edit-event-name"></div>
-                    <div class="input-group"><label>Woche</label><input type="text" id="edit-event-week"></div>
-                    <div class="input-group"><label>Datum</label><input type="text" id="edit-event-date"></div>
+                    <div class="input-group">
+                        <label>Wochenende</label>
+                        <select id="edit-event-week">
+                            <option value="">-- Wochenende wählen --</option>
+                        </select>
+                    </div>
+                    <div class="input-group"><label>Datum</label><input type="date" id="edit-event-date"></div>
                     <div class="input-group"><label>Ort</label><input type="text" id="edit-event-location"></div>
-                    <div class="input-group"><label>Uhrzeit</label><input type="text" id="edit-event-time"></div>
+                    <div class="input-group"><label>Uhrzeit</label><input type="time" id="edit-event-time"></div>
                     <div class="modal-actions">
                         <button class="btn btn-secondary" onclick="closeEventEditModal()">Abbrechen</button>
                         <button class="btn btn-danger" onclick="deleteEventFromModal()">🗑️ Löschen</button>
@@ -1731,7 +1797,15 @@
             let html = '';
             let currentWeek = '';
             
-            eventsData.forEach(event => {
+            // Sortiere Events nach Datum
+            const sortedEvents = [...eventsData].sort((a, b) => {
+                if (!a.date || !b.date) return 0;
+                const [d1, m1, y1] = a.date.split('.');
+                const [d2, m2, y2] = b.date.split('.');
+                return new Date(y1, m1-1, d1) - new Date(y2, m2-1, d2);
+            });
+            
+            sortedEvents.forEach(event => {
                 if (event.week !== currentWeek) {
                     currentWeek = event.week;
                     html += '<div class="week-header">' + currentWeek + '</div>';
@@ -1994,7 +2068,15 @@
             let html = '';
             let currentWeek = '';
             
-            eventsData.forEach(event => {
+            // Sortiere Events nach Datum
+            const sortedEvents = [...eventsData].sort((a, b) => {
+                if (!a.date || !b.date) return 0;
+                const [d1, m1, y1] = a.date.split('.');
+                const [d2, m2, y2] = b.date.split('.');
+                return new Date(y1, m1-1, d1) - new Date(y2, m2-1, d2);
+            });
+            
+            sortedEvents.forEach(event => {
                 if (event.week !== currentWeek) {
                     currentWeek = event.week;
                     html += '<div class="week-header">' + currentWeek + '</div>';
@@ -3581,14 +3663,75 @@
         // ============================================================
         // EVENTS MANAGEMENT
         // ============================================================
+        
+        // Befülle Wochen-Dropdown für Event-Formular
+        function populateWeekSelects() {
+            const weeks = [...new Set(eventsData.map(e => e.week).filter(w => w))];
+            weeks.sort();
+            
+            const newSelect = document.getElementById('new-event-week');
+            const editSelect = document.getElementById('edit-event-week');
+            
+            let html = '<option value="">-- Wochenende wählen --</option>';
+            weeks.forEach(w => {
+                html += '<option value="' + w + '">' + w + '</option>';
+            });
+            html += '<option value="__NEW__">+ Neue Woche erstellen</option>';
+            
+            if (newSelect) newSelect.innerHTML = html;
+            if (editSelect) editSelect.innerHTML = html;
+        }
+        
+        // Zeige/verstecke Eingabefeld für neue Woche
+        function checkNewWeekOption() {
+            const select = document.getElementById('new-event-week');
+            const inputGroup = document.getElementById('new-week-input-group');
+            if (select.value === '__NEW__') {
+                inputGroup.classList.remove('hidden');
+            } else {
+                inputGroup.classList.add('hidden');
+            }
+        }
+        
+        // Konvertiere Date-Input (YYYY-MM-DD) zu deutschem Format (DD.MM.YYYY)
+        function dateInputToGerman(dateValue) {
+            if (!dateValue) return '';
+            const parts = dateValue.split('-');
+            if (parts.length === 3) {
+                return parts[2] + '.' + parts[1] + '.' + parts[0];
+            }
+            return dateValue;
+        }
+        
+        // Konvertiere deutsches Format (DD.MM.YYYY) zu Date-Input (YYYY-MM-DD)
+        function germanToDateInput(germanDate) {
+            if (!germanDate) return '';
+            const parts = germanDate.split('.');
+            if (parts.length === 3) {
+                return parts[2] + '-' + parts[1].padStart(2, '0') + '-' + parts[0].padStart(2, '0');
+            }
+            return germanDate;
+        }
+        
         async function addNewEvent() {
             const name = document.getElementById('new-event-name').value.trim();
             if (!name) { showToast('Event-Name erforderlich', true); return; }
             
+            // Woche bestimmen
+            let week = document.getElementById('new-event-week').value;
+            if (week === '__NEW__') {
+                week = document.getElementById('new-week-name').value.trim();
+                if (!week) { showToast('Name für neue Woche erforderlich', true); return; }
+            }
+            
+            // Datum konvertieren
+            const dateInput = document.getElementById('new-event-date').value;
+            const dateGerman = dateInputToGerman(dateInput);
+            
             const eventData = {
                 name: name,
-                week: document.getElementById('new-event-week').value.trim(),
-                date: document.getElementById('new-event-date').value.trim(),
+                week: week,
+                date: dateGerman,
                 location: document.getElementById('new-event-location').value.trim(),
                 time: document.getElementById('new-event-time').value.trim()
             };
@@ -3601,10 +3744,13 @@
                     showToast('Event hinzugefügt!');
                     document.getElementById('new-event-name').value = '';
                     document.getElementById('new-event-week').value = '';
+                    document.getElementById('new-week-name').value = '';
+                    document.getElementById('new-week-input-group').classList.add('hidden');
                     document.getElementById('new-event-date').value = '';
                     document.getElementById('new-event-location').value = '';
-                    document.getElementById('new-event-time').value = '';
+                    document.getElementById('new-event-time').value = '20:00';
                     await refreshData();
+                    populateWeekSelects();
                 }
             } catch (e) { showToast('Fehler: ' + e.message, true); }
             hideLoading();
@@ -4518,6 +4664,148 @@
             showToast('PDF erstellt!');
         }
         
+        // Events-Liste als PDF exportieren
+        async function exportEventsPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            
+            // Farben
+            const primaryColor = [30, 41, 59];
+            const accentColor = [234, 179, 8];
+            const lightGray = [245, 247, 250];
+            const darkGray = [71, 85, 105];
+            
+            // Header
+            doc.setFillColor(...primaryColor);
+            doc.rect(0, 0, pageWidth, 28, 'F');
+            
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16);
+            doc.setFont(undefined, 'bold');
+            doc.text('LUMPENKAPELLE TALDORF', pageWidth / 2, 12, { align: 'center' });
+            
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text('Veranstaltungskalender Saison 2025', pageWidth / 2, 20, { align: 'center' });
+            
+            // Stand rechts
+            doc.setFontSize(8);
+            doc.setTextColor(...accentColor);
+            doc.text('Stand: ' + new Date().toLocaleDateString('de-DE'), pageWidth - 14, 25, { align: 'right' });
+            
+            let y = 34;
+            let currentWeek = '';
+            
+            // Sortieren
+            const sortedEvents = [...eventsData].sort((a, b) => {
+                if (!a.date || !b.date) return 0;
+                const [d1, m1, y1] = a.date.split('.');
+                const [d2, m2, y2] = b.date.split('.');
+                return new Date(y1, m1-1, d1) - new Date(y2, m2-1, d2);
+            });
+            
+            // Tabellen-Header
+            doc.setFillColor(...lightGray);
+            doc.rect(10, y, pageWidth - 20, 6, 'F');
+            doc.setFontSize(7);
+            doc.setFont(undefined, 'bold');
+            doc.setTextColor(...darkGray);
+            doc.text('VERANSTALTUNG', 14, y + 4);
+            doc.text('DATUM', 90, y + 4);
+            doc.text('ZEIT', 120, y + 4);
+            doc.text('ORT', 145, y + 4);
+            y += 8;
+            
+            sortedEvents.forEach((event, index) => {
+                // Neue Seite wenn nötig
+                if (y > pageHeight - 15) {
+                    doc.addPage();
+                    y = 15;
+                    // Mini-Header
+                    doc.setFillColor(...lightGray);
+                    doc.rect(10, y - 5, pageWidth - 20, 6, 'F');
+                    doc.setFontSize(7);
+                    doc.setFont(undefined, 'bold');
+                    doc.setTextColor(...darkGray);
+                    doc.text('VERANSTALTUNG', 14, y - 1);
+                    doc.text('DATUM', 90, y - 1);
+                    doc.text('ZEIT', 120, y - 1);
+                    doc.text('ORT', 145, y - 1);
+                    y += 3;
+                }
+                
+                // Wochenend-Header (kompakt)
+                if (event.week && event.week !== currentWeek) {
+                    currentWeek = event.week;
+                    doc.setFillColor(...accentColor);
+                    doc.rect(10, y - 1, pageWidth - 20, 5, 'F');
+                    doc.setTextColor(...primaryColor);
+                    doc.setFontSize(8);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(currentWeek.toUpperCase(), 14, y + 2.5);
+                    y += 6;
+                }
+                
+                // Zeile (alternierend)
+                if (index % 2 === 0) {
+                    doc.setFillColor(252, 252, 253);
+                    doc.rect(10, y - 2, pageWidth - 20, 6, 'F');
+                }
+                
+                // Akzent-Linie
+                doc.setFillColor(...accentColor);
+                doc.rect(10, y - 2, 1.5, 6, 'F');
+                
+                doc.setTextColor(...primaryColor);
+                doc.setFontSize(8);
+                doc.setFont(undefined, 'bold');
+                
+                // Name (max 40 Zeichen)
+                let name = event.name || '-';
+                if (name.length > 40) name = name.substring(0, 37) + '...';
+                doc.text(name, 14, y + 2);
+                
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(...darkGray);
+                doc.text(event.date || '-', 90, y + 2);
+                doc.text(event.time || '-', 120, y + 2);
+                
+                // Ort (max 30 Zeichen)
+                let ort = event.location || '-';
+                if (ort.length > 30) ort = ort.substring(0, 27) + '...';
+                doc.text(ort, 145, y + 2);
+                
+                y += 6;
+            });
+            
+            // Footer
+            doc.setFillColor(...primaryColor);
+            doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(7);
+            doc.text('Seite 1 | ' + eventsData.length + ' Veranstaltungen | Lumpenkapelle Taldorf', pageWidth / 2, pageHeight - 3, { align: 'center' });
+            
+            doc.save('LKT-Veranstaltungen-2025.pdf');
+            showToast('Events-PDF erstellt!');
+        }
+        
+        // Accordion Toggle
+        function toggleAccordion(header) {
+            const content = header.nextElementSibling;
+            const isOpen = content.classList.contains('open');
+            
+            // Toggle
+            if (isOpen) {
+                content.classList.remove('open');
+                header.classList.remove('active');
+            } else {
+                content.classList.add('open');
+                header.classList.add('active');
+            }
+        }
+        
         // ============================================================
         // UTILITY FUNCTIONS
         // ============================================================
@@ -5249,13 +5537,24 @@
             const container = document.getElementById('events-manage-list');
             if (!container) return;
             
+            // Wochen-Dropdown befüllen
+            populateWeekSelects();
+            
             if (eventsData.length === 0) {
                 container.innerHTML = '<div class="empty-state">Keine Events</div>';
                 return;
             }
             
+            // Sortiere Events nach Datum
+            const sortedEvents = [...eventsData].sort((a, b) => {
+                if (!a.date || !b.date) return 0;
+                const [d1, m1, y1] = a.date.split('.');
+                const [d2, m2, y2] = b.date.split('.');
+                return new Date(y1, m1-1, d1) - new Date(y2, m2-1, d2);
+            });
+            
             let html = '';
-            eventsData.forEach(event => {
+            sortedEvents.forEach(event => {
                 html += '<div class="event-manage-item" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid var(--border-color);">';
                 html += '<div><strong>' + event.name + '</strong><br><span style="font-size: 0.8rem; color: var(--text-secondary);">' + (event.date || '') + ' | ' + (event.week || '') + '</span></div>';
                 html += '<button class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" onclick="openEventEditModal(\'' + event.id + '\')">✏️</button>';
@@ -5268,10 +5567,13 @@
             const event = eventsData.find(e => e.id === eventId);
             if (!event) return;
             
+            // Wochen-Select befüllen
+            populateWeekSelects();
+            
             document.getElementById('edit-event-id').value = eventId;
             document.getElementById('edit-event-name').value = event.name || '';
             document.getElementById('edit-event-week').value = event.week || '';
-            document.getElementById('edit-event-date').value = event.date || '';
+            document.getElementById('edit-event-date').value = germanToDateInput(event.date) || '';
             document.getElementById('edit-event-location').value = event.location || '';
             document.getElementById('edit-event-time').value = event.time || '';
             
@@ -5284,10 +5586,15 @@
         
         async function saveEventEdit() {
             const eventId = document.getElementById('edit-event-id').value;
+            
+            // Datum konvertieren
+            const dateInput = document.getElementById('edit-event-date').value;
+            const dateGerman = dateInputToGerman(dateInput);
+            
             const eventData = {
                 name: document.getElementById('edit-event-name').value.trim(),
                 week: document.getElementById('edit-event-week').value.trim(),
-                date: document.getElementById('edit-event-date').value.trim(),
+                date: dateGerman,
                 location: document.getElementById('edit-event-location').value.trim(),
                 time: document.getElementById('edit-event-time').value.trim()
             };
@@ -5302,6 +5609,7 @@
                     showToast('Event aktualisiert!');
                     closeEventEditModal();
                     await refreshData();
+                    populateWeekSelects();
                     renderEventsManageList();
                 }
             } catch (e) { showToast('Fehler: ' + e.message, true); }
