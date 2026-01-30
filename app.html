@@ -179,9 +179,10 @@
         .bereich-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg-card); border-radius: 8px; margin-bottom: 0.5rem; }
         .bereich-item .bereich-typ { font-size: 0.75rem; color: var(--text-secondary); }
         .forum-tabs { display: flex; overflow-x: auto; gap: 0.5rem; padding: 0.5rem 0; margin-bottom: 1rem; }
-        .forum-tab { padding: 0.5rem 1rem; border-radius: 20px; background: var(--bg-card); border: none; color: var(--text-primary); cursor: pointer; white-space: nowrap; font-size: 0.9rem; }
+        .forum-tab { position: relative; padding: 0.5rem 1rem; border-radius: 20px; background: var(--bg-card); border: none; color: var(--text-primary); cursor: pointer; white-space: nowrap; font-size: 0.9rem; }
         .forum-tab.active { background: var(--accent-blue); color: white; }
         .forum-tab.register-tab { border-left: 3px solid var(--accent-purple); }
+        .forum-tab .bereich-badge { position: absolute; top: -5px; right: -5px; background: var(--accent-red); color: white; border-radius: 50%; min-width: 18px; height: 18px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; }
         .weekend-event-card { background: var(--bg-card); border-radius: 12px; padding: 1rem; margin-bottom: 0.75rem; cursor: pointer; border-left: 4px solid var(--accent-blue); transition: transform 0.2s; }
         .weekend-event-card:hover { transform: translateX(5px); }
         .weekend-event-card .event-name { font-weight: 700; font-size: 1rem; margin-bottom: 0.25rem; }
@@ -238,6 +239,9 @@
                 <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 1rem; text-align: center;">
                     Noch nicht registriert? <a href="#" onclick="showStep(4); return false;" style="color: var(--accent-yellow);">Hier registrieren</a>
                 </p>
+                <p style="font-size: 0.8rem; text-align: center; margin-top: 0.5rem;">
+                    <a href="#" onclick="showPinForgottenModal(); return false;" style="color: var(--accent-red);">🔑 PIN vergessen?</a>
+                </p>
             </div>
             <div id="setup-step-4" class="hidden">
                 <h3 style="margin-bottom: 1rem;">🎺 Neu registrieren</h3>
@@ -268,7 +272,7 @@
         <!-- Member Navigation -->
         <nav class="nav-tabs" id="member-nav">
             <button class="nav-tab active" data-tab="events">📅 Auftritte</button>
-            <button class="nav-tab" data-tab="brett">📋 Brett</button>
+            <button class="nav-tab" data-tab="brett">📋 Brett <span class="badge hidden" id="brett-badge-member">0</span></button>
             <button class="nav-tab" data-tab="register-view">🎵 Register</button>
             <button class="nav-tab hidden" data-tab="scanner" id="nav-scanner">📷 Scannen</button>
             <button class="nav-tab" data-tab="profile">👤 Profil</button>
@@ -282,7 +286,7 @@
             <button class="nav-tab" data-tab="my-events">📅 Meine Auftritte</button>
             <button class="nav-tab" data-tab="attendance">✅ Anwesenheit</button>
             <button class="nav-tab" data-tab="qr-codes" id="nav-qr-codes">📱 QR-Codes</button>
-            <button class="nav-tab" data-tab="brett-gericht">📋 Brett</button>
+            <button class="nav-tab" data-tab="brett-gericht">📋 Brett <span class="badge hidden" id="brett-badge-gericht">0</span></button>
             <button class="nav-tab" data-tab="members">👥 Mitglieder</button>
             <button class="nav-tab" data-tab="anzeigen">⚖️ Anzeigen</button>
             <button class="nav-tab" data-tab="rankings">🏆 Ranglisten</button>
@@ -341,6 +345,13 @@
                     </div>
                     <div id="register-members-list"></div>
                 </div>
+                
+                <!-- Alle Register-Zusagen (nur für berechtigte User) -->
+                <div id="all-register-zusagen-section" class="card hidden" style="margin-top: 1rem;">
+                    <h3 style="color: var(--accent-purple); margin-bottom: 0.75rem;">📊 Alle Register-Zusagen</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;">Übersicht aller Register für die Woche (ohne Namen)</p>
+                    <button class="btn btn-primary btn-block" onclick="showAllRegisterZusagenModal()">📊 Übersicht öffnen</button>
+                </div>
             </div>
             
             <!-- Scanner Tab -->
@@ -374,6 +385,24 @@
                         <select id="profile-register"><option value="">-- Register wählen --</option></select>
                     </div>
                     <button class="btn btn-primary btn-block" onclick="saveProfile()">💾 Profil speichern</button>
+                </div>
+                
+                <!-- Anmeldedaten ändern -->
+                <div class="card" style="margin-top: 1rem;">
+                    <h3 style="color: var(--accent-blue); margin-bottom: 1rem;">🔐 Anmeldedaten ändern</h3>
+                    <div class="input-group">
+                        <label>Neuer Benutzername (optional)</label>
+                        <input type="text" id="new-username" placeholder="Leer lassen = nicht ändern">
+                    </div>
+                    <div class="input-group">
+                        <label>Neuer PIN (optional)</label>
+                        <input type="password" id="new-pin" placeholder="Leer lassen = nicht ändern" minlength="4">
+                    </div>
+                    <div class="input-group">
+                        <label>PIN wiederholen</label>
+                        <input type="password" id="new-pin-confirm" placeholder="Neuen PIN bestätigen">
+                    </div>
+                    <button class="btn btn-secondary btn-block" onclick="changeCredentials()">🔑 Anmeldedaten ändern</button>
                 </div>
                 
                 <!-- Push-Benachrichtigungen -->
@@ -465,6 +494,15 @@
                         <div class="label">Bus-Quote</div>
                         <div style="margin-top: 0.5rem; font-size: 0.85rem; color: var(--text-secondary);" id="my-bus-detail">- dabei / - gesamt</div>
                     </div>
+                </div>
+                
+                <!-- Komplette Bus/Register-Statistik (nur für berechtigte User) -->
+                <div id="full-stats-section" class="hidden">
+                    <div class="section-header" style="margin-top: 1.5rem;"><h2>🚌 Alle Busse</h2></div>
+                    <div id="member-bus-stats-list"></div>
+                    
+                    <div class="section-header" style="margin-top: 1.5rem;"><h2>🎵 Alle Register</h2></div>
+                    <div id="member-register-stats-list"></div>
                 </div>
                 
                 <button class="btn btn-secondary btn-block" style="margin-top: 1.5rem;" onclick="loadMemberGroupStats()">🔄 Statistik aktualisieren</button>
@@ -653,6 +691,14 @@
                     <div id="register-anfragen-list"></div>
                 </div>
                 
+                <!-- PIN-Reset Anfragen -->
+                <div class="card" id="pin-reset-section" style="margin-top: 1rem;">
+                    <h3 style="color: var(--accent-red); margin-bottom: 1rem;">🔑 PIN-Reset Anfragen <span class="badge" id="pin-reset-count">0</span></h3>
+                    <div id="pin-reset-list">
+                        <div class="empty-state">Keine offenen Anfragen</div>
+                    </div>
+                </div>
+                
                 <!-- Rollen verwalten - nur für Admin -->
                 <div class="card" id="rollen-section" style="margin-top: 1rem;">
                     <h3 style="color: var(--accent-red); margin-bottom: 1rem;">👑 Rollen verwalten</h3>
@@ -743,6 +789,8 @@
                     <div class="setting-item"><label class="toggle-label"><span>Alle Mitglieder sehen</span><input type="checkbox" id="perm-viewAllMembers"><span class="toggle-slider"></span></label></div>
                     <div class="setting-item"><label class="toggle-label"><span>Alle Anwesenheiten sehen</span><input type="checkbox" id="perm-viewAllAttendance"><span class="toggle-slider"></span></label></div>
                     <div class="setting-item"><label class="toggle-label"><span>Eigenes Register sehen</span><input type="checkbox" id="perm-viewOwnRegister"><span class="toggle-slider"></span></label></div>
+                    <div class="setting-item"><label class="toggle-label"><span>📊 Alle Register-Zusagen sehen</span><input type="checkbox" id="perm-viewAllRegisterZusagen"><span class="toggle-slider"></span></label></div>
+                    <div class="setting-item"><label class="toggle-label"><span>📈 Bus/Register-Statistik sehen</span><input type="checkbox" id="perm-viewStats"><span class="toggle-slider"></span></label></div>
                     <div class="setting-item"><label class="toggle-label"><span>Events verwalten</span><input type="checkbox" id="perm-manageEvents"><span class="toggle-slider"></span></label></div>
                     <div class="setting-item"><label class="toggle-label"><span>Mitglieder verwalten</span><input type="checkbox" id="perm-manageMembers"><span class="toggle-slider"></span></label></div>
                     <div class="setting-item"><label class="toggle-label"><span>Rollen verwalten</span><input type="checkbox" id="perm-manageRoles"><span class="toggle-slider"></span></label></div>
@@ -755,6 +803,45 @@
                         <button class="btn btn-primary" onclick="saveRolle()">Speichern</button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- PIN Vergessen Modal -->
+    <div class="modal-overlay" id="pin-forgotten-modal">
+        <div class="modal">
+            <h3>🔑 PIN vergessen</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+                Gib deinen Namen ein. Ein Admin wird dir einen temporären PIN vergeben.
+            </p>
+            <div class="input-group">
+                <label>Dein Name</label>
+                <input type="text" id="pin-forgot-name" placeholder="Max Mustermann">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closePinForgottenModal()">Abbrechen</button>
+                <button class="btn btn-primary" onclick="requestPinReset()">Anfrage senden</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- PIN ändern Modal (nach temporärem Login) -->
+    <div class="modal-overlay" id="must-change-pin-modal">
+        <div class="modal">
+            <h3>🔐 Neuen PIN festlegen</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.9rem;">
+                Du hast einen temporären PIN erhalten. Bitte lege jetzt einen neuen PIN fest.
+            </p>
+            <div class="input-group">
+                <label>Neuer PIN (mind. 4 Zeichen)</label>
+                <input type="password" id="new-pin-required" placeholder="****" minlength="4">
+            </div>
+            <div class="input-group">
+                <label>PIN wiederholen</label>
+                <input type="password" id="new-pin-required-confirm" placeholder="****">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary btn-block" onclick="saveRequiredNewPin()">PIN speichern</button>
             </div>
         </div>
     </div>
@@ -788,6 +875,27 @@
             </div>
             <div class="modal-actions" style="margin-top: 1rem;">
                 <button class="btn btn-secondary btn-block" onclick="closeParticipantsModal()">Schließen</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Register-Zusagen Übersicht Modal -->
+    <div class="modal-overlay" id="all-register-zusagen-modal">
+        <div class="modal" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
+            <h3>📊 Register-Zusagen Übersicht</h3>
+            <div class="input-group" style="margin-bottom: 1rem;">
+                <label>Woche auswählen</label>
+                <select id="register-zusagen-week-select" onchange="loadAllRegisterZusagen()">
+                    <!-- Dynamisch befüllt -->
+                </select>
+            </div>
+            <div id="all-register-zusagen-loading" style="text-align: center; padding: 2rem;" class="hidden">
+                <div class="spinner"></div>
+                <p style="margin-top: 1rem; color: var(--text-secondary);">Lade Daten...</p>
+            </div>
+            <div id="all-register-zusagen-content"></div>
+            <div class="modal-actions" style="margin-top: 1rem;">
+                <button class="btn btn-secondary btn-block" onclick="closeAllRegisterZusagenModal()">Schließen</button>
             </div>
         </div>
     </div>
@@ -1076,7 +1184,7 @@
         async function loginMember() {
             const name = document.getElementById('member-name-input').value.trim();
             const pin = document.getElementById('member-pin-input').value.trim();
-            if (!name || !pin || pin.length !== 4) { showToast('Name und 4-stellige PIN erforderlich', true); return; }
+            if (!name || !pin || pin.length < 4) { showToast('Name und PIN (mind. 4 Zeichen) erforderlich', true); return; }
             showLoading();
             try {
                 const result = await apiGet('getMemberAttendance', { name: name });
@@ -1093,19 +1201,26 @@
                     currentUser = { 
                         role: 'gericht', name: result.name, pin: pin, 
                         rollenId: rollenId, permissions: permissions,
-                        busId: result.busId, registerId: result.registerId, memberId: result.memberId
+                        busId: result.busId, registerId: result.registerId, memberId: result.memberId,
+                        mustChangePin: result.mustChangePin || false
                     };
                 } else {
                     currentUser = { 
                         role: 'member', name: result.name, pin: pin, 
                         rollenId: rollenId, permissions: permissions,
-                        busId: result.busId, registerId: result.registerId, memberId: result.memberId
+                        busId: result.busId, registerId: result.registerId, memberId: result.memberId,
+                        mustChangePin: result.mustChangePin || false
                     };
                 }
                 
                 localStorage.setItem('lkt-user', JSON.stringify(currentUser));
                 showToast('Willkommen, ' + result.name + '!');
                 showMainApp();
+                
+                // Prüfe ob PIN geändert werden muss
+                if (currentUser.mustChangePin) {
+                    setTimeout(() => checkMustChangePin(), 500);
+                }
             } catch (e) { showToast('Fehler: ' + e.message, true); hideLoading(); }
         }
         
@@ -1165,15 +1280,16 @@
                 document.getElementById('config-btn').textContent = '🔄'; // Auch für Admin: Aktualisierung
                 
                 // Tabs basierend auf Berechtigungen ein/ausblenden
-                if (!permissions.canManageAnzeigen) {
-                    const anzeigenTab = document.querySelector('[data-tab="anzeigen"]');
-                    if (anzeigenTab) anzeigenTab.classList.add('hidden');
-                }
+                updateUIPermissions(permissions);
                 
                 initGerichtNav();
             } else {
                 document.getElementById('config-btn').textContent = '🔄';
                 userInfo.textContent = '👤 ' + currentUser.name;
+                
+                // Berechtigungen auf UI anwenden
+                updateUIPermissions(permissions);
+                
                 initMemberNav();
                 eventsData = getOfflineEvents();
                 loadLocalAttendance();
@@ -1206,6 +1322,73 @@
                     }
                 });
             });
+        }
+        
+        // Aktualisiere UI basierend auf Berechtigungen
+        function updateUIPermissions(permissions) {
+            if (!permissions) permissions = currentUser?.permissions || {};
+            
+            // === GERICHT TABS ===
+            // Anzeigen-Tab
+            const anzeigenTab = document.querySelector('#gericht-nav [data-tab="anzeigen"]');
+            if (anzeigenTab) {
+                if (permissions.canManageAnzeigen || permissions.isAdmin) {
+                    anzeigenTab.classList.remove('hidden');
+                } else {
+                    anzeigenTab.classList.add('hidden');
+                }
+            }
+            
+            // Settings-Tab (nur für Admins oder Rollen-Verwalter)
+            const settingsTab = document.querySelector('#gericht-nav [data-tab="settings"]');
+            if (settingsTab) {
+                if (permissions.isAdmin || permissions.canManageRoles || permissions.canManageMembers) {
+                    settingsTab.classList.remove('hidden');
+                } else {
+                    settingsTab.classList.add('hidden');
+                }
+            }
+            
+            // === MEMBER BEREICH ===
+            // Register-Zusagen Button
+            const allRegZusagenSection = document.getElementById('all-register-zusagen-section');
+            if (allRegZusagenSection) {
+                if (permissions.canViewAllRegisterZusagen || permissions.isAdmin) {
+                    allRegZusagenSection.classList.remove('hidden');
+                } else {
+                    allRegZusagenSection.classList.add('hidden');
+                }
+            }
+            
+            // Scanner-Tab (wenn QR-Scanner aktiviert ist)
+            const scannerTab = document.querySelector('#member-nav [data-tab="scanner"]');
+            if (scannerTab && typeof appSettings !== 'undefined') {
+                if (appSettings.qrScannerEnabled) {
+                    scannerTab.classList.remove('hidden');
+                } else {
+                    scannerTab.classList.add('hidden');
+                }
+            }
+            
+            // Anzeige-Tab für Member
+            const memberAnzeigeTab = document.querySelector('#member-nav [data-tab="anzeige"]');
+            if (memberAnzeigeTab && typeof appSettings !== 'undefined') {
+                if (appSettings.strafenEnabled) {
+                    memberAnzeigeTab.classList.remove('hidden');
+                } else {
+                    memberAnzeigeTab.classList.add('hidden');
+                }
+            }
+            
+            // Komplette Stats für berechtigte User
+            const fullStatsSection = document.getElementById('full-stats-section');
+            if (fullStatsSection) {
+                if (permissions.canViewStats || permissions.isAdmin) {
+                    fullStatsSection.classList.remove('hidden');
+                } else {
+                    fullStatsSection.classList.add('hidden');
+                }
+            }
         }
         
         function initGerichtNav() {
@@ -1299,6 +1482,14 @@
                     commentsData = attResult.comments || {};
                     currentUser.busId = attResult.busId;
                     currentUser.registerId = attResult.registerId;
+                    
+                    // Berechtigungen aktualisieren (falls vom Server gesendet)
+                    if (attResult.permissions) {
+                        currentUser.permissions = attResult.permissions;
+                        // UI basierend auf neuen Berechtigungen aktualisieren
+                        updateUIPermissions(currentUser.permissions);
+                    }
+                    
                     localStorage.setItem('lkt-user', JSON.stringify(currentUser));
                     if (currentUser.role === 'member') saveLocalAttendance();
                 }
@@ -1667,13 +1858,17 @@
             const registerRateEl = document.getElementById('my-register-rate');
             const registerDetailEl = document.getElementById('my-register-detail');
             
+            let allRegisterStats = [];
+            let allBusStats = [];
+            
             if (currentUser.registerId) {
                 const register = registerData.find(r => r.id === currentUser.registerId);
                 registerNameEl.textContent = register ? '🎵 ' + register.name : 'Mein Register';
                 
                 try {
                     const result = await apiGet('getRegisterStats');
-                    const regStats = (result.registerStats || []).find(r => r.id === currentUser.registerId);
+                    allRegisterStats = result.registerStats || [];
+                    const regStats = allRegisterStats.find(r => r.id === currentUser.registerId);
                     if (regStats) {
                         const total = regStats.attended + regStats.absent;
                         const rate = total > 0 ? Math.round(regStats.attended / total * 100) : 0;
@@ -1704,7 +1899,8 @@
                 
                 try {
                     const result = await apiGet('getBusStats');
-                    const busStats = (result.busStats || []).find(b => b.id === currentUser.busId);
+                    allBusStats = result.busStats || [];
+                    const busStats = allBusStats.find(b => b.id === currentUser.busId);
                     if (busStats) {
                         const total = busStats.attended + busStats.absent;
                         const rate = total > 0 ? Math.round(busStats.attended / total * 100) : 0;
@@ -1723,6 +1919,71 @@
                 busRateEl.textContent = '-';
                 busDetailEl.textContent = 'Du fährst flexibel mit';
             }
+            
+            // Wenn User Berechtigung hat: Komplette Listen rendern
+            const permissions = currentUser.permissions || {};
+            if (permissions.canViewStats || permissions.isAdmin) {
+                renderMemberBusStatsList(allBusStats);
+                renderMemberRegisterStatsList(allRegisterStats);
+            }
+        }
+        
+        // Rendere Bus-Statistik Liste für Member
+        function renderMemberBusStatsList(busStats) {
+            const container = document.getElementById('member-bus-stats-list');
+            if (!container) return;
+            
+            if (!busStats || busStats.length === 0) {
+                container.innerHTML = '<div class="empty-state">Keine Bus-Statistik verfügbar</div>';
+                return;
+            }
+            
+            let html = '';
+            busStats.forEach(bus => {
+                const total = bus.attended + bus.absent;
+                const rate = total > 0 ? Math.round(bus.attended / total * 100) : 0;
+                const color = rate >= 80 ? 'var(--accent-green)' : rate >= 50 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+                
+                html += '<div class="card" style="margin-bottom: 0.75rem;">';
+                html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+                html += '<div>';
+                html += '<strong>🚌 ' + bus.name + '</strong> <span style="color: var(--text-secondary); font-size: 0.85rem;">(' + (bus.memberCount || 0) + ' Mitglieder)</span>';
+                html += '<div style="font-size: 0.85rem; color: var(--text-secondary);">✓ ' + bus.attended + ' | ✗ ' + bus.absent + '</div>';
+                html += '</div>';
+                html += '<div style="font-size: 1.5rem; font-weight: 700; color: ' + color + ';">' + rate + '%</div>';
+                html += '</div></div>';
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // Rendere Register-Statistik Liste für Member
+        function renderMemberRegisterStatsList(registerStats) {
+            const container = document.getElementById('member-register-stats-list');
+            if (!container) return;
+            
+            if (!registerStats || registerStats.length === 0) {
+                container.innerHTML = '<div class="empty-state">Keine Register-Statistik verfügbar</div>';
+                return;
+            }
+            
+            let html = '';
+            registerStats.forEach(reg => {
+                const total = reg.attended + reg.absent;
+                const rate = total > 0 ? Math.round(reg.attended / total * 100) : 0;
+                const color = rate >= 80 ? 'var(--accent-green)' : rate >= 50 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+                
+                html += '<div class="card" style="margin-bottom: 0.75rem;">';
+                html += '<div style="display: flex; justify-content: space-between; align-items: center;">';
+                html += '<div>';
+                html += '<strong>🎵 ' + reg.name + '</strong> <span style="color: var(--text-secondary); font-size: 0.85rem;">(' + (reg.memberCount || 0) + ' Mitglieder)</span>';
+                html += '<div style="font-size: 0.85rem; color: var(--text-secondary);">✓ ' + reg.attended + ' | ✗ ' + reg.absent + '</div>';
+                html += '</div>';
+                html += '<div style="font-size: 1.5rem; font-weight: 700; color: ' + color + ';">' + rate + '%</div>';
+                html += '</div></div>';
+            });
+            
+            container.innerHTML = html;
         }
         
         // "Meine Auftritte" für Admin/Chef - gleiche Funktionalität wie für Mitglieder
@@ -1976,6 +2237,96 @@
         }
         
         // ============================================================
+        // ALLE REGISTER-ZUSAGEN ÜBERSICHT
+        // ============================================================
+        function showAllRegisterZusagenModal() {
+            // Wochen-Select befüllen
+            const select = document.getElementById('register-zusagen-week-select');
+            const weeks = [...new Set(eventsData.map(e => e.week).filter(w => w))];
+            let html = '';
+            weeks.forEach(w => {
+                html += '<option value="' + w + '">' + w + '</option>';
+            });
+            select.innerHTML = html;
+            
+            document.getElementById('all-register-zusagen-modal').classList.add('active');
+            loadAllRegisterZusagen();
+        }
+        
+        function closeAllRegisterZusagenModal() {
+            document.getElementById('all-register-zusagen-modal').classList.remove('active');
+        }
+        
+        async function loadAllRegisterZusagen() {
+            const week = document.getElementById('register-zusagen-week-select').value;
+            if (!week) return;
+            
+            const loadingEl = document.getElementById('all-register-zusagen-loading');
+            const contentEl = document.getElementById('all-register-zusagen-content');
+            
+            loadingEl.classList.remove('hidden');
+            contentEl.innerHTML = '';
+            
+            try {
+                const result = await apiGet('getAllRegisterZusagen', { week: week });
+                loadingEl.classList.add('hidden');
+                
+                if (result.error) {
+                    contentEl.innerHTML = '<div class="empty-state">Fehler: ' + result.error + '</div>';
+                    return;
+                }
+                
+                if (!result.register || result.register.length === 0) {
+                    contentEl.innerHTML = '<div class="empty-state">Keine Register vorhanden</div>';
+                    return;
+                }
+                
+                // Events der Woche als Header
+                let html = '<div style="margin-bottom: 1rem; padding: 0.5rem; background: var(--bg-dark); border-radius: 8px; text-align: center;">';
+                html += '<strong style="color: var(--accent-yellow);">' + week + '</strong>';
+                if (result.events && result.events.length > 0) {
+                    html += '<div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">';
+                    html += result.events.map(e => e.name + ' (' + (e.date || '') + ')').join(' | ');
+                    html += '</div>';
+                }
+                html += '</div>';
+                
+                // Pro Register ein Balken pro Event
+                result.register.forEach(reg => {
+                    html += '<div class="card" style="margin-bottom: 0.75rem;">';
+                    html += '<div style="font-weight: 700; color: var(--accent-purple); margin-bottom: 0.5rem;">🎵 ' + reg.registerName + ' <span style="font-size: 0.8rem; color: var(--text-secondary);">(' + reg.memberCount + ' Mitglieder)</span></div>';
+                    
+                    if (reg.events && reg.events.length > 0) {
+                        reg.events.forEach(evt => {
+                            const percent = evt.percent || 0;
+                            const color = percent >= 80 ? 'var(--accent-green)' : percent >= 50 ? 'var(--accent-yellow)' : 'var(--accent-red)';
+                            
+                            html += '<div style="margin-bottom: 0.5rem;">';
+                            html += '<div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.25rem;">';
+                            html += '<span>' + evt.eventName + '</span>';
+                            html += '<span style="color: ' + color + '; font-weight: 700;">' + evt.zugesagt + '/' + evt.total + ' (' + percent + '%)</span>';
+                            html += '</div>';
+                            html += '<div style="background: var(--bg-dark); border-radius: 4px; height: 12px; overflow: hidden;">';
+                            html += '<div style="background: ' + color + '; height: 100%; width: ' + percent + '%; transition: width 0.3s;"></div>';
+                            html += '</div>';
+                            html += '</div>';
+                        });
+                    } else {
+                        html += '<div style="font-size: 0.8rem; color: var(--text-secondary);">Keine Events in dieser Woche</div>';
+                    }
+                    
+                    html += '</div>';
+                });
+                
+                contentEl.innerHTML = html;
+                
+            } catch (e) {
+                loadingEl.classList.add('hidden');
+                contentEl.innerHTML = '<div class="empty-state">Fehler beim Laden: ' + e.message + '</div>';
+            }
+        }
+        
+        // ============================================================
         // ZUSAGEN
         // ============================================================
         async function toggleZusage(eventId) {
@@ -2203,6 +2554,223 @@
                     showToast('Profil gespeichert!');
                 }
             } catch (e) { showToast('Fehler: ' + e.message, true); }
+            hideLoading();
+        }
+        
+        async function changeCredentials() {
+            const newUsername = document.getElementById('new-username').value.trim();
+            const newPin = document.getElementById('new-pin').value;
+            const newPinConfirm = document.getElementById('new-pin-confirm').value;
+            
+            // Validierung
+            if (!newUsername && !newPin) {
+                showToast('Gib einen neuen Benutzernamen oder PIN ein', true);
+                return;
+            }
+            
+            if (newPin && newPin !== newPinConfirm) {
+                showToast('PINs stimmen nicht überein', true);
+                return;
+            }
+            
+            if (newPin && newPin.length < 4) {
+                showToast('PIN muss mindestens 4 Zeichen haben', true);
+                return;
+            }
+            
+            if (!confirm('Möchtest du deine Anmeldedaten wirklich ändern?')) return;
+            
+            showLoading();
+            try {
+                const result = await apiPost({ 
+                    action: 'updateOwnCredentials', 
+                    currentName: currentUser.name,
+                    currentPin: currentUser.pin,
+                    newName: newUsername || null,
+                    newPin: newPin || null
+                });
+                
+                if (result.error) {
+                    showToast(result.error, true);
+                } else {
+                    // Aktualisiere lokale Daten
+                    if (result.newName) {
+                        currentUser.name = result.newName;
+                        document.getElementById('profile-name').textContent = result.newName;
+                    }
+                    if (newPin) {
+                        currentUser.pin = newPin;
+                    }
+                    localStorage.setItem('lkt-user', JSON.stringify(currentUser));
+                    
+                    // Felder leeren
+                    document.getElementById('new-username').value = '';
+                    document.getElementById('new-pin').value = '';
+                    document.getElementById('new-pin-confirm').value = '';
+                    
+                    showToast(result.message);
+                }
+            } catch (e) { 
+                showToast('Fehler: ' + e.message, true); 
+            }
+            hideLoading();
+        }
+        
+        // ============================================================
+        // PIN VERGESSEN / RESET
+        // ============================================================
+        function showPinForgottenModal() {
+            document.getElementById('pin-forgot-name').value = document.getElementById('member-name-input').value || '';
+            document.getElementById('pin-forgotten-modal').classList.add('active');
+        }
+        
+        function closePinForgottenModal() {
+            document.getElementById('pin-forgotten-modal').classList.remove('active');
+        }
+        
+        async function requestPinReset() {
+            const name = document.getElementById('pin-forgot-name').value.trim();
+            if (!name) {
+                showToast('Bitte gib deinen Namen ein', true);
+                return;
+            }
+            
+            showLoading();
+            try {
+                const result = await apiPost({ action: 'requestPinReset', name: name });
+                if (result.error) {
+                    showToast(result.error, true);
+                } else {
+                    showToast(result.message);
+                    closePinForgottenModal();
+                }
+            } catch (e) {
+                showToast('Fehler: ' + e.message, true);
+            }
+            hideLoading();
+        }
+        
+        // Admin: PIN-Reset Anfragen laden
+        async function loadPinResetRequests() {
+            try {
+                const result = await apiGet('getPinResetRequests');
+                const requests = result.requests || [];
+                
+                const countEl = document.getElementById('pin-reset-count');
+                const listEl = document.getElementById('pin-reset-list');
+                
+                if (countEl) countEl.textContent = requests.length;
+                
+                if (!listEl) return;
+                
+                if (requests.length === 0) {
+                    listEl.innerHTML = '<div class="empty-state">Keine offenen Anfragen</div>';
+                    return;
+                }
+                
+                let html = '';
+                requests.forEach(req => {
+                    const date = new Date(req.requestedAt).toLocaleString('de-DE');
+                    html += '<div class="list-item" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">';
+                    html += '<div style="display: flex; justify-content: space-between; width: 100%;">';
+                    html += '<strong>' + req.memberName + '</strong>';
+                    html += '<span style="font-size: 0.75rem; color: var(--text-secondary);">' + date + '</span>';
+                    html += '</div>';
+                    html += '<div style="display: flex; gap: 0.5rem; width: 100%;">';
+                    html += '<input type="text" id="temp-pin-' + req.id + '" placeholder="Temp. PIN (mind. 4)" style="flex: 1; padding: 0.5rem; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-dark); color: var(--text-primary);">';
+                    html += '<button class="btn btn-success" onclick="approvePinReset(\'' + req.id + '\')" style="padding: 0.5rem 1rem;">✓</button>';
+                    html += '<button class="btn btn-danger" onclick="deletePinResetRequest(\'' + req.id + '\')" style="padding: 0.5rem 1rem;">✗</button>';
+                    html += '</div>';
+                    html += '</div>';
+                });
+                listEl.innerHTML = html;
+            } catch (e) {
+                console.log('Error loading pin reset requests:', e);
+            }
+        }
+        
+        async function approvePinReset(requestId) {
+            const tempPin = document.getElementById('temp-pin-' + requestId).value.trim();
+            if (!tempPin || tempPin.length < 4) {
+                showToast('Temporärer PIN muss mindestens 4 Zeichen haben', true);
+                return;
+            }
+            
+            showLoading();
+            try {
+                const result = await apiPost({ action: 'approvePinReset', requestId: requestId, tempPin: tempPin });
+                if (result.error) {
+                    showToast(result.error, true);
+                } else {
+                    showToast(result.message);
+                    loadPinResetRequests();
+                }
+            } catch (e) {
+                showToast('Fehler: ' + e.message, true);
+            }
+            hideLoading();
+        }
+        
+        async function deletePinResetRequest(requestId) {
+            if (!confirm('Anfrage wirklich ablehnen/löschen?')) return;
+            
+            showLoading();
+            try {
+                await apiPost({ action: 'deletePinResetRequest', requestId: requestId });
+                showToast('Anfrage gelöscht');
+                loadPinResetRequests();
+            } catch (e) {
+                showToast('Fehler: ' + e.message, true);
+            }
+            hideLoading();
+        }
+        
+        // Nach Login prüfen ob PIN geändert werden muss
+        function checkMustChangePin() {
+            if (currentUser && currentUser.mustChangePin) {
+                document.getElementById('must-change-pin-modal').classList.add('active');
+            }
+        }
+        
+        async function saveRequiredNewPin() {
+            const newPin = document.getElementById('new-pin-required').value;
+            const confirmPin = document.getElementById('new-pin-required-confirm').value;
+            
+            if (!newPin || newPin.length < 4) {
+                showToast('PIN muss mindestens 4 Zeichen haben', true);
+                return;
+            }
+            
+            if (newPin !== confirmPin) {
+                showToast('PINs stimmen nicht überein', true);
+                return;
+            }
+            
+            showLoading();
+            try {
+                const result = await apiPost({
+                    action: 'updateOwnCredentials',
+                    currentName: currentUser.name,
+                    currentPin: currentUser.pin,
+                    newPin: newPin
+                });
+                
+                if (result.error) {
+                    showToast(result.error, true);
+                } else {
+                    currentUser.pin = newPin;
+                    currentUser.mustChangePin = false;
+                    localStorage.setItem('lkt-user', JSON.stringify(currentUser));
+                    
+                    document.getElementById('must-change-pin-modal').classList.remove('active');
+                    document.getElementById('new-pin-required').value = '';
+                    document.getElementById('new-pin-required-confirm').value = '';
+                    
+                    showToast('Neuer PIN gespeichert!');
+                }
+            } catch (e) {
+                showToast('Fehler: ' + e.message, true);
+            }
             hideLoading();
         }
         
@@ -2541,6 +3109,7 @@
                 }
                 if (permissions.isAdmin || permissions.canManageMembers) {
                     loadRegisterAnfragen().catch(e => {});
+                    loadPinResetRequests().catch(e => {});
                 }
             } catch (e) {
                 console.error('loadGerichtData error:', e);
@@ -3179,7 +3748,70 @@
                 saveToCache('kommentare', kommentareData);
                 
                 renderBrettPosts(view);
+                updateUnreadBadges();
             } catch (e) { console.error('Brett load error:', e); }
+        }
+        
+        // Ungelesene Beiträge zählen und Badge aktualisieren
+        function updateUnreadBadges() {
+            if (!currentUser) return;
+            
+            const lastReadKey = 'lkt-brett-lastread-' + currentUser.name;
+            const lastRead = JSON.parse(localStorage.getItem(lastReadKey) || '{}');
+            
+            let totalUnread = 0;
+            
+            // Zähle ungelesene pro Bereich
+            forumBereiche.forEach(bereich => {
+                const cachedPosts = getFromCache('brett_' + bereich.id) || [];
+                const bereichLastRead = lastRead[bereich.id] || 0;
+                
+                const unreadCount = cachedPosts.filter(post => {
+                    const postTime = new Date(post.erstelltAm).getTime();
+                    return postTime > bereichLastRead;
+                }).length;
+                
+                // Badge am Bereich-Button aktualisieren
+                const bereichBtn = document.querySelector('.forum-bereich-btn[data-bereich-id="' + bereich.id + '"] .bereich-badge');
+                if (bereichBtn) {
+                    if (unreadCount > 0) {
+                        bereichBtn.textContent = unreadCount;
+                        bereichBtn.classList.remove('hidden');
+                    } else {
+                        bereichBtn.classList.add('hidden');
+                    }
+                }
+                
+                totalUnread += unreadCount;
+            });
+            
+            // Badge am Tab aktualisieren
+            const memberBadge = document.getElementById('brett-badge-member');
+            const gerichtBadge = document.getElementById('brett-badge-gericht');
+            
+            [memberBadge, gerichtBadge].forEach(badge => {
+                if (badge) {
+                    if (totalUnread > 0) {
+                        badge.textContent = totalUnread;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+            });
+        }
+        
+        // Bereich als gelesen markieren
+        function markBereichAsRead(bereichId) {
+            if (!currentUser) return;
+            
+            const lastReadKey = 'lkt-brett-lastread-' + currentUser.name;
+            const lastRead = JSON.parse(localStorage.getItem(lastReadKey) || '{}');
+            lastRead[bereichId] = Date.now();
+            localStorage.setItem(lastReadKey, JSON.stringify(lastRead));
+            
+            // Badge aktualisieren
+            setTimeout(updateUnreadBadges, 100);
         }
         
         function renderBrettPosts(view) {
@@ -4001,6 +4633,8 @@
             document.getElementById('perm-viewAllMembers').checked = false;
             document.getElementById('perm-viewAllAttendance').checked = false;
             document.getElementById('perm-viewOwnRegister').checked = true;
+            document.getElementById('perm-viewAllRegisterZusagen').checked = false;
+            document.getElementById('perm-viewStats').checked = false;
             document.getElementById('perm-manageEvents').checked = false;
             document.getElementById('perm-manageMembers').checked = false;
             document.getElementById('perm-manageRoles').checked = false;
@@ -4021,6 +4655,8 @@
             document.getElementById('perm-viewAllMembers').checked = rolle.canViewAllMembers;
             document.getElementById('perm-viewAllAttendance').checked = rolle.canViewAllAttendance;
             document.getElementById('perm-viewOwnRegister').checked = rolle.canViewOwnRegister;
+            document.getElementById('perm-viewAllRegisterZusagen').checked = rolle.canViewAllRegisterZusagen || false;
+            document.getElementById('perm-viewStats').checked = rolle.canViewStats || false;
             document.getElementById('perm-manageEvents').checked = rolle.canManageEvents;
             document.getElementById('perm-manageMembers').checked = rolle.canManageMembers;
             document.getElementById('perm-manageRoles').checked = rolle.canManageRoles;
@@ -4045,6 +4681,8 @@
                 canViewAllMembers: document.getElementById('perm-viewAllMembers').checked,
                 canViewAllAttendance: document.getElementById('perm-viewAllAttendance').checked,
                 canViewOwnRegister: document.getElementById('perm-viewOwnRegister').checked,
+                canViewAllRegisterZusagen: document.getElementById('perm-viewAllRegisterZusagen').checked,
+                canViewStats: document.getElementById('perm-viewStats').checked,
                 canManageEvents: document.getElementById('perm-manageEvents').checked,
                 canManageMembers: document.getElementById('perm-manageMembers').checked,
                 canManageRoles: document.getElementById('perm-manageRoles').checked,
@@ -4133,15 +4771,35 @@
         // FORUM-BEREICHE
         // ============================================================
         let forumBereicheData = [];
+        let forumBereiche = []; // Alias für updateUnreadBadges
         let currentForumBereichId = 'FORUM-ALLGEMEIN';
         
         async function loadForumBereiche() {
             try {
                 const result = await apiGet('getForumBereiche');
                 forumBereicheData = result.bereiche || [];
+                forumBereiche = forumBereicheData; // Für updateUnreadBadges
                 renderForumBereicheList();
                 renderForumTabs();
+                
+                // Lade Posts aller Bereiche für Badges (im Hintergrund)
+                loadAllForumPostsForBadges();
             } catch (e) { console.log('Forum-Bereiche laden Fehler:', e); }
+        }
+        
+        // Lade Posts aller Bereiche für Badge-Berechnung
+        async function loadAllForumPostsForBadges() {
+            if (!forumBereicheData || forumBereicheData.length === 0) return;
+            
+            for (const bereich of forumBereicheData) {
+                try {
+                    const result = await apiGet('getBrettPosts', { bereichId: bereich.id });
+                    const posts = result.posts || [];
+                    saveToCache('brett_' + bereich.id, posts);
+                } catch (e) { /* ignore */ }
+            }
+            
+            updateUnreadBadges();
         }
         
         function renderForumBereicheList() {
@@ -4187,17 +4845,26 @@
                 
                 const isActive = bereich.id === currentForumBereichId ? 'active' : '';
                 const isRegister = bereich.typ === 'register' ? 'register-tab' : '';
-                html += '<button class="forum-tab ' + isActive + ' ' + isRegister + '" onclick="selectForumBereich(\'' + bereich.id + '\')">' + bereich.name + '</button>';
+                html += '<button class="forum-tab forum-bereich-btn ' + isActive + ' ' + isRegister + '" data-bereich-id="' + bereich.id + '" onclick="selectForumBereich(\'' + bereich.id + '\')">';
+                html += '<span class="bereich-badge hidden" style="position: absolute; top: -5px; right: -5px; background: var(--accent-red); color: white; border-radius: 50%; min-width: 18px; height: 18px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center;">0</span>';
+                html += bereich.name;
+                html += '</button>';
             });
             
             if (memberContainer) memberContainer.innerHTML = html;
             if (adminContainer) adminContainer.innerHTML = html;
+            
+            // Badges aktualisieren
+            updateUnreadBadges();
         }
         
         function selectForumBereich(bereichId) {
             currentForumBereichId = bereichId;
             renderForumTabs();
             loadBrettPosts(currentUser.role === 'gericht' ? 'gericht' : 'member');
+            
+            // Als gelesen markieren
+            markBereichAsRead(bereichId);
         }
         
         async function addNewForumBereich() {
@@ -4665,31 +5332,52 @@
         // ============================================================
         
         let pushSubscription = null;
+        let notificationsEnabled = false;
+        
+        // VAPID Public Key - MUSS mit dem im Worker übereinstimmen!
+        // Generiere auf https://vapidkeys.com/ und trage beide Keys ein
+        const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY_HERE'; // Ersetzen!
         
         async function initPushNotifications() {
-            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            // Prüfe ob Push unterstützt wird
+            if (!('Notification' in window)) {
                 document.getElementById('push-not-supported')?.classList.remove('hidden');
                 document.getElementById('push-settings-container')?.classList.add('hidden');
                 return;
             }
             
-            try {
-                const registration = await navigator.serviceWorker.ready;
-                pushSubscription = await registration.pushManager.getSubscription();
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                // Fallback auf lokale Benachrichtigungen
+                initLocalNotifications();
+                return;
+            }
+            
+            // Lade lokale Einstellungen
+            notificationsEnabled = localStorage.getItem('lkt-notifications-enabled') === 'true';
+            
+            if (Notification.permission === 'granted' && notificationsEnabled) {
+                document.getElementById('push-enable-btn')?.classList.add('hidden');
+                document.getElementById('push-settings')?.classList.remove('hidden');
+                loadPushSettingsLocal();
                 
-                if (pushSubscription) {
-                    document.getElementById('push-enable-btn')?.classList.add('hidden');
-                    document.getElementById('push-settings')?.classList.remove('hidden');
-                    await loadPushSettings();
-                }
-            } catch (e) {
-                console.log('Push init error:', e);
+                // Service Worker registrieren und Subscription prüfen
+                await checkPushSubscription();
+            }
+        }
+        
+        function initLocalNotifications() {
+            notificationsEnabled = localStorage.getItem('lkt-notifications-enabled') === 'true';
+            
+            if (Notification.permission === 'granted' && notificationsEnabled) {
+                document.getElementById('push-enable-btn')?.classList.add('hidden');
+                document.getElementById('push-settings')?.classList.remove('hidden');
+                loadPushSettingsLocal();
+                checkUpcomingEvents();
             }
         }
         
         async function enablePushNotifications() {
             try {
-                // Prüfe ob Notifications unterstützt werden
                 if (!('Notification' in window)) {
                     showToast('Benachrichtigungen werden nicht unterstützt', true);
                     return;
@@ -4706,23 +5394,84 @@
                     return;
                 }
                 
-                // Benachrichtigungen aktiviert
+                notificationsEnabled = true;
                 localStorage.setItem('lkt-notifications-enabled', 'true');
+                
+                // Versuche Web Push zu registrieren
+                if ('serviceWorker' in navigator && 'PushManager' in window) {
+                    await registerPushSubscription();
+                }
+                
                 showToast('Benachrichtigungen aktiviert!');
                 document.getElementById('push-enable-btn').classList.add('hidden');
                 document.getElementById('push-settings').classList.remove('hidden');
                 savePushSettingsLocal();
                 
                 // Test-Benachrichtigung
-                new Notification('LKT Tracker', {
+                new Notification('🎺 LKT Tracker', {
                     body: 'Benachrichtigungen wurden aktiviert!',
-                    icon: 'icon-192.png'
+                    icon: 'icon-192.png',
+                    tag: 'lkt-test'
                 });
                 
             } catch (e) {
                 console.error('Notification error:', e);
                 showToast('Fehler: ' + e.message, true);
             }
+        }
+        
+        async function registerPushSubscription() {
+            try {
+                // Service Worker registrieren (falls noch nicht geschehen)
+                let registration = await navigator.serviceWorker.getRegistration();
+                if (!registration) {
+                    registration = await navigator.serviceWorker.register('sw.js');
+                    await navigator.serviceWorker.ready;
+                }
+                
+                // Push-Subscription erstellen
+                const subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+                });
+                
+                pushSubscription = subscription;
+                
+                // Subscription an Server senden
+                if (currentUser?.memberId) {
+                    await apiPost({
+                        action: 'subscribePush',
+                        memberId: currentUser.memberId,
+                        subscription: subscription.toJSON()
+                    });
+                }
+                
+                console.log('Push subscription registered');
+            } catch (e) {
+                console.log('Push subscription failed, using local notifications:', e);
+            }
+        }
+        
+        async function checkPushSubscription() {
+            try {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    pushSubscription = await registration.pushManager.getSubscription();
+                    if (pushSubscription && currentUser?.memberId) {
+                        // Subscription aktualisieren
+                        await apiPost({
+                            action: 'subscribePush',
+                            memberId: currentUser.memberId,
+                            subscription: pushSubscription.toJSON()
+                        });
+                    }
+                }
+            } catch (e) {
+                console.log('Check push subscription error:', e);
+            }
+            
+            // Fallback: Lokale Event-Prüfung
+            checkUpcomingEvents();
         }
         
         function urlBase64ToUint8Array(base64String) {
@@ -4736,28 +5485,64 @@
             return outputArray;
         }
         
-        async function loadPushSettings() {
-            if (!currentUser || !currentUser.memberId) return;
+        function checkUpcomingEvents() {
+            if (!notificationsEnabled || Notification.permission !== 'granted') return;
             
-            try {
-                const result = await apiGet('getPushSettings', { memberId: currentUser.memberId });
-                const settings = result.settings || {};
+            const settings = JSON.parse(localStorage.getItem('lkt-notification-settings') || '{}');
+            if (!settings.eventReminder) return;
+            
+            const reminderMinutes = parseInt(settings.reminderTime) || 60;
+            const now = new Date();
+            const lastNotified = localStorage.getItem('lkt-last-event-notified') || '';
+            
+            eventsData.forEach(event => {
+                if (!event.date || !event.time) return;
                 
-                document.getElementById('push-event-reminder').checked = settings.eventReminder !== false;
-                document.getElementById('push-reminder-time').value = settings.reminderTime || '60';
-                document.getElementById('push-forum-posts').checked = settings.forumPosts !== false;
-                document.getElementById('push-register-posts').checked = settings.registerPosts !== false;
+                const dateParts = event.date.split('.');
+                if (dateParts.length !== 3) return;
                 
-                // Reminder-Zeit nur anzeigen wenn Event-Reminder aktiv
-                updateReminderTimeVisibility();
-            } catch (e) {
-                console.log('Push settings load error:', e);
-            }
+                const timeParts = event.time.split(':');
+                if (timeParts.length < 2) return;
+                
+                const eventDate = new Date(
+                    parseInt(dateParts[2]), 
+                    parseInt(dateParts[1]) - 1, 
+                    parseInt(dateParts[0]),
+                    parseInt(timeParts[0]),
+                    parseInt(timeParts[1])
+                );
+                
+                const diffMinutes = (eventDate - now) / (1000 * 60);
+                
+                if (diffMinutes > 0 && diffMinutes <= reminderMinutes && lastNotified !== event.id) {
+                    const timeStr = diffMinutes < 60 
+                        ? Math.round(diffMinutes) + ' Minuten' 
+                        : Math.round(diffMinutes / 60) + ' Stunde(n)';
+                    
+                    new Notification('🎺 Auftritt in ' + timeStr + '!', {
+                        body: event.name + (event.location ? '\n📍 ' + event.location : ''),
+                        icon: 'icon-192.png',
+                        tag: 'lkt-event-' + event.id,
+                        requireInteraction: true
+                    });
+                    
+                    localStorage.setItem('lkt-last-event-notified', event.id);
+                }
+            });
         }
         
-        async function savePushSettingsLocal() {
-            if (!currentUser || !currentUser.memberId) return;
+        function loadPushSettingsLocal() {
+            const settings = JSON.parse(localStorage.getItem('lkt-notification-settings') || '{}');
             
+            document.getElementById('push-event-reminder').checked = settings.eventReminder !== false;
+            document.getElementById('push-reminder-time').value = settings.reminderTime || '60';
+            document.getElementById('push-forum-posts').checked = settings.forumPosts || false;
+            document.getElementById('push-register-posts').checked = settings.registerPosts || false;
+            
+            updateReminderTimeVisibility();
+        }
+        
+        function savePushSettingsLocal() {
             const settings = {
                 eventReminder: document.getElementById('push-event-reminder').checked,
                 reminderTime: document.getElementById('push-reminder-time').value,
@@ -4765,14 +5550,9 @@
                 registerPosts: document.getElementById('push-register-posts').checked
             };
             
+            localStorage.setItem('lkt-notification-settings', JSON.stringify(settings));
             updateReminderTimeVisibility();
-            
-            try {
-                await apiPost({ action: 'savePushSettings', memberId: currentUser.memberId, settings: settings });
-                showToast('Einstellungen gespeichert!');
-            } catch (e) {
-                console.log('Push settings save error:', e);
-            }
+            showToast('Einstellungen gespeichert!');
         }
         
         function updateReminderTimeVisibility() {
@@ -4782,6 +5562,13 @@
                 timeGroup.style.display = reminderEnabled ? 'block' : 'none';
             }
         }
+        
+        // Periodisch auf Events prüfen (alle 5 Minuten wenn App offen)
+        setInterval(() => {
+            if (notificationsEnabled && currentUser) {
+                checkUpcomingEvents();
+            }
+        }, 5 * 60 * 1000);
         
         // ============================================================
         // PDF EXPORT WOCHENEND-ÜBERSICHT
