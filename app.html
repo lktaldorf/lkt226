@@ -1796,6 +1796,8 @@
             const container = document.getElementById('events-list');
             let html = '';
             let currentWeek = '';
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             
             // Sortiere Events nach Datum
             const sortedEvents = [...eventsData].sort((a, b) => {
@@ -1805,56 +1807,115 @@
                 return new Date(y1, m1-1, d1) - new Date(y2, m2-1, d2);
             });
             
+            // Gruppiere Events nach Woche
+            const weekGroups = {};
             sortedEvents.forEach(event => {
-                if (event.week !== currentWeek) {
-                    currentWeek = event.week;
-                    html += '<div class="week-header">' + currentWeek + '</div>';
-                }
+                const week = event.week || 'Sonstige';
+                if (!weekGroups[week]) weekGroups[week] = [];
+                weekGroups[week].push(event);
+            });
+            
+            // Rendere jede Woche
+            Object.keys(weekGroups).forEach(week => {
+                const weekEvents = weekGroups[week];
                 
-                const status = attendanceData[event.id];
-                const isAttended = status === true;
-                const isAbsent = status === false;
-                const hasZugesagt = zusagenData[event.id] && zusagenData[event.id][currentUser.name];
+                // Prüfe ob alle Events dieser Woche vergangen sind
+                const allPast = weekEvents.every(event => {
+                    if (!event.date) return false;
+                    const [d, m, y] = event.date.split('.');
+                    const eventDate = new Date(y, m - 1, d);
+                    return eventDate < today;
+                });
                 
-                // Zähle Zusagen für diesen Event
-                const zusagenCount = zusagenData[event.id] ? Object.keys(zusagenData[event.id]).filter(k => zusagenData[event.id][k]).length : 0;
+                // Zähle Statistik für diese Woche
+                let attended = 0, absent = 0, pending = 0;
+                weekEvents.forEach(event => {
+                    const status = attendanceData[event.id];
+                    if (status === true) attended++;
+                    else if (status === false) absent++;
+                    else pending++;
+                });
                 
-                let cardClass = 'card event-card';
-                if (isAttended) cardClass += ' attended';
-                else if (isAbsent) cardClass += ' absent';
-                else if (hasZugesagt) cardClass += ' planned';
+                const weekId = 'week-' + week.replace(/\s+/g, '-');
                 
-                html += '<div class="' + cardClass + '">';
-                html += '<div class="date">' + (event.date || '') + ' • ' + (event.time || '') + '</div>';
-                html += '<div class="title">' + event.name + '</div>';
-                html += '<div class="location">📍 ' + (event.location || 'TBA') + '</div>';
-                
-                // Zeige Zusagen-Anzahl - klickbar um Teilnehmer zu sehen
-                if (zusagenCount > 0) {
-                    html += '<div style="margin: 0.5rem 0;"><a href="#" onclick="showEventParticipants(\'' + event.id + '\'); return false;" style="color: var(--accent-blue); text-decoration: none;">👥 ' + zusagenCount + ' haben zugesagt</a></div>';
-                }
-                
-                if (isAttended) html += '<span class="status present">✓ Teilgenommen</span>';
-                if (isAbsent) html += '<span class="status absent">✗ Nicht dabei</span>';
-                if (hasZugesagt && !isAttended && !isAbsent) html += '<span class="status planned">✓ Zugesagt</span>';
-                
-                html += '<div class="actions">';
-                if (!isAttended && !isAbsent) {
-                    // Wenn Scanner deaktiviert: "Ich bin dabei" Button zeigen
-                    if (!appSettings.qrScannerEnabled) {
-                        html += '<button class="btn btn-primary" onclick="directCheckIn(\'' + event.id + '\')">✓ Ich bin dabei</button>';
-                    } else {
-                        // Zusagen-Button nur wenn QR aktiv
-                        html += '<button class="btn zusage-btn ' + (hasZugesagt ? 'active' : '') + '" onclick="toggleZusage(\'' + event.id + '\')">' + (hasZugesagt ? '✓ Zugesagt' : '+ Zusagen') + '</button>';
-                    }
-                    html += '<button class="btn btn-danger" onclick="markAbsentEvent(\'' + event.id + '\')">✗ Absagen</button>';
+                if (allPast) {
+                    // Vergangene Woche - eingeklappt mit Zusammenfassung
+                    html += '<div class="week-collapsible">';
+                    html += '<div class="week-header collapsed" onclick="toggleWeek(\'' + weekId + '\')" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;">';
+                    html += '<span>' + week + ' <span style="font-size: 0.8rem; opacity: 0.7;">▶</span></span>';
+                    html += '<span style="font-size: 0.85rem;">';
+                    if (attended > 0) html += '<span style="color: var(--accent-green);">✓' + attended + '</span> ';
+                    if (absent > 0) html += '<span style="color: var(--accent-red);">✗' + absent + '</span>';
+                    html += '</span>';
+                    html += '</div>';
+                    html += '<div class="week-content hidden" id="' + weekId + '">';
                 } else {
-                    html += '<button class="btn btn-secondary" onclick="resetEvent(\'' + event.id + '\')">↩ Zurücksetzen</button>';
+                    // Aktuelle/Zukünftige Woche - offen
+                    html += '<div class="week-header">' + week + '</div>';
+                    html += '<div class="week-content">';
                 }
-                html += '</div></div>';
+                
+                weekEvents.forEach(event => {
+                    const status = attendanceData[event.id];
+                    const isAttended = status === true;
+                    const isAbsent = status === false;
+                    const hasZugesagt = zusagenData[event.id] && zusagenData[event.id][currentUser.name];
+                    
+                    // Zähle Zusagen für diesen Event
+                    const zusagenCount = zusagenData[event.id] ? Object.keys(zusagenData[event.id]).filter(k => zusagenData[event.id][k]).length : 0;
+                    
+                    let cardClass = 'card event-card';
+                    if (isAttended) cardClass += ' attended';
+                    else if (isAbsent) cardClass += ' absent';
+                    else if (hasZugesagt) cardClass += ' planned';
+                    
+                    html += '<div class="' + cardClass + '">';
+                    html += '<div class="date">' + (event.date || '') + ' • ' + (event.time || '') + '</div>';
+                    html += '<div class="title">' + event.name + '</div>';
+                    html += '<div class="location">📍 ' + (event.location || 'TBA') + '</div>';
+                    
+                    // Zeige Zusagen-Anzahl - klickbar um Teilnehmer zu sehen
+                    if (zusagenCount > 0) {
+                        html += '<div style="margin: 0.5rem 0;"><a href="#" onclick="showEventParticipants(\'' + event.id + '\'); return false;" style="color: var(--accent-blue); text-decoration: none;">👥 ' + zusagenCount + ' haben zugesagt</a></div>';
+                    }
+                    
+                    if (isAttended) html += '<span class="status present">✓ Teilgenommen</span>';
+                    if (isAbsent) html += '<span class="status absent">✗ Nicht dabei</span>';
+                    if (hasZugesagt && !isAttended && !isAbsent) html += '<span class="status planned">✓ Zugesagt</span>';
+                    
+                    html += '<div class="actions">';
+                    if (!isAttended && !isAbsent) {
+                        // Wenn Scanner deaktiviert: "Ich bin dabei" Button zeigen
+                        if (!appSettings.qrScannerEnabled) {
+                            html += '<button class="btn btn-primary" onclick="directCheckIn(\'' + event.id + '\')">✓ Ich bin dabei</button>';
+                        } else {
+                            // Zusagen-Button nur wenn QR aktiv
+                            html += '<button class="btn zusage-btn ' + (hasZugesagt ? 'active' : '') + '" onclick="toggleZusage(\'' + event.id + '\')">' + (hasZugesagt ? '✓ Zugesagt' : '+ Zusagen') + '</button>';
+                        }
+                        html += '<button class="btn btn-danger" onclick="markAbsentEvent(\'' + event.id + '\')">✗ Absagen</button>';
+                    } else {
+                        html += '<button class="btn btn-secondary" onclick="resetEvent(\'' + event.id + '\')">↩ Zurücksetzen</button>';
+                    }
+                    html += '</div></div>';
+                });
+                
+                html += '</div>'; // week-content
+                if (allPast) html += '</div>'; // week-collapsible
             });
             
             container.innerHTML = html || '<div class="empty-state">Keine Auftritte</div>';
+        }
+        
+        function toggleWeek(weekId) {
+            const content = document.getElementById(weekId);
+            const header = content.previousElementSibling;
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                header.querySelector('span span').textContent = '▼';
+            } else {
+                content.classList.add('hidden');
+                header.querySelector('span span').textContent = '▶';
+            }
         }
         
         async function directCheckIn(eventId) {
