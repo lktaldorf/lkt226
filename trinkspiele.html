@@ -1,0 +1,2247 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Trinkspiele">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>🍺 Trinkspiele</title>
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html { height: 100%; background: #1a1a2e; }
+    body { 
+      min-height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      background-attachment: fixed;
+      color: #fff;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      overflow-x: hidden;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #root { min-height: 100vh; }
+    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+    @keyframes shake { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-5deg)} 75%{transform:rotate(5deg)} }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 2px; }
+    button:active { transform: scale(0.95); }
+    .no-select { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    button, input[type="button"], input[type="submit"], [role="button"], div[onClick], div[onTouchStart] {
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      -webkit-touch-callout: none !important;
+      -webkit-tap-highlight-color: transparent !important;
+    }
+    body, html {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+    input, textarea {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+  </style>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+    const { useState, useRef, useCallback, useEffect } = React;
+
+    const SUITS = ['♠','♥','♦','♣'];
+    const SUIT_COLORS = {'♠':'#1a1a2e','♥':'#e74c3c','♦':'#e74c3c','♣':'#1a1a2e'};
+    const VALUES = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+    
+    const createDeck = () => {
+      const deck = [];
+      SUITS.forEach(s => VALUES.forEach(v => deck.push({suit:s, value:v, id:v+s+Math.random()})));
+      return shuffle([...deck]);
+    };
+    
+    const shuffle = arr => {
+      const a = [...arr];
+      for(let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    };
+
+    const Card = ({card, faceUp = true, small, onClick, highlight}) => {
+      const w = small ? 50 : 75, h = small ? 72 : 108, fs = small ? '1rem' : '1.4rem';
+      if (!faceUp) return (
+        <div onClick={onClick} className="no-select" style={{width: w, height: h, background: 'linear-gradient(135deg, #2c3e50, #1a252f)', borderRadius: 10, border: '2px solid #34495e', cursor: onClick ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: highlight ? '0 0 20px #ffd700' : '0 3px 10px rgba(0,0,0,0.3)', transform: highlight ? 'scale(1.05)' : 'scale(1)', transition: 'all 0.2s', flexShrink: 0}}>
+          <div style={{width: '80%', height: '80%', background: 'repeating-linear-gradient(45deg, #34495e, #34495e 5px, #2c3e50 5px, #2c3e50 10px)', borderRadius: 6}}/>
+        </div>
+      );
+      return (
+        <div onClick={onClick} className="no-select" style={{width: w, height: h, background: 'linear-gradient(135deg, #fff, #f0f0f0)', borderRadius: 10, border: highlight ? '3px solid #ffd700' : '2px solid #ddd', cursor: onClick ? 'pointer' : 'default', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: SUIT_COLORS[card.suit], fontWeight: 'bold', boxShadow: highlight ? '0 0 25px rgba(255,215,0,0.8)' : '0 3px 10px rgba(0,0,0,0.2)', transform: highlight ? 'scale(1.05)' : 'scale(1)', transition: 'all 0.2s', flexShrink: 0}}>
+          <span style={{fontSize: fs}}>{card.value}</span>
+          <span style={{fontSize: small ? '1.2rem' : '1.8rem'}}>{card.suit}</span>
+        </div>
+      );
+    };
+
+    const Dice = ({value, rolling, size = 60}) => {
+      const dots = {1: [[50,50]], 2: [[25,25],[75,75]], 3: [[25,25],[50,50],[75,75]], 4: [[25,25],[75,25],[25,75],[75,75]], 5: [[25,25],[75,25],[50,50],[25,75],[75,75]], 6: [[25,25],[75,25],[25,50],[75,50],[25,75],[75,75]]};
+      return (
+        <div className="no-select" style={{width: size, height: size, background: 'linear-gradient(135deg, #fffef0, #f5f0dc)', borderRadius: size * 0.15, boxShadow: '0 4px 15px rgba(0,0,0,0.3)', position: 'relative', animation: rolling ? 'shake 0.1s infinite' : 'none'}}>
+          {!rolling && dots[value]?.map((p, i) => <div key={i} style={{position: 'absolute', width: size * 0.18, height: size * 0.18, background: 'radial-gradient(circle at 30% 30%, #4a4a4a, #1a1a1a)', borderRadius: '50%', left: `${p[0]}%`, top: `${p[1]}%`, transform: 'translate(-50%, -50%)'}}/>)}
+        </div>
+      );
+    };
+
+    const Btn = ({children, onClick, disabled, primary, danger, style = {}}) => (
+      <button onClick={onClick} disabled={disabled} className="no-select" style={{padding: '14px 28px', border: 'none', borderRadius: 12, fontWeight: 'bold', cursor: disabled ? 'not-allowed' : 'pointer', background: disabled ? 'rgba(255,255,255,0.1)' : danger ? 'linear-gradient(135deg, #e74c3c, #c0392b)' : primary ? 'linear-gradient(135deg, #4CAF50, #2E7D32)' : 'linear-gradient(135deg, #ffd700, #ff8c00)', color: primary || danger ? '#fff' : '#1a1a1a', fontSize: '1rem', transition: 'transform 0.1s', ...style}}>{children}</button>
+    );
+
+    const PlayerSetup = ({players, setPlayers, onStart, min = 2, max = 10}) => {
+      const [name, setName] = useState('');
+      const inputRef = useRef(null);
+      const add = () => { if (name.trim() && players.length < max) { setPlayers([...players, {name: name.trim(), drinks: 0}]); setName(''); } };
+      return (
+        <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 20, padding: 20, maxWidth: 400, margin: '0 auto'}}>
+          <h2 style={{textAlign: 'center', color: '#ffd700', marginBottom: 15}}>Spieler ({players.length})</h2>
+          <div style={{display: 'flex', gap: 10, marginBottom: 15}}>
+            <input ref={inputRef} type="text" value={name} onChange={e => setName(e.target.value)} onKeyPress={e => e.key === 'Enter' && add()} placeholder="Name eingeben..." style={{flex: 1, padding: 14, borderRadius: 10, border: 'none', background: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: '1rem', outline: 'none'}}/>
+            <Btn onClick={add}>+</Btn>
+          </div>
+          <div style={{maxHeight: 200, overflowY: 'auto', marginBottom: 15}}>
+            {players.map((p, i) => (
+              <div key={i} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 15px', background: 'rgba(255,255,255,0.08)', borderRadius: 10, marginBottom: 8}}>
+                <span>🎮 {p.name}</span>
+                <button onClick={() => setPlayers(players.filter((_, idx) => idx !== i))} style={{background: 'rgba(255,100,100,0.3)', border: 'none', color: '#ff6b6b', padding: '8px 12px', borderRadius: 8, cursor: 'pointer', fontSize: '1rem'}}>✕</button>
+              </div>
+            ))}
+          </div>
+          {players.length < min && <p style={{textAlign: 'center', color: '#ff6b6b', marginBottom: 10, fontSize: '0.9rem'}}>Mindestens {min} Spieler</p>}
+          <Btn onClick={onStart} disabled={players.length < min} primary style={{width: '100%', padding: 16, fontSize: '1.1rem'}}>🎮 Spiel starten</Btn>
+        </div>
+      );
+    };
+
+    const GameHeader = ({title, onBack}) => (
+      <div style={{marginBottom: 15}}>
+        <button onClick={onBack} style={{background: 'none', border: 'none', color: '#ffd700', fontSize: '1.2rem', cursor: 'pointer', padding: '10px 0'}}>← Zurück</button>
+        <h1 style={{textAlign: 'center', color: '#ffd700', fontSize: '1.8rem', marginTop: 5}}>{title}</h1>
+      </div>
+    );
+
+    const PlayerBar = ({players, current}) => (
+      <div style={{display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 15, padding: 10, background: 'rgba(0,0,0,0.2)', borderRadius: 12}}>
+        {players.map((p, i) => <div key={i} style={{padding: '8px 14px', background: i === current ? 'linear-gradient(135deg, #ffd700, #ff8c00)' : 'rgba(255,255,255,0.1)', borderRadius: 20, color: i === current ? '#1a1a1a' : '#fff', fontWeight: i === current ? 'bold' : 'normal', fontSize: '0.95rem'}}>{p.name}: 🍺{p.drinks}</div>)}
+      </div>
+    );
+
+    // ===== MEIERN =====
+    const getDiceVal = (d1, d2) => Math.max(d1, d2) * 10 + Math.min(d1, d2);
+    const getValRank = v => v === 21 ? 1000 : (Math.floor(v/10) === v%10 ? 100 + Math.floor(v/10) : v);
+    const fmtDice = v => v === 21 ? "MÄXCHEN! 🔥" : (Math.floor(v/10) === v%10 ? `${Math.floor(v/10)}er Pasch` : v.toString());
+    const ALL_VALS = [31,32,41,42,43,51,52,53,54,61,62,63,64,65,11,22,33,44,55,66,21].sort((a,b) => getValRank(a) - getValRank(b));
+
+    const Meiern = ({onBack}) => {
+      const [phase, setPhase] = useState('setup');
+      const [players, setPlayers] = useState([]);
+      const [cur, setCur] = useState(0);
+      const [dice, setDice] = useState([1, 1]);
+      const [rolled, setRolled] = useState(null);
+      const [announced, setAnnounced] = useState(null);
+      const [prev, setPrev] = useState(null);
+      const [looking, setLooking] = useState(false);
+      const [rolling, setRolling] = useState(false);
+      const [result, setResult] = useState(null);
+
+      const roll = () => {
+        setRolling(true); setLooking(false);
+        let count = 0;
+        const interval = setInterval(() => {
+          setDice([Math.floor(Math.random()*6)+1, Math.floor(Math.random()*6)+1]);
+          if (++count > 15) { clearInterval(interval); const d1 = Math.floor(Math.random()*6)+1, d2 = Math.floor(Math.random()*6)+1; setDice([d1, d2]); setRolled(getDiceVal(d1, d2)); setRolling(false); setPhase('looking'); }
+        }, 80);
+      };
+
+      const announce = v => { setAnnounced(v); setPhase('doubting'); };
+      
+      const believe = () => { 
+        // Wenn Mäxchen geglaubt wird, trinkt der Gläubige und neue Runde startet
+        if (announced === 21) {
+          const believerIdx = (cur + 1) % players.length;
+          setPlayers(players.map((p, i) => i === believerIdx ? {...p, drinks: p.drinks + 2} : p));
+          setResult({
+            type: 'believed_max',
+            loser: players[believerIdx].name,
+            drinks: 2,
+            announced: 21
+          });
+          setPhase('result');
+        } else {
+          setPrev(announced); 
+          setCur((cur + 1) % players.length); 
+          setAnnounced(null); 
+          setRolled(null); 
+          setPhase('rolling'); 
+        }
+      };
+      
+      const doubt = () => { 
+        const lied = getValRank(rolled) < getValRank(announced); 
+        const loserIdx = lied ? cur : (cur + 1) % players.length; 
+        const drinks = announced === 21 ? 2 : 1; 
+        setPlayers(players.map((p, i) => i === loserIdx ? {...p, drinks: p.drinks + drinks} : p)); 
+        setResult({type: 'doubt', lied, loser: players[loserIdx].name, drinks, actual: rolled, announced}); 
+        setPhase('result'); 
+      };
+      
+      const nextRound = () => { 
+        let nextPlayer;
+        if (result.type === 'believed_max') {
+          // Nach geglaubtem Mäxchen: Der Trinker beginnt neu
+          nextPlayer = players.findIndex(p => p.name === result.loser);
+        } else {
+          nextPlayer = result.lied ? cur : (cur + 1) % players.length; 
+        }
+        setCur(nextPlayer); setPrev(null); setAnnounced(null); setRolled(null); setResult(null); setPhase('rolling'); 
+      };
+      const validOptions = prev ? ALL_VALS.filter(v => getValRank(v) > getValRank(prev)) : ALL_VALS;
+
+      return (
+        <div style={{padding: 20, maxWidth: 450, margin: '0 auto', minHeight: '100vh', paddingBottom: 40}}>
+          <GameHeader title="🎲 MEIERN (Mäxle) 🍺" onBack={onBack} />
+          {phase === 'setup' && <>
+            <div style={{background: 'rgba(0,0,0,0.3)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+              <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 10, textAlign: 'center'}}>📜 Spielregeln</h3>
+              <ul style={{fontSize: '0.9rem', lineHeight: 1.6, paddingLeft: 20, margin: 0, opacity: 0.9}}>
+                <li>Würfle und schau dir geheim dein Ergebnis an</li>
+                <li>Sage einen Wert an - du darfst lügen!</li>
+                <li>Der nächste Spieler muss glauben oder anzweifeln</li>
+                <li>Glaubt er, muss er höher ansagen</li>
+                <li>Zweifelt er und du hast gelogen → du trinkst</li>
+                <li>Zweifelt er und du hast nicht gelogen → er trinkt</li>
+                <li><strong>Mäxchen (21)</strong> ist der höchste Wurf = 2x trinken!</li>
+              </ul>
+            </div>
+            <PlayerSetup players={players} setPlayers={setPlayers} onStart={() => setPhase('rolling')} />
+          </>}
+          {phase !== 'setup' && <>
+            <PlayerBar players={players} current={cur} />
+            {prev && phase !== 'result' && <div style={{textAlign: 'center', padding: 12, background: 'rgba(255,215,0,0.15)', borderRadius: 12, marginBottom: 15}}>Letzte Ansage: <strong style={{color: '#ffd700'}}>{fmtDice(prev)}</strong></div>}
+            <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 20, padding: 25, textAlign: 'center'}}>
+              
+              {phase === 'rolling' && <>
+                <h2 style={{color: '#ffd700', marginBottom: 10}}>{players[cur]?.name} ist dran!</h2>
+                <p style={{opacity: 0.7, marginBottom: 25}}>Würfle und bluffe!</p>
+                <Btn onClick={roll} danger style={{padding: '20px 50px', fontSize: '1.3rem'}}>🎲 WÜRFELN</Btn>
+              </>}
+              
+              {phase === 'looking' && <>
+                <h2 style={{color: '#ffd700', marginBottom: 15}}>{players[cur]?.name} - Dein Wurf:</h2>
+                
+                {/* FESTE HÖHE für Würfel-Bereich */}
+                <div style={{height: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+                  <div style={{display: 'flex', justifyContent: 'center', gap: 20, filter: looking ? 'none' : 'blur(20px)', transition: 'filter 0.2s'}}>
+                    <Dice value={dice[0]} rolling={rolling} />
+                    <Dice value={dice[1]} rolling={rolling} />
+                  </div>
+                  <div style={{height: 30, marginTop: 10}}>
+                    {looking && <span style={{fontSize: '1.3rem', color: rolled === 21 ? '#ff6b6b' : '#ffd700', fontWeight: 'bold'}}>{fmtDice(rolled)}</span>}
+                  </div>
+                </div>
+                
+                {/* Button IMMER an gleicher Stelle */}
+                <button 
+                  onTouchStart={() => setLooking(true)} 
+                  onTouchEnd={() => setLooking(false)}
+                  onMouseDown={() => setLooking(true)} 
+                  onMouseUp={() => setLooking(false)}
+                  onMouseLeave={() => setLooking(false)}
+                  style={{padding: '15px 30px', background: looking ? '#9b59b6' : '#3498db', border: 'none', borderRadius: 15, color: '#fff', fontWeight: 'bold', cursor: 'pointer', marginBottom: 20, fontSize: '1rem', minWidth: 200}}
+                >
+                  👁️ {looking ? 'GEHEIM!' : 'GEDRÜCKT HALTEN'}
+                </button>
+                
+                <h3 style={{marginBottom: 15}}>Was sagst du an?</h3>
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, maxHeight: 200, overflowY: 'auto', padding: 5}}>
+                  {validOptions.map(v => <button key={v} onClick={() => announce(v)} style={{padding: 12, background: v === 21 ? '#ff6b6b' : v % 11 === 0 ? '#9b59b6' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.9rem'}}>{v === 21 ? '🔥MÄX' : fmtDice(v)}</button>)}
+                </div>
+              </>}
+              
+              {phase === 'doubting' && <>
+                <h2 style={{color: '#ffd700', marginBottom: 10}}>{players[cur]?.name} sagt:</h2>
+                <div style={{fontSize: '2.5rem', color: announced === 21 ? '#ff6b6b' : '#ffd700', margin: '20px 0', fontWeight: 'bold'}}>{fmtDice(announced)}</div>
+                <h3 style={{marginBottom: 20}}>{players[(cur+1) % players.length]?.name}, glaubst du das?</h3>
+                <div style={{display: 'flex', gap: 15, justifyContent: 'center'}}>
+                  <Btn onClick={believe} primary style={{flex: 1, maxWidth: 150}}>✓ Glaube!</Btn>
+                  <Btn onClick={doubt} danger style={{flex: 1, maxWidth: 150}}>✗ Anzweifeln!</Btn>
+                </div>
+              </>}
+              
+              {phase === 'result' && result && <>
+                {result.type === 'believed_max' ? <>
+                  <div style={{fontSize: '4rem', marginBottom: 10}}>🔥</div>
+                  <h2 style={{color: '#ff6b6b', marginBottom: 15}}>MÄXCHEN GEGLAUBT!</h2>
+                  <p style={{marginBottom: 20, fontSize: '1.1rem'}}>Mäxchen ist der höchste Wurf - keine Chance!</p>
+                  <div style={{background: 'rgba(255,107,107,0.2)', borderRadius: 15, padding: 20, marginBottom: 20, border: '2px solid #ff6b6b'}}><strong style={{fontSize: '1.2rem'}}>{result.loser}</strong> trinkt {result.drinks}x! 🍺</div>
+                  <Btn onClick={nextRound} style={{fontSize: '1.1rem'}}>Neue Runde →</Btn>
+                </> : <>
+                  <div style={{fontSize: '4rem', marginBottom: 10}}>{result.lied ? '🤥' : '😇'}</div>
+                  <h2 style={{color: result.lied ? '#ff6b6b' : '#4CAF50', marginBottom: 15}}>{result.lied ? 'GELOGEN!' : 'WAHRHEIT!'}</h2>
+                  <div style={{display: 'flex', justifyContent: 'center', gap: 20, marginBottom: 15}}><Dice value={dice[0]} size={50} /><Dice value={dice[1]} size={50} /></div>
+                  <p style={{marginBottom: 5}}>Angesagt: <strong style={{color: '#ffd700'}}>{fmtDice(result.announced)}</strong></p>
+                  <p style={{marginBottom: 20}}>Tatsächlich: <strong style={{color: '#4CAF50'}}>{fmtDice(result.actual)}</strong></p>
+                  <div style={{background: 'rgba(255,107,107,0.2)', borderRadius: 15, padding: 20, marginBottom: 20, border: '2px solid #ff6b6b'}}><strong style={{fontSize: '1.2rem'}}>{result.loser}</strong> trinkt {result.drinks}x! 🍺</div>
+                  <Btn onClick={nextRound} style={{fontSize: '1.1rem'}}>Nächste Runde →</Btn>
+                </>}
+              </>}
+            </div>
+          </>}
+        </div>
+      );
+    };
+
+    // ===== KINGS CUP mit VIELEN Aufgaben =====
+    const KINGS_RULES = {
+      '2': [
+        {title: '2 = DU', desc: 'Wähle jemanden der trinken muss! 🍺'},
+        {title: 'Kategorie', desc: 'Wähle eine Kategorie (z.B. Automarken). Reihum nennen - wer stockt oder wiederholt, trinkt!'},
+        {title: 'Partner', desc: 'Wähle einen Trinkpartner. Ihr trinkt ab jetzt immer zusammen!'},
+      ],
+      '3': [
+        {title: '3 = ICH', desc: 'Du trinkst selbst! 🍺'},
+        {title: 'Reim', desc: 'Sage ein Wort. Reihum muss gereimt werden - wer nicht kann, trinkt!'},
+        {title: 'Zungenbrecher', desc: 'Sage einen Zungenbrecher. Wer sich verhaspelt, trinkt!'},
+      ],
+      '4': [
+        {title: '4 = BODEN', desc: 'Alle berühren sofort den Boden! Der Letzte trinkt! 🍺'},
+        {title: 'Hände hoch', desc: 'Alle Hände hoch! Der Letzte trinkt!'},
+        {title: 'Frauen', desc: 'Alle Frauen trinken! 🍺👩'},
+      ],
+      '5': [
+        {title: '5 = MÄNNER', desc: 'Alle Männer trinken! 🍺👨'},
+        {title: 'Daumenmaster', desc: 'Du bist Daumenmaster! Legst du den Daumen auf den Tisch, muss jeder folgen. Der Letzte trinkt!'},
+        {title: 'Ich hab noch nie...', desc: 'Sage "Ich hab noch nie..." - alle die es getan haben, trinken!'},
+      ],
+      '6': [
+        {title: '6 = FRAUEN', desc: 'Alle Frauen trinken! 🍺👩'},
+        {title: 'Rechts trinkt', desc: 'Die Person rechts von dir trinkt!'},
+        {title: 'Akzent', desc: 'Sprich bis zur nächsten 6 nur mit Akzent. Vergisst du es, trinkst du!'},
+      ],
+      '7': [
+        {title: '7 = HIMMEL', desc: 'Alle zeigen sofort nach oben! Der Letzte trinkt! 🍺'},
+        {title: 'Links trinkt', desc: 'Die Person links von dir trinkt!'},
+        {title: 'Stumm', desc: 'Du darfst nicht mehr reden bis zur nächsten 7. Sprichst du, trinkst du!'},
+      ],
+      '8': [
+        {title: '8 = MATE', desc: 'Wähle einen Trinkpartner! Ihr trinkt ab jetzt immer zusammen! 🍻'},
+        {title: 'Alle trinken', desc: 'Jeder am Tisch trinkt einen Schluck! 🍺'},
+        {title: 'Tausch', desc: 'Tausche Plätze mit jemandem. Beide trinken!'},
+      ],
+      '9': [
+        {title: '9 = REIM', desc: 'Sage ein Wort. Reihum muss gereimt werden - wer stockt, trinkt!'},
+        {title: 'Regel', desc: 'Erfinde eine Regel! (z.B. niemand darf "trinken" sagen). Bei Verstoß wird getrunken!'},
+        {title: 'Wort verbieten', desc: 'Verbiete ein Wort. Wer es sagt, trinkt!'},
+      ],
+      '10': [
+        {title: '10 = KATEGORIE', desc: 'Wähle eine Kategorie (z.B. Biermarken). Reihum nennen - wer stockt, trinkt!'},
+        {title: '10 Schlucke', desc: 'Verteile 10 Schlucke beliebig auf die anderen Spieler! 🍺'},
+        {title: 'Geschichten', desc: 'Beginne einen Satz. Reihum fügt jeder ein Wort hinzu. Wer keinen Sinn macht, trinkt!'},
+      ],
+      'J': [
+        {title: 'BUBE = QUESTIONMASTER', desc: 'Du bist Questionmaster! Wer deine Fragen beantwortet (statt "Questionmaster" zu sagen), trinkt!'},
+        {title: 'Alle Jungs trinken', desc: 'Alle Männer trinken 2 Schlucke! 🍺🍺'},
+        {title: 'Regel aufheben', desc: 'Hebe eine bestehende Regel auf!'},
+      ],
+      'Q': [
+        {title: 'DAME = QUESTIONMASTER', desc: 'Du bist Questionmaster bis zur nächsten Dame!'},
+        {title: 'Alle Mädels trinken', desc: 'Alle Frauen trinken 2 Schlucke! 🍺🍺'},
+        {title: 'Toiletten-Karte', desc: 'Nur du darfst jetzt aufs Klo. Verkaufe oder behalte diese Karte!'},
+      ],
+      'K': [
+        {title: '👑 KINGS CUP', desc: 'Gieße etwas von deinem Getränk in den Kings Cup in der Mitte! Beim 4. König muss der Cup ausgetrunken werden! 👑🍺'},
+        {title: 'König bestimmt', desc: 'Du bestimmst wer trinkt - 3 Schlucke!'},
+        {title: 'Königsregel', desc: 'Erfinde eine Regel die bis Spielende gilt!'},
+      ],
+      'A': [
+        {title: 'ASS = WASSERFALL', desc: 'Alle trinken! Du fängst an, der Nächste darf erst aufhören wenn du aufhörst, usw.! 🌊🍺'},
+        {title: 'Alle trinken', desc: 'Jeder trinkt 2 Schlucke! 🍺🍺'},
+        {title: 'Snake Eyes', desc: 'Schau niemandem in die Augen bis zum nächsten Ass. Wirst du erwischt, trinkst du!'},
+      ],
+    };
+
+    const KingsCup = ({onBack}) => {
+      const [phase, setPhase] = useState('setup');
+      const [players, setPlayers] = useState([]);
+      const [deck, setDeck] = useState([]);
+      const [cur, setCur] = useState(0);
+      const [card, setCard] = useState(null);
+      const [kings, setKings] = useState(0);
+      const [currentRule, setCurrentRule] = useState(null);
+      const [usedRules, setUsedRules] = useState({});
+
+      const start = () => { setDeck(createDeck()); setPhase('playing'); };
+      
+      const draw = () => { 
+        if (deck.length === 0) { setPhase('finished'); return; } 
+        const c = deck[0]; 
+        setDeck(deck.slice(1)); 
+        setCard(c); 
+        if (c.value === 'K') setKings(k => k + 1);
+        
+        // Zufällige Regel wählen, die noch nicht benutzt wurde
+        const rules = KINGS_RULES[c.value];
+        const usedForValue = usedRules[c.value] || [];
+        const available = rules.filter((_, i) => !usedForValue.includes(i));
+        
+        let ruleIndex;
+        if (available.length === 0) {
+          // Alle benutzt, reset und neu wählen
+          ruleIndex = Math.floor(Math.random() * rules.length);
+          setUsedRules({...usedRules, [c.value]: [ruleIndex]});
+        } else {
+          const availableIndices = rules.map((_, i) => i).filter(i => !usedForValue.includes(i));
+          ruleIndex = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+          setUsedRules({...usedRules, [c.value]: [...usedForValue, ruleIndex]});
+        }
+        
+        setCurrentRule(rules[ruleIndex]);
+        setPhase('showing'); 
+      };
+      
+      const next = () => { setCur((cur + 1) % players.length); setCard(null); setCurrentRule(null); setPhase('playing'); };
+
+      return (
+        <div style={{padding: 20, maxWidth: 450, margin: '0 auto', minHeight: '100vh', paddingBottom: 40}}>
+          <GameHeader title="👑 KINGS CUP 🍺" onBack={onBack} />
+          {phase === 'setup' && <>
+            <div style={{background: 'rgba(0,0,0,0.3)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+              <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 10, textAlign: 'center'}}>📜 Spielregeln</h3>
+              <ul style={{fontSize: '0.9rem', lineHeight: 1.6, paddingLeft: 20, margin: 0, opacity: 0.9}}>
+                <li>Reihum zieht jeder eine Karte</li>
+                <li>Jede Karte hat eine Aufgabe/Regel</li>
+                <li>Führe die Aufgabe aus oder trinke!</li>
+                <li>Bei <strong>König</strong>: Gieße etwas in den Kings Cup</li>
+                <li>Wer den <strong>4. König</strong> zieht, trinkt den Kings Cup aus!</li>
+                <li>Spiel endet wenn alle Karten gezogen sind</li>
+              </ul>
+            </div>
+            <PlayerSetup players={players} setPlayers={setPlayers} onStart={start} />
+          </>}
+          {phase !== 'setup' && <>
+            <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 15, padding: 12, background: 'rgba(0,0,0,0.3)', borderRadius: 12}}>
+              <span>👑 Kings: {kings}/4</span>
+              <span>🃏 Karten: {deck.length}</span>
+            </div>
+            <PlayerBar players={players} current={cur} />
+            <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 20, padding: 25, textAlign: 'center'}}>
+              {phase === 'playing' && <>
+                <h2 style={{color: '#ffd700', marginBottom: 25}}>{players[cur]?.name} ist dran!</h2>
+                <div style={{display: 'flex', justifyContent: 'center', marginBottom: 25}}><Card card={{value: '?', suit: '?'}} faceUp={false} onClick={draw} highlight /></div>
+                <p style={{opacity: 0.7}}>Tippe auf die Karte zum Ziehen</p>
+              </>}
+              {phase === 'showing' && card && currentRule && <>
+                <div style={{display: 'flex', justifyContent: 'center', marginBottom: 20}}><Card card={card} highlight /></div>
+                <h2 style={{color: '#ffd700', marginBottom: 10, fontSize: '1.4rem'}}>{currentRule.title}</h2>
+                <p style={{fontSize: '1.1rem', lineHeight: 1.6, marginBottom: 25, padding: '0 10px'}}>{currentRule.desc}</p>
+                {card.value === 'K' && kings === 4 && <div style={{background: 'rgba(255,215,0,0.2)', padding: 15, borderRadius: 12, marginBottom: 20, border: '2px solid #ffd700'}}><strong>👑 4. KÖNIG! Kings Cup austrinken! 👑</strong></div>}
+                <Btn onClick={next} style={{fontSize: '1.1rem'}}>Nächster Spieler →</Btn>
+              </>}
+              {phase === 'finished' && <>
+                <div style={{fontSize: '4rem', marginBottom: 15}}>🎉</div>
+                <h2 style={{color: '#ffd700', marginBottom: 20}}>Alle Karten gezogen!</h2>
+                <Btn onClick={() => {setDeck(createDeck()); setKings(0); setUsedRules({}); setPhase('playing');}} style={{fontSize: '1.1rem'}}>🔄 Nochmal spielen</Btn>
+              </>}
+            </div>
+          </>}
+        </div>
+      );
+    };
+
+    // ===== BUSFAHRER =====
+    const Busfahrer = ({onBack}) => {
+      const [phase, setPhase] = useState('setup');
+      const [players, setPlayers] = useState([]);
+      const [deck, setDeck] = useState([]);
+      const [cur, setCur] = useState(0);
+      const [card, setCard] = useState(null);
+      const [round, setRound] = useState(1);
+      const [streak, setStreak] = useState(0);
+      const [msg, setMsg] = useState('');
+
+      const start = () => { const d = createDeck(); setDeck(d.slice(1)); setCard(d[0]); setPhase('playing'); };
+      const getNum = v => ({2:2,3:3,4:4,5:5,6:6,7:7,8:8,9:9,10:10,J:11,Q:12,K:13,A:14}[v]);
+      
+      const guess = choice => {
+        let currentDeck = deck;
+        if (currentDeck.length === 0) { currentDeck = createDeck(); setDeck(currentDeck); }
+        const prevCard = card;
+        const nextCard = currentDeck[0];
+        setDeck(currentDeck.slice(1));
+        let correct = false;
+        if (round === 1) { const red = nextCard.suit === '♥' || nextCard.suit === '♦'; correct = (choice === 'red' && red) || (choice === 'black' && !red); }
+        else { const p = getNum(prevCard.value), n = getNum(nextCard.value); correct = (choice === 'higher' && n > p) || (choice === 'lower' && n < p) || (n === p); }
+        setCard(nextCard);
+        if (correct) {
+          const newStreak = streak + 1; setStreak(newStreak);
+          if (newStreak >= 4) { setMsg(`🎉 ${players[cur].name} hat es geschafft!`); setTimeout(() => { setCur((cur + 1) % players.length); setStreak(0); setRound(1); setMsg(''); }, 2000); }
+          else { setMsg(`✓ Richtig!`); setRound(r => r + 1); setTimeout(() => setMsg(''), 800); }
+        } else {
+          const drinks = streak + 1; setPlayers(players.map((p, i) => i === cur ? {...p, drinks: p.drinks + drinks} : p)); setMsg(`✗ Falsch! ${players[cur].name} trinkt ${drinks}x 🍺`);
+          setTimeout(() => { setCur((cur + 1) % players.length); setStreak(0); setRound(1); setMsg(''); }, 2000);
+        }
+      };
+      
+      const roundInfo = {
+        1: {q: 'Rot oder Schwarz?', btns: [{l: '🔴 Rot', v: 'red'}, {l: '⚫ Schwarz', v: 'black'}]},
+        2: {q: 'Höher oder Niedriger?', btns: [{l: '⬆️ Höher', v: 'higher'}, {l: '⬇️ Niedriger', v: 'lower'}]},
+        3: {q: 'Höher oder Niedriger?', btns: [{l: '⬆️ Höher', v: 'higher'}, {l: '⬇️ Niedriger', v: 'lower'}]},
+        4: {q: 'Höher oder Niedriger?', btns: [{l: '⬆️ Höher', v: 'higher'}, {l: '⬇️ Niedriger', v: 'lower'}]}
+      };
+
+      return (
+        <div style={{padding: 20, maxWidth: 450, margin: '0 auto', minHeight: '100vh', paddingBottom: 40}}>
+          <GameHeader title="🚌 BUSFAHRER 🍺" onBack={onBack} />
+          {phase === 'setup' && <>
+            <div style={{background: 'rgba(0,0,0,0.3)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+              <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 10, textAlign: 'center'}}>📜 Spielregeln</h3>
+              <ul style={{fontSize: '0.9rem', lineHeight: 1.6, paddingLeft: 20, margin: 0, opacity: 0.9}}>
+                <li><strong>Runde 1:</strong> Rot oder Schwarz?</li>
+                <li><strong>Runde 2-4:</strong> Höher oder Niedriger?</li>
+                <li>Richtig → weiter zur nächsten Runde</li>
+                <li>Falsch → trinke (Streak+1) Schlucke</li>
+                <li><strong>4x hintereinander richtig</strong> = geschafft!</li>
+                <li>Bei Fehler startest du wieder bei Runde 1</li>
+              </ul>
+            </div>
+            <PlayerSetup players={players} setPlayers={setPlayers} onStart={start} />
+          </>}
+          {phase === 'playing' && <>
+            <PlayerBar players={players} current={cur} />
+            <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 20, padding: 25, textAlign: 'center'}}>
+              <h2 style={{color: '#ffd700', marginBottom: 5}}>{players[cur]?.name}</h2>
+              <p style={{opacity: 0.8, marginBottom: 20}}>Runde {round}/4 • Streak: {streak}</p>
+              <div style={{display: 'flex', justifyContent: 'center', marginBottom: 25}}>{card && <Card card={card} highlight />}</div>
+              {msg ? <div style={{padding: 20, background: msg.includes('✓') || msg.includes('🎉') ? 'rgba(76,175,80,0.2)' : 'rgba(231,76,60,0.2)', borderRadius: 15, marginBottom: 20}}><strong style={{fontSize: '1.1rem'}}>{msg}</strong></div> : <>
+                <h3 style={{marginBottom: 20, fontSize: '1.2rem'}}>{roundInfo[round]?.q}</h3>
+                <div style={{display: 'flex', gap: 15, justifyContent: 'center'}}>{roundInfo[round]?.btns.map((b, i) => <Btn key={i} onClick={() => guess(b.v)} primary={i === 0} danger={i === 1} style={{flex: 1, maxWidth: 160}}>{b.l}</Btn>)}</div>
+              </>}
+              <p style={{marginTop: 25, opacity: 0.6, fontSize: '0.9rem'}}>4x richtig = geschafft! 🎉</p>
+            </div>
+          </>}
+        </div>
+      );
+    };
+
+    // ===== PYRAMIDE =====
+    const Pyramide = ({onBack}) => {
+      const [phase, setPhase] = useState('setup');
+      const [players, setPlayers] = useState([]);
+      const [pyramid, setPyramid] = useState([]);
+      const [hands, setHands] = useState({});
+      const [row, setRow] = useState(0);
+      const [revealed, setRevealed] = useState(null);
+      const [matching, setMatching] = useState([]);
+      const [selected, setSelected] = useState(null);
+      const [drinks, setDrinks] = useState(0);
+      const [msg, setMsg] = useState('');
+      const [mode, setMode] = useState('normal'); // 'normal' oder 'atom'
+      const ROWS = 5;
+
+      const start = () => {
+        let d = createDeck();
+        const pyr = [];
+        for (let r = 0; r < ROWS; r++) { 
+          const rowCards = []; 
+          // Normal: 5-4-3-2-1, Atom: 1-2-3-4-5
+          const cardCount = mode === 'normal' ? (ROWS - r) : (r + 1);
+          for (let i = 0; i < cardCount; i++) rowCards.push({...d.pop(), revealed: false}); 
+          pyr.push(rowCards); 
+        }
+        setPyramid(pyr);
+        const h = {}; players.forEach(p => { h[p.name] = [d.pop(), d.pop(), d.pop(), d.pop()]; }); setHands(h);
+        setPhase('playing'); setMsg('Tippe auf eine Karte!');
+      };
+
+      const revealCard = (ri, ci) => {
+        if (ri !== row || pyramid[ri][ci].revealed) return;
+        const newPyramid = pyramid.map(r => r.map(c => ({...c}))); newPyramid[ri][ci].revealed = true; setPyramid(newPyramid);
+        const card = newPyramid[ri][ci]; setRevealed(card);
+        const drinkAmount = ri + 1; setDrinks(drinkAmount);
+        const matchingPlayers = []; Object.entries(hands).forEach(([name, hand]) => { if (hand.some(c => c.value === card.value)) matchingPlayers.push(name); }); setMatching(matchingPlayers);
+        if (matchingPlayers.length > 0) { setMsg(`${drinkAmount} Schluck${drinkAmount > 1 ? 'e' : ''} verteilen!`); setPhase('distribute'); }
+        else { setMsg('Niemand hat diese Karte!'); setPhase('noMatch'); }
+      };
+
+      const playCard = (playerName, cardIdx) => {
+        const card = hands[playerName][cardIdx]; if (card.value !== revealed?.value) return;
+        const newHands = {...hands}; newHands[playerName] = newHands[playerName].filter((_, i) => i !== cardIdx); setHands(newHands); setSelected(playerName);
+      };
+
+      const giveDrinks = (target) => {
+        setPlayers(ps => ps.map(p => p.name === target ? {...p, drinks: p.drinks + drinks} : p)); setMsg(`${target} trinkt ${drinks}! 🍺`);
+        const stillMatching = matching.filter(name => hands[name]?.some(c => c.value === revealed?.value));
+        if (stillMatching.length > 0) { setMatching(stillMatching); setSelected(null); } else { setPhase('noMatch'); }
+      };
+
+      const advance = () => {
+        setSelected(null); setRevealed(null); setMatching([]);
+        const allRevealed = pyramid[row]?.every(c => c.revealed);
+        if (allRevealed) { if (row + 1 >= ROWS) { setPhase('finished'); setMsg('🎉 Pyramide geschafft!'); return; } setRow(r => r + 1); }
+        setPhase('playing'); setMsg('Nächste Karte!');
+      };
+
+      return (
+        <div style={{padding: 15, maxWidth: 500, margin: '0 auto', minHeight: '100vh', paddingBottom: 40}}>
+          <GameHeader title={mode === 'atom' ? "☢️ ATOM-PYRAMIDE 🍺" : "🃏 PYRAMIDE 🍺"} onBack={onBack} />
+          {phase === 'setup' && <>
+            <div style={{background: 'rgba(0,0,0,0.3)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+              <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 10, textAlign: 'center'}}>📜 Spielregeln</h3>
+              <ul style={{fontSize: '0.9rem', lineHeight: 1.6, paddingLeft: 20, margin: 0, opacity: 0.9}}>
+                <li>Jeder bekommt 4 Handkarten</li>
+                <li>Decke Karten der Pyramide auf (unten → oben)</li>
+                <li>Hast du den gleichen Wert auf der Hand?</li>
+                <li>Lege die Karte ab und verteile Schlucke!</li>
+                <li><strong>Reihe 1:</strong> 1 Schluck, <strong>Reihe 5:</strong> 5 Schlucke</li>
+                <li>Du kannst auch bluffen! 😏</li>
+              </ul>
+            </div>
+            
+            {/* Spielmodus Auswahl */}
+            <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+              <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 15, textAlign: 'center'}}>Spielmodus</h3>
+              <div style={{display: 'flex', gap: 10}}>
+                <button 
+                  onClick={() => setMode('normal')} 
+                  style={{flex: 1, padding: 15, background: mode === 'normal' ? 'linear-gradient(135deg, #ffd700, #ff8c00)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, color: mode === 'normal' ? '#1a1a1a' : '#fff', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center'}}
+                >
+                  <div style={{fontSize: '1.5rem', marginBottom: 5}}>🔺</div>
+                  <div>Normal</div>
+                  <div style={{fontSize: '0.7rem', opacity: 0.8, marginTop: 3}}>5-4-3-2-1</div>
+                </button>
+                <button 
+                  onClick={() => setMode('atom')} 
+                  style={{flex: 1, padding: 15, background: mode === 'atom' ? 'linear-gradient(135deg, #ff6b6b, #ee5a24)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, color: mode === 'atom' ? '#fff' : '#fff', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center'}}
+                >
+                  <div style={{fontSize: '1.5rem', marginBottom: 5}}>☢️</div>
+                  <div>Atom</div>
+                  <div style={{fontSize: '0.7rem', opacity: 0.8, marginTop: 3}}>1-2-3-4-5</div>
+                </button>
+              </div>
+              {mode === 'atom' && <p style={{textAlign: 'center', marginTop: 12, fontSize: '0.85rem', color: '#ff6b6b'}}>⚠️ Vorsicht! 5 Karten für 5 Schlucke!</p>}
+            </div>
+            
+            <PlayerSetup players={players} setPlayers={setPlayers} onStart={start} />
+          </>}
+          {phase !== 'setup' && <>
+            <PlayerBar players={players} />
+            <div style={{textAlign: 'center', padding: 12, background: mode === 'atom' ? 'rgba(255,107,107,0.2)' : 'rgba(255,215,0,0.15)', borderRadius: 12, marginBottom: 15}}>{msg}</div>
+            <div style={{background: 'rgba(0,0,0,0.3)', borderRadius: 15, padding: 15, marginBottom: 15}}>
+              <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8}}>
+                {[...pyramid].reverse().map((rowCards, displayIdx) => {
+                  const rowIdx = ROWS - 1 - displayIdx;
+                  return <div key={displayIdx} style={{display: 'flex', alignItems: 'center', gap: 6}}><span style={{fontSize: '0.8rem', color: '#ffd700', width: 30, textAlign: 'right'}}>{rowIdx + 1}🍺</span><div style={{display: 'flex', gap: 6}}>{rowCards.map((c, ci) => <Card key={ci} card={c} faceUp={c.revealed} small highlight={rowIdx === row && !c.revealed && phase === 'playing'} onClick={() => phase === 'playing' && !c.revealed && rowIdx === row && revealCard(rowIdx, ci)} />)}</div></div>;
+                })}
+              </div>
+            </div>
+            {phase === 'distribute' && <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 15, padding: 15}}>
+              <h3 style={{color: '#ffd700', textAlign: 'center', marginBottom: 15}}>Wer legt die {revealed?.value} ab?</h3>
+              {matching.map(name => <div key={name} style={{marginBottom: 15}}><p style={{margin: '0 0 8px', fontWeight: 'bold'}}>{name}:</p><div style={{display: 'flex', gap: 8, flexWrap: 'wrap'}}>{hands[name]?.map((c, i) => <Card key={i} card={c} small highlight={c.value === revealed?.value} onClick={() => c.value === revealed?.value && playCard(name, i)} />)}</div></div>)}
+              {selected && <div style={{marginTop: 20}}><p style={{color: '#ffd700', textAlign: 'center', marginBottom: 15}}>{selected} verteilt {drinks} Schlucke an:</p><div style={{display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center'}}>{players.map((p, i) => <Btn key={i} onClick={() => giveDrinks(p.name)} danger>{p.name}</Btn>)}</div></div>}
+              <button onClick={advance} style={{width: '100%', marginTop: 20, padding: 15, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 12, color: '#fff', cursor: 'pointer', fontSize: '1rem'}}>Weiter →</button>
+            </div>}
+            {phase === 'noMatch' && <div style={{textAlign: 'center', marginTop: 20}}><Btn onClick={advance}>Weiter →</Btn></div>}
+            {phase === 'finished' && <div style={{textAlign: 'center', padding: 30, background: 'rgba(255,215,0,0.1)', borderRadius: 20}}><div style={{fontSize: '4rem', marginBottom: 15}}>🏆</div><h2 style={{color: '#ffd700', marginBottom: 20}}>Pyramide geschafft!</h2>{[...players].sort((a, b) => b.drinks - a.drinks).map((p, i) => <div key={i} style={{padding: 12, background: i === 0 ? 'rgba(255,0,0,0.2)' : 'rgba(255,255,255,0.05)', borderRadius: 10, marginBottom: 8}}>{i === 0 ? '🥴 ' : ''}{p.name}: {p.drinks} Schlucke</div>)}</div>}
+          </>}
+        </div>
+      );
+    };
+
+    // ===== REAKTION =====
+    const Reaktion = ({onBack}) => {
+      const [phase, setPhase] = useState('setup');
+      const [players, setPlayers] = useState([]);
+      const [taps, setTaps] = useState({});
+      const [startTime, setStartTime] = useState(null);
+      const [timerId, setTimerId] = useState(null);
+      const [losers, setLosers] = useState([]);
+      const [falseStart, setFalseStart] = useState(null);
+      const [mode, setMode] = useState('last');
+
+      const startRound = () => { setTaps({}); setLosers([]); setFalseStart(null); setPhase('waiting'); const delay = 2000 + Math.random() * 3000; const id = setTimeout(() => { setStartTime(Date.now()); setPhase('ready'); }, delay); setTimerId(id); };
+
+      const handleTap = useCallback((name) => {
+        if (phase === 'waiting') { clearTimeout(timerId); setFalseStart(name); setPlayers(p => p.map(x => x.name === name ? {...x, drinks: x.drinks + 2} : x)); setPhase('result'); return; }
+        if (phase !== 'ready') return; if (taps[name]) return;
+        const time = Date.now() - startTime; const newTaps = {...taps, [name]: time}; setTaps(newTaps);
+        if (Object.keys(newTaps).length === players.length) {
+          const sorted = Object.entries(newTaps).sort((a, b) => a[1] - b[1]);
+          const loserList = mode === 'last' ? [sorted[sorted.length - 1][0]] : sorted.slice(1).map(([n]) => n);
+          setLosers(loserList); setPlayers(p => p.map(x => loserList.includes(x.name) ? {...x, drinks: x.drinks + 1} : x)); setPhase('result');
+        }
+      }, [phase, timerId, taps, startTime, players, mode]);
+
+      const getGridStyle = () => players.length === 2 ? {gridTemplateRows: '1fr 1fr', gridTemplateColumns: '1fr'} : {gridTemplateRows: '1fr 1fr', gridTemplateColumns: '1fr 1fr'};
+      const getArea = (index) => { const n = players.length; if (n === 2) return index === 0 ? {gridRow: '1', gridColumn: '1'} : {gridRow: '2', gridColumn: '1'}; if (n === 3) { if (index === 0) return {gridRow: '1', gridColumn: '1 / 3'}; return index === 1 ? {gridRow: '2', gridColumn: '1'} : {gridRow: '2', gridColumn: '2'}; } return {gridRow: index < 2 ? '1' : '2', gridColumn: index % 2 === 0 ? '1' : '2'}; };
+      const getBackground = (name) => { if (phase === 'waiting') return '#e74c3c'; if (phase === 'ready') return taps[name] ? '#7f8c8d' : '#27ae60'; if (phase === 'result') { if (falseStart === name) return '#9b59b6'; if (losers.includes(name)) return '#e74c3c'; return '#27ae60'; } return '#3498db'; };
+      const getRotation = (index) => { const n = players.length; if (n === 2 && index === 0) return 'rotate(180deg)'; if (n >= 3 && index === 0) return 'rotate(180deg)'; if (n === 4 && index === 1) return 'rotate(180deg)'; return 'none'; };
+
+      if (phase === 'setup') return (
+        <div style={{padding: 20, minHeight: '100vh', paddingBottom: 40}}>
+          <GameHeader title="⚡ REAKTIONS-DUELL 🍺" onBack={onBack} />
+          <div style={{background: 'rgba(0,0,0,0.3)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+            <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 10, textAlign: 'center'}}>📜 Spielregeln</h3>
+            <ul style={{fontSize: '0.9rem', lineHeight: 1.6, paddingLeft: 20, margin: 0, opacity: 0.9}}>
+              <li>Jeder Spieler bekommt einen Bereich auf dem Bildschirm</li>
+              <li>🔴 <strong>ROT</strong> = Warten! Nicht tippen!</li>
+              <li>🟢 <strong>GRÜN</strong> = So schnell wie möglich tippen!</li>
+              <li>Wer zu früh tippt → 2 Schlucke Strafe!</li>
+              <li>Der Langsamste (oder alle außer dem Schnellsten) trinkt</li>
+            </ul>
+          </div>
+          <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+            <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 15, textAlign: 'center'}}>Spielmodus</h3>
+            <div style={{display: 'flex', gap: 10}}>
+              <button onClick={() => setMode('last')} style={{flex: 1, padding: 15, background: mode === 'last' ? 'linear-gradient(135deg, #ffd700, #ff8c00)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, color: mode === 'last' ? '#1a1a1a' : '#fff', fontWeight: 'bold', cursor: 'pointer'}}>🐌 Letzter trinkt</button>
+              <button onClick={() => setMode('allButFirst')} style={{flex: 1, padding: 15, background: mode === 'allButFirst' ? 'linear-gradient(135deg, #ffd700, #ff8c00)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, color: mode === 'allButFirst' ? '#1a1a1a' : '#fff', fontWeight: 'bold', cursor: 'pointer'}}>🏆 Nur Schnellster frei</button>
+            </div>
+          </div>
+          <PlayerSetup players={players} setPlayers={setPlayers} onStart={startRound} min={2} max={4} />
+        </div>
+      );
+
+      return (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'grid', ...getGridStyle(), gap: 4, background: '#000', paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)'}}>
+          {players.slice(0, 4).map((p, i) => (
+            <div key={p.name} onTouchStart={(e) => { e.preventDefault(); handleTap(p.name); }} onMouseDown={() => handleTap(p.name)} className="no-select" style={{...getArea(i), background: getBackground(p.name), display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.15s', touchAction: 'manipulation'}}>
+              <div style={{transform: getRotation(i), textAlign: 'center', pointerEvents: 'none'}}>
+                <div style={{fontSize: '2rem', fontWeight: 'bold', marginBottom: 8, color: '#fff'}}>{p.name}</div>
+                <div style={{fontSize: '1.2rem', color: 'rgba(255,255,255,0.9)', marginBottom: 20}}>🍺 {p.drinks}</div>
+                {phase === 'waiting' && <div style={{fontSize: '3rem'}}>🔴</div>}
+                {phase === 'ready' && !taps[p.name] && <div style={{fontSize: '5rem', animation: 'pulse 0.3s infinite'}}>👆</div>}
+                {phase === 'ready' && taps[p.name] && <div style={{fontSize: '1.8rem', color: '#fff'}}>✓ {taps[p.name]}ms</div>}
+                {phase === 'result' && falseStart === p.name && <div style={{fontSize: '1.5rem', color: '#fff', lineHeight: 1.4}}>⚡ ZU FRÜH!<br/>2x Trinken!</div>}
+                {phase === 'result' && !falseStart && losers.includes(p.name) && <div style={{fontSize: '1.5rem', color: '#fff', lineHeight: 1.4}}>🐌 {taps[p.name]}ms<br/>TRINKEN!</div>}
+                {phase === 'result' && !falseStart && !losers.includes(p.name) && taps[p.name] && <div style={{fontSize: '1.8rem', color: '#fff'}}>🏆 {taps[p.name]}ms</div>}
+              </div>
+            </div>
+          ))}
+          {phase === 'result' && <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 100, display: 'flex', flexDirection: 'column', gap: 12}}>
+            <button onClick={startRound} style={{padding: '20px 45px', fontSize: '1.4rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #ffd700, #ff8c00)', border: 'none', borderRadius: 30, color: '#1a1a1a', cursor: 'pointer', boxShadow: '0 5px 30px rgba(0,0,0,0.5)'}}>🔄 Nächste Runde</button>
+            <button onClick={onBack} style={{padding: '14px 30px', background: 'rgba(0,0,0,0.8)', border: '2px solid #fff', borderRadius: 20, color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem'}}>← Zurück</button>
+          </div>}
+        </div>
+      );
+    };
+
+    // ===== FARBEN-REAKTION (verbessert) =====
+    const ALL_COLORS = [
+      {color: '#e74c3c', name: 'ROT'},
+      {color: '#3498db', name: 'BLAU'},
+      {color: '#27ae60', name: 'GRÜN'},
+      {color: '#f39c12', name: 'GELB'},
+      {color: '#9b59b6', name: 'LILA'},
+      {color: '#e91e63', name: 'PINK'},
+      {color: '#00bcd4', name: 'TÜRKIS'},
+      {color: '#ff5722', name: 'ORANGE'},
+      {color: '#795548', name: 'BRAUN'},
+    ];
+
+    const FarbenReaktion = ({onBack}) => {
+      const [phase, setPhase] = useState('setup');
+      const [players, setPlayers] = useState([]);
+      const [playerColors, setPlayerColors] = useState([]);
+      const [targetColorIdx, setTargetColorIdx] = useState(null);
+      const [tapped, setTapped] = useState(null);
+      const [startTime, setStartTime] = useState(null);
+      const [reactionTime, setReactionTime] = useState(null);
+      const [roundResult, setRoundResult] = useState(null);
+      const [roundNum, setRoundNum] = useState(0);
+      const timeoutRef = useRef(null);
+      const disappearRef = useRef(null);
+
+      const setupGame = () => {
+        // Jeder Spieler bekommt eine zufällige Farbe, plus 4-5 Extra-Farben
+        const shuffled = [...ALL_COLORS].sort(() => Math.random() - 0.5);
+        const extraCount = 4 + Math.floor(Math.random() * 2); // 4-5 Extra
+        const colors = shuffled.slice(0, Math.min(players.length + extraCount, 9));
+        setPlayerColors(colors);
+        setRoundNum(0);
+        startRound(colors);
+      };
+
+      const startRound = (colors = playerColors) => {
+        setTapped(null);
+        setReactionTime(null);
+        setRoundResult(null);
+        setTargetColorIdx(null);
+        setPhase('waiting');
+        setRoundNum(r => r + 1);
+        
+        const showColor = () => {
+          const delay = 800 + Math.random() * 1500;
+          timeoutRef.current = setTimeout(() => {
+            // Zufällige Farbe aus ALLEN verfügbaren (inkl. Extra-Farben)
+            const colorIdx = Math.floor(Math.random() * colors.length);
+            setTargetColorIdx(colorIdx);
+            setStartTime(Date.now());
+            setPhase('react');
+            
+            // Extra-Farbe? Nur kurz zeigen und dann neue Farbe!
+            if (colorIdx >= players.length) {
+              // Extra-Farbe: 600-900ms zeigen, dann neue Farbe
+              timeoutRef.current = setTimeout(() => {
+                setTargetColorIdx(null);
+                setPhase('waiting');
+                showColor(); // Rekursiv neue Farbe zeigen
+              }, 600 + Math.random() * 300);
+            } else {
+              // Spieler-Farbe: Timeout nach 750ms
+              timeoutRef.current = setTimeout(() => {
+                handleTimeout(colorIdx, colors);
+              }, 750);
+            }
+          }, delay);
+        };
+        
+        showColor();
+      };
+
+      const handleTimeout = (colorIdx, colors) => {
+        if (tapped !== null) return;
+        clearTimeout(disappearRef.current);
+        
+        // Nur Spieler-Farben können Timeout haben
+        if (colorIdx < players.length) {
+          const playerWithColor = players[colorIdx].name;
+          setRoundResult({type: 'timeout', loser: playerWithColor});
+          setPlayers(ps => ps.map(p => p.name === playerWithColor ? {...p, drinks: p.drinks + 1} : p));
+          setPhase('result');
+        }
+      };
+
+      const handleTap = (playerIdx) => {
+        if (phase !== 'react' || tapped !== null) return;
+        
+        clearTimeout(timeoutRef.current);
+        clearTimeout(disappearRef.current);
+        const time = Date.now() - startTime;
+        setReactionTime(time);
+        setTapped(playerIdx);
+        
+        // Extra-Farbe? Dann darf NIEMAND tippen!
+        if (targetColorIdx >= players.length) {
+          setRoundResult({type: 'wrong', loser: players[playerIdx].name, correctColor: 'NIEMAND (Extra-Farbe!)'});
+          setPlayers(ps => ps.map((p, i) => i === playerIdx ? {...p, drinks: p.drinks + 2} : p));
+          setPhase('result');
+          return;
+        }
+        
+        // Hat der Spieler die richtige Farbe?
+        if (playerIdx === targetColorIdx) {
+          // Richtig!
+          setRoundResult({type: 'correct', winner: players[playerIdx].name, time});
+          // Alle anderen trinken
+          setPlayers(ps => ps.map((p, i) => i !== playerIdx ? {...p, drinks: p.drinks + 1} : p));
+        } else {
+          // Falsch! (falsche Spieler-Farbe)
+          setRoundResult({type: 'wrong', loser: players[playerIdx].name, correctColor: playerColors[targetColorIdx]?.name || 'NIEMAND'});
+          setPlayers(ps => ps.map((p, i) => i === playerIdx ? {...p, drinks: p.drinks + 2} : p));
+        }
+        setPhase('result');
+      };
+
+      useEffect(() => {
+        return () => { clearTimeout(timeoutRef.current); clearTimeout(disappearRef.current); };
+      }, []);
+
+      const getGridStyle = () => players.length === 2 ? {gridTemplateRows: '1fr 1fr', gridTemplateColumns: '1fr'} : {gridTemplateRows: '1fr 1fr', gridTemplateColumns: '1fr 1fr'};
+      const getArea = (index) => { const n = players.length; if (n === 2) return index === 0 ? {gridRow: '1', gridColumn: '1'} : {gridRow: '2', gridColumn: '1'}; if (n === 3) { if (index === 0) return {gridRow: '1', gridColumn: '1 / 3'}; return index === 1 ? {gridRow: '2', gridColumn: '1'} : {gridRow: '2', gridColumn: '2'}; } return {gridRow: index < 2 ? '1' : '2', gridColumn: index % 2 === 0 ? '1' : '2'}; };
+      const getRotation = (index) => { const n = players.length; if (n === 2 && index === 0) return 'rotate(180deg)'; if (n >= 3 && index === 0) return 'rotate(180deg)'; if (n === 4 && index === 1) return 'rotate(180deg)'; return 'none'; };
+
+      if (phase === 'setup') return (
+        <div style={{padding: 20, minHeight: '100vh', paddingBottom: 40}}>
+          <GameHeader title="🎨 FARBEN-REAKTION 🍺" onBack={onBack} />
+          <div style={{background: 'rgba(0,0,0,0.3)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+            <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 10, textAlign: 'center'}}>📜 Spielregeln</h3>
+            <ul style={{fontSize: '0.9rem', lineHeight: 1.6, paddingLeft: 20, margin: 0, opacity: 0.9}}>
+              <li>Jeder Spieler hat eine Farbe</li>
+              <li>Es gibt 4-5 Extra-Farben ohne Spieler!</li>
+              <li>In der Mitte erscheint eine Farbe - <strong>0,75 Sek!</strong></li>
+              <li>Nur wer DIESE Farbe hat darf tippen!</li>
+              <li>Extra-Farbe? <strong>Niemand tippen!</strong></li>
+              <li>Richtig = alle anderen trinken</li>
+              <li>Falsch/Zu langsam = 2x trinken</li>
+            </ul>
+          </div>
+          <PlayerSetup players={players} setPlayers={setPlayers} onStart={setupGame} min={2} max={4} />
+        </div>
+      );
+
+      return (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'grid', ...getGridStyle(), gap: 4, background: '#000'}}>
+          {players.slice(0, 4).map((p, i) => (
+            <div
+              key={p.name}
+              onTouchStart={(e) => { e.preventDefault(); handleTap(i); }}
+              onMouseDown={() => handleTap(i)}
+              className="no-select"
+              style={{...getArea(i), background: playerColors[i]?.color || '#333', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.15s', touchAction: 'manipulation', opacity: phase === 'result' && tapped !== null && tapped !== i && roundResult?.type === 'correct' ? 0.5 : 1}}
+            >
+              <div style={{transform: getRotation(i), textAlign: 'center', pointerEvents: 'none'}}>
+                <div style={{fontSize: '1.6rem', fontWeight: 'bold', marginBottom: 3, color: '#fff', textShadow: '2px 2px 4px rgba(0,0,0,0.5)'}}>{p.name}</div>
+                <div style={{fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)', marginBottom: 8}}>🍺 {p.drinks}</div>
+                <div style={{fontSize: '1.1rem', color: '#fff', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.5)', background: 'rgba(0,0,0,0.3)', padding: '5px 15px', borderRadius: 10}}>{playerColors[i]?.name}</div>
+                
+                {phase === 'result' && roundResult?.type === 'correct' && tapped === i && (
+                  <div style={{fontSize: '1.4rem', marginTop: 12}}>🏆 {reactionTime}ms</div>
+                )}
+                {phase === 'result' && roundResult?.type === 'wrong' && tapped === i && (
+                  <div style={{fontSize: '1.2rem', marginTop: 12, lineHeight: 1.3}}>❌ FALSCH!<br/>2x Trinken!</div>
+                )}
+                {phase === 'result' && roundResult?.type === 'timeout' && roundResult.loser === p.name && (
+                  <div style={{fontSize: '1.2rem', marginTop: 12, lineHeight: 1.3}}>⏰ ZU LANGSAM!<br/>Trinken!</div>
+                )}
+              </div>
+            </div>
+          ))}
+          
+          {/* Extra-Farben Anzeige */}
+          {playerColors.length > players.length && (
+            <div style={{position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', zIndex: 40, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', maxWidth: '90%'}}>
+              {playerColors.slice(players.length).map((c, i) => (
+                <div key={i} style={{background: c.color, padding: '4px 10px', borderRadius: 6, fontSize: '0.7rem', color: '#fff', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.5)'}}>
+                  {c.name} ❌
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Farb-Anzeige in der Mitte */}
+          <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 50}}>
+            {phase === 'waiting' && (
+              <div style={{background: 'rgba(0,0,0,0.9)', padding: 25, borderRadius: 20, textAlign: 'center'}}>
+                <div style={{fontSize: '1.5rem', color: '#fff'}}>Runde {roundNum + 1}</div>
+                <div style={{fontSize: '1rem', color: '#aaa', marginTop: 5}}>Warte...</div>
+              </div>
+            )}
+            {phase === 'react' && targetColorIdx !== null && (
+              <div style={{
+                background: playerColors[targetColorIdx]?.color,
+                padding: 50,
+                borderRadius: 30,
+                textAlign: 'center',
+                boxShadow: `0 0 60px ${playerColors[targetColorIdx]?.color}`,
+                animation: 'pulse 0.15s infinite'
+              }}>
+                <div style={{fontSize: '2.5rem', color: '#fff', fontWeight: 'bold', textShadow: '3px 3px 6px rgba(0,0,0,0.5)'}}>
+                  {playerColors[targetColorIdx]?.name}!
+                </div>
+              </div>
+            )}
+            {phase === 'result' && roundResult?.type === 'nobody' && (
+              <div style={{background: 'rgba(39,174,96,0.9)', padding: 25, borderRadius: 20, textAlign: 'center'}}>
+                <div style={{fontSize: '1.3rem', color: '#fff'}}>✓ Niemand durfte tippen!</div>
+              </div>
+            )}
+          </div>
+          
+          {phase === 'result' && (
+            <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 100, display: 'flex', flexDirection: 'column', gap: 12, marginTop: 80}}>
+              <button onClick={() => startRound()} style={{padding: '18px 40px', fontSize: '1.3rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #ffd700, #ff8c00)', border: 'none', borderRadius: 30, color: '#1a1a1a', cursor: 'pointer'}}>🔄 Nächste Runde</button>
+              <button onClick={onBack} style={{padding: '12px 25px', background: 'rgba(0,0,0,0.8)', border: '2px solid #fff', borderRadius: 20, color: '#fff', cursor: 'pointer', fontWeight: 'bold'}}>← Zurück</button>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // ===== RHYTHMUS-SPIEL (verbessert) =====
+    const RhythmusSpiel = ({onBack}) => {
+      const [phase, setPhase] = useState('setup');
+      const [players, setPlayers] = useState([]);
+      const [bpm, setBpm] = useState(100);
+      const [beatCount, setBeatCount] = useState(0);
+      const [beatVisible, setBeatVisible] = useState(false);
+      const [taps, setTaps] = useState({});
+      const [tapTimes, setTapTimes] = useState({});
+      const [loser, setLoser] = useState(null);
+      const [isBlind, setIsBlind] = useState(false);
+      const [countdown, setCountdown] = useState(0);
+      const [barProgress, setBarProgress] = useState(0);
+      const beatIntervalRef = useRef(null);
+      const barIntervalRef = useRef(null);
+      const startTimeRef = useRef(null);
+      const roundBeats = 8;
+
+      const startRound = () => {
+        const newTaps = {}; 
+        const newTapTimes = {};
+        players.forEach(p => { newTaps[p.name] = 0; newTapTimes[p.name] = []; });
+        setTaps(newTaps);
+        setTapTimes(newTapTimes);
+        setBeatCount(0);
+        setLoser(null);
+        setIsBlind(false);
+        setBarProgress(0);
+        setPhase('countdown');
+        setCountdown(3);
+        
+        let count = 3;
+        const countdownInterval = setInterval(() => {
+          count--;
+          setCountdown(count);
+          if (count <= 0) {
+            clearInterval(countdownInterval);
+            startBeats(false);
+          }
+        }, 1000);
+      };
+
+      const startBeats = (blind) => {
+        setIsBlind(blind);
+        setPhase('playing');
+        setBeatCount(0);
+        setBarProgress(0);
+        const interval = 60000 / bpm;
+        let beat = 0;
+        startTimeRef.current = Date.now();
+        
+        const newTapTimes = {};
+        players.forEach(p => newTapTimes[p.name] = []);
+        setTapTimes(newTapTimes);
+        
+        // Balken für Blind-Phase
+        if (blind) {
+          const totalDuration = interval * roundBeats;
+          barIntervalRef.current = setInterval(() => {
+            const elapsed = Date.now() - startTimeRef.current;
+            setBarProgress(Math.min(100, (elapsed / totalDuration) * 100));
+          }, 50);
+        }
+        
+        beatIntervalRef.current = setInterval(() => {
+          beat++;
+          setBeatCount(beat);
+          if (!blind) {
+            setBeatVisible(true);
+            setTimeout(() => setBeatVisible(false), 80);
+          }
+          
+          if (beat >= roundBeats) {
+            clearInterval(beatIntervalRef.current);
+            clearInterval(barIntervalRef.current);
+            
+            if (!blind) {
+              // Direkt weitermachen ohne Pause!
+              startBeats(true);
+            } else {
+              setTimeout(() => calculateResults(), 500);
+            }
+          }
+        }, interval);
+      };
+
+      const handleTap = (name) => {
+        if (phase !== 'playing') return;
+        const now = Date.now() - startTimeRef.current;
+        setTaps(t => ({...t, [name]: (t[name] || 0) + 1}));
+        setTapTimes(t => ({...t, [name]: [...(t[name] || []), now]}));
+      };
+
+      const calculateResults = () => {
+        const interval = 60000 / bpm;
+        const scores = {};
+        
+        players.forEach(p => {
+          const playerTapTimes = tapTimes[p.name] || [];
+          
+          if (playerTapTimes.length === 0) {
+            scores[p.name] = 99999;
+            return;
+          }
+          
+          let totalError = 0;
+          const expectedBeats = [];
+          for (let i = 0; i < roundBeats; i++) {
+            expectedBeats.push(i * interval);
+          }
+          
+          playerTapTimes.forEach(tap => {
+            let minError = Infinity;
+            expectedBeats.forEach(expected => {
+              const error = Math.abs(tap - expected);
+              if (error < minError) minError = error;
+            });
+            totalError += minError;
+          });
+          
+          const tapDiff = Math.abs(playerTapTimes.length - roundBeats);
+          scores[p.name] = (totalError / playerTapTimes.length) + (tapDiff * 300);
+        });
+        
+        const worst = Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
+        setLoser(worst);
+        setPlayers(ps => ps.map(p => p.name === worst ? {...p, drinks: p.drinks + 2} : p));
+        setPhase('result');
+      };
+
+      useEffect(() => {
+        return () => { clearInterval(beatIntervalRef.current); clearInterval(barIntervalRef.current); };
+      }, []);
+
+      const getGridStyle = () => players.length === 2 ? {gridTemplateRows: '1fr 1fr', gridTemplateColumns: '1fr'} : {gridTemplateRows: '1fr 1fr', gridTemplateColumns: '1fr 1fr'};
+      const getArea = (index) => { const n = players.length; if (n === 2) return index === 0 ? {gridRow: '1', gridColumn: '1'} : {gridRow: '2', gridColumn: '1'}; if (n === 3) { if (index === 0) return {gridRow: '1', gridColumn: '1 / 3'}; return index === 1 ? {gridRow: '2', gridColumn: '1'} : {gridRow: '2', gridColumn: '2'}; } return {gridRow: index < 2 ? '1' : '2', gridColumn: index % 2 === 0 ? '1' : '2'}; };
+      const getRotation = (index) => { const n = players.length; if (n === 2 && index === 0) return 'rotate(180deg)'; if (n >= 3 && index === 0) return 'rotate(180deg)'; if (n === 4 && index === 1) return 'rotate(180deg)'; return 'none'; };
+
+      if (phase === 'setup') return (
+        <div style={{padding: 20, minHeight: '100vh', paddingBottom: 40}}>
+          <GameHeader title="🥁 RHYTHMUS-SPIEL 🍺" onBack={onBack} />
+          <div style={{background: 'rgba(0,0,0,0.3)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+            <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 10, textAlign: 'center'}}>📜 Spielregeln</h3>
+            <ul style={{fontSize: '0.9rem', lineHeight: 1.6, paddingLeft: 20, margin: 0, opacity: 0.9}}>
+              <li><strong>Phase 1:</strong> 8 Beats MIT visueller Hilfe</li>
+              <li><strong>Phase 2:</strong> 8 Beats nur mit Balken!</li>
+              <li>Tippe genau im Takt zum Beat</li>
+              <li>Wer am schlechtesten im Rhythmus ist = 2x trinken!</li>
+            </ul>
+          </div>
+          
+          <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+            <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 15, textAlign: 'center'}}>Tempo: {bpm} BPM</h3>
+            <div style={{display: 'flex', gap: 10}}>
+              <button onClick={() => setBpm(80)} style={{flex: 1, padding: 12, background: bpm === 80 ? '#27ae60' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 'bold', cursor: 'pointer'}}>🐢 80</button>
+              <button onClick={() => setBpm(100)} style={{flex: 1, padding: 12, background: bpm === 100 ? '#f39c12' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 'bold', cursor: 'pointer'}}>🚶 100</button>
+              <button onClick={() => setBpm(120)} style={{flex: 1, padding: 12, background: bpm === 120 ? '#e74c3c' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 'bold', cursor: 'pointer'}}>🏃 120</button>
+            </div>
+          </div>
+          
+          <PlayerSetup players={players} setPlayers={setPlayers} onStart={startRound} min={2} max={4} />
+        </div>
+      );
+
+      return (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'grid', ...getGridStyle(), gap: 4, background: '#000'}}>
+          {players.slice(0, 4).map((p, i) => (
+            <div
+              key={p.name}
+              onTouchStart={(e) => { e.preventDefault(); handleTap(p.name); }}
+              onMouseDown={() => handleTap(p.name)}
+              className="no-select"
+              style={{...getArea(i), background: phase === 'result' && loser === p.name ? '#e74c3c' : phase === 'result' ? '#27ae60' : beatVisible && !isBlind ? '#9b59b6' : '#2c3e50', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', touchAction: 'manipulation', transition: 'background 0.05s'}}
+            >
+              <div style={{transform: getRotation(i), textAlign: 'center', pointerEvents: 'none'}}>
+                <div style={{fontSize: '1.6rem', fontWeight: 'bold', marginBottom: 5, color: '#fff'}}>{p.name}</div>
+                <div style={{fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)', marginBottom: 8}}>🍺 {p.drinks}</div>
+                
+                {phase === 'playing' && (
+                  <div style={{fontSize: '1.3rem', color: '#ffd700', fontWeight: 'bold'}}>Taps: {taps[p.name] || 0}</div>
+                )}
+                
+                {phase === 'result' && loser === p.name && (
+                  <div style={{fontSize: '1.2rem', marginTop: 10, lineHeight: 1.3}}>🥴 Kein Rhythmus!<br/>2x Trinken!</div>
+                )}
+                {phase === 'result' && loser !== p.name && (
+                  <div style={{fontSize: '2rem', marginTop: 10}}>🎵</div>
+                )}
+              </div>
+            </div>
+          ))}
+          
+          {/* Beat-Anzeige in der Mitte */}
+          <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 50}}>
+            {phase === 'countdown' && (
+              <div style={{background: 'rgba(0,0,0,0.9)', padding: 35, borderRadius: 25, textAlign: 'center'}}>
+                <div style={{fontSize: '1.2rem', color: '#aaa', marginBottom: 10}}>{isBlind ? '😎 NUR BALKEN!' : '👀 MIT HILFE'}</div>
+                <div style={{fontSize: '4rem', color: '#ffd700', fontWeight: 'bold'}}>{countdown}</div>
+              </div>
+            )}
+            {phase === 'playing' && !isBlind && (
+              <div style={{textAlign: 'center'}}>
+                <div style={{
+                  width: beatVisible ? 130 : 90,
+                  height: beatVisible ? 130 : 90,
+                  background: beatVisible ? '#e74c3c' : '#555',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.05s',
+                  boxShadow: beatVisible ? '0 0 60px #e74c3c' : 'none',
+                  margin: '0 auto'
+                }}>
+                  <span style={{fontSize: '1.8rem', color: '#fff', fontWeight: 'bold'}}>{beatCount}/{roundBeats}</span>
+                </div>
+                <div style={{marginTop: 15, fontSize: '1rem', color: '#27ae60', fontWeight: 'bold', background: 'rgba(0,0,0,0.7)', padding: '8px 20px', borderRadius: 15}}>
+                  👀 Schau hin!
+                </div>
+              </div>
+            )}
+            {phase === 'playing' && isBlind && (
+              <div style={{textAlign: 'center', width: 200}}>
+                <div style={{fontSize: '1rem', color: '#e74c3c', fontWeight: 'bold', marginBottom: 15}}>😎 NUR BALKEN!</div>
+                {/* Fortschrittsbalken */}
+                <div style={{background: 'rgba(255,255,255,0.2)', borderRadius: 10, height: 30, overflow: 'hidden', position: 'relative'}}>
+                  <div style={{
+                    background: 'linear-gradient(90deg, #e74c3c, #f39c12)',
+                    height: '100%',
+                    width: `${barProgress}%`,
+                    transition: 'width 0.05s linear',
+                    borderRadius: 10
+                  }}/>
+                  {/* Beat-Markierungen */}
+                  {[...Array(roundBeats)].map((_, i) => (
+                    <div key={i} style={{
+                      position: 'absolute',
+                      left: `${(i / roundBeats) * 100}%`,
+                      top: 0,
+                      bottom: 0,
+                      width: 2,
+                      background: 'rgba(255,255,255,0.5)'
+                    }}/>
+                  ))}
+                </div>
+                <div style={{marginTop: 10, fontSize: '1.2rem', color: '#fff'}}>Taps: {Object.values(taps).reduce((a, b) => a + b, 0)}</div>
+              </div>
+            )}
+          </div>
+          
+          {phase === 'result' && (
+            <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 100, display: 'flex', flexDirection: 'column', gap: 12}}>
+              <button onClick={startRound} style={{padding: '18px 40px', fontSize: '1.3rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #ffd700, #ff8c00)', border: 'none', borderRadius: 30, color: '#1a1a1a', cursor: 'pointer'}}>🔄 Nächste Runde</button>
+              <button onClick={onBack} style={{padding: '12px 25px', background: 'rgba(0,0,0,0.8)', border: '2px solid #fff', borderRadius: 20, color: '#fff', cursor: 'pointer', fontWeight: 'bold'}}>← Zurück</button>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+
+    // ===== SCHÄTZ-DUELL (500+ Fragen) =====
+    const SCHAETZ_FRAGEN = [
+      // ENTFERNUNGEN
+      {q: "Entfernung Berlin → München (Luftlinie)", a: 504, u: "km"},
+      {q: "Entfernung Hamburg → Frankfurt (Luftlinie)", a: 392, u: "km"},
+      {q: "Entfernung New York → Los Angeles", a: 3944, u: "km"},
+      {q: "Entfernung London → Paris", a: 344, u: "km"},
+      {q: "Entfernung Erde → Mond", a: 384400, u: "km"},
+      {q: "Entfernung Sydney → Tokio", a: 7823, u: "km"},
+      {q: "Länge der Chinesischen Mauer", a: 21196, u: "km"},
+      {q: "Durchmesser der Erde", a: 12742, u: "km"},
+      {q: "Entfernung Nordpol → Südpol", a: 20004, u: "km"},
+      {q: "Entfernung Köln → Wien", a: 690, u: "km"},
+      {q: "Entfernung Madrid → Moskau", a: 3448, u: "km"},
+      {q: "Entfernung Dubai → Singapur", a: 5842, u: "km"},
+      {q: "Längster Fluss (Nil)", a: 6650, u: "km"},
+      {q: "Breite Atlantik (schmalste Stelle)", a: 2848, u: "km"},
+      {q: "Entfernung Rom → Athen", a: 1053, u: "km"},
+      {q: "Länge des Rheins", a: 1233, u: "km"},
+      {q: "Länge der Donau", a: 2857, u: "km"},
+      {q: "Entfernung Zürich → Amsterdam", a: 665, u: "km"},
+      {q: "Entfernung Peking → Shanghai", a: 1068, u: "km"},
+      {q: "Entfernung Kapstadt → Kairo", a: 7245, u: "km"},
+      // HÖHE
+      {q: "Höhe Mount Everest", a: 8849, u: "m"},
+      {q: "Höhe Eiffelturm (mit Antenne)", a: 330, u: "m"},
+      {q: "Höhe Burj Khalifa", a: 828, u: "m"},
+      {q: "Tiefe Marianengraben", a: 10994, u: "m"},
+      {q: "Höhe Zugspitze", a: 2962, u: "m"},
+      {q: "Höhe Kölner Dom", a: 157, u: "m"},
+      {q: "Höhe Freiheitsstatue (mit Sockel)", a: 93, u: "m"},
+      {q: "Höhe Matterhorn", a: 4478, u: "m"},
+      {q: "Flughöhe Passagierflugzeug", a: 10668, u: "m"},
+      {q: "Höhe Empire State Building", a: 443, u: "m"},
+      {q: "Höhe Berliner Fernsehturm", a: 368, u: "m"},
+      {q: "Tiefe Bodensee (max.)", a: 254, u: "m"},
+      {q: "Höhe Mont Blanc", a: 4808, u: "m"},
+      {q: "Höhe Big Ben", a: 96, u: "m"},
+      {q: "Höhe Cheops-Pyramide", a: 139, u: "m"},
+      {q: "Höhe des Olympiaturms München", a: 291, u: "m"},
+      {q: "Höchster Wasserfall der Welt", a: 979, u: "m"},
+      {q: "Höhe Kilimandscharo", a: 5895, u: "m"},
+      {q: "Durchschnittliche Tiefe der Ozeane", a: 3688, u: "m"},
+      {q: "Höhe Petersdom (Kuppel)", a: 136, u: "m"},
+      // GESCHWINDIGKEIT
+      {q: "Höchstgeschwindigkeit Gepard", a: 120, u: "km/h"},
+      {q: "Schallgeschwindigkeit", a: 1235, u: "km/h"},
+      {q: "Höchstgeschwindigkeit Formel 1", a: 372, u: "km/h"},
+      {q: "Geschwindigkeit ISS", a: 27600, u: "km/h"},
+      {q: "Durchschnittliche Gehgeschwindigkeit", a: 5, u: "km/h"},
+      {q: "Höchstgeschwindigkeit ICE", a: 330, u: "km/h"},
+      {q: "Fallgeschwindigkeit Fallschirmspringer", a: 200, u: "km/h"},
+      {q: "Höchstgeschwindigkeit Usain Bolt", a: 45, u: "km/h"},
+      {q: "Höchstgeschwindigkeit Biene", a: 30, u: "km/h"},
+      {q: "Geschwindigkeit Erde um Sonne", a: 107000, u: "km/h"},
+      {q: "Höchstgeschwindigkeit Hase", a: 70, u: "km/h"},
+      {q: "Höchstgeschwindigkeit Bugatti Chiron", a: 420, u: "km/h"},
+      {q: "Sturzflug Adler", a: 320, u: "km/h"},
+      {q: "Schnellster Tennisaufschlag", a: 263, u: "km/h"},
+      {q: "Durchschnittsgeschwindigkeit Tour de France", a: 41, u: "km/h"},
+      {q: "Geschwindigkeit eines Niesers", a: 160, u: "km/h"},
+      {q: "Höchstgeschwindigkeit Delfin", a: 55, u: "km/h"},
+      {q: "Schnellster Fußballschuss", a: 211, u: "km/h"},
+      {q: "Lichtgeschwindigkeit", a: 299792, u: "km/s"},
+      {q: "Geschwindigkeit Wanderfalke im Sturzflug", a: 390, u: "km/h"},
+      // BEVÖLKERUNG
+      {q: "Einwohner Deutschland", a: 84, u: "Mio."},
+      {q: "Einwohner China", a: 1400, u: "Mio."},
+      {q: "Einwohner Berlin", a: 3.6, u: "Mio."},
+      {q: "Einwohner New York City", a: 8.3, u: "Mio."},
+      {q: "Weltbevölkerung", a: 8100, u: "Mio."},
+      {q: "Einwohner Tokio (Großraum)", a: 37, u: "Mio."},
+      {q: "Einwohner Schweiz", a: 8.7, u: "Mio."},
+      {q: "Einwohner Österreich", a: 9.0, u: "Mio."},
+      {q: "Einwohner München", a: 1.5, u: "Mio."},
+      {q: "Einwohner Indien", a: 1400, u: "Mio."},
+      {q: "Einwohner USA", a: 335, u: "Mio."},
+      {q: "Einwohner London", a: 8.8, u: "Mio."},
+      {q: "Einwohner Paris", a: 2.1, u: "Mio."},
+      {q: "Einwohner Brasilien", a: 215, u: "Mio."},
+      {q: "Einwohner Russland", a: 144, u: "Mio."},
+      {q: "Einwohner Hamburg", a: 1.9, u: "Mio."},
+      {q: "Einwohner Köln", a: 1.1, u: "Mio."},
+      {q: "Einwohner Mexiko-Stadt", a: 22, u: "Mio."},
+      {q: "Einwohner Kairo", a: 21, u: "Mio."},
+      {q: "Einwohner Istanbul", a: 16, u: "Mio."},
+      // FLÄCHE
+      {q: "Fläche Deutschlands", a: 357588, u: "km²"},
+      {q: "Fläche Russlands", a: 17100000, u: "km²"},
+      {q: "Fläche Bodensee", a: 536, u: "km²"},
+      {q: "Fläche Australiens", a: 7690000, u: "km²"},
+      {q: "Fläche Berlins", a: 892, u: "km²"},
+      {q: "Fläche Amazonas-Regenwald", a: 5500000, u: "km²"},
+      {q: "Fläche Schweiz", a: 41285, u: "km²"},
+      {q: "Fläche Bayern", a: 70542, u: "km²"},
+      {q: "Fläche Mittelmeer", a: 2500000, u: "km²"},
+      {q: "Fläche Grönland", a: 2166086, u: "km²"},
+      {q: "Fläche USA", a: 9834000, u: "km²"},
+      {q: "Fläche Frankreich", a: 643801, u: "km²"},
+      {q: "Fläche Vatikanstadt", a: 0.44, u: "km²"},
+      {q: "Fläche Mallorca", a: 3640, u: "km²"},
+      {q: "Fläche Sizilien", a: 25711, u: "km²"},
+      // GEWICHT
+      {q: "Gewicht Elefant", a: 6000, u: "kg"},
+      {q: "Gewicht Blauwal", a: 150000, u: "kg"},
+      {q: "Gewicht PKW", a: 1500, u: "kg"},
+      {q: "Gewicht Eiffelturm", a: 10100000, u: "kg"},
+      {q: "Gewicht Fußball", a: 430, u: "g"},
+      {q: "Gewicht iPhone", a: 171, u: "g"},
+      {q: "Gewicht Titanic", a: 46328000, u: "kg"},
+      {q: "Durchschnittsgewicht Mann in DE", a: 85, u: "kg"},
+      {q: "Gewicht Gorilla", a: 160, u: "kg"},
+      {q: "Gewicht Airbus A380 (leer)", a: 277000, u: "kg"},
+      {q: "Gewicht menschliches Gehirn", a: 1400, u: "g"},
+      {q: "Gewicht Bowling-Kugel (max.)", a: 7.26, u: "kg"},
+      {q: "Gewicht Tennisball", a: 58, u: "g"},
+      {q: "Gewicht ausgewachsener Löwe", a: 190, u: "kg"},
+      {q: "Gewicht Baby bei Geburt (Durchschnitt)", a: 3.4, u: "kg"},
+      // ZEIT & ALTER
+      {q: "Alter der Erde (Mrd. Jahre)", a: 4.5, u: "Mrd. Jahre"},
+      {q: "Flugdauer Frankfurt → New York", a: 8.5, u: "Stunden"},
+      {q: "Lebenserwartung Schildkröte", a: 100, u: "Jahre"},
+      {q: "Lebenserwartung Mensch DE", a: 81, u: "Jahre"},
+      {q: "Schwangerschaft Elefant", a: 22, u: "Monate"},
+      {q: "Alter Pyramiden von Gizeh", a: 4500, u: "Jahre"},
+      {q: "Licht Sonne zur Erde", a: 8.3, u: "Minuten"},
+      {q: "Weltrekord 100m Sprint", a: 9.58, u: "Sekunden"},
+      {q: "Schlafdauer Koala pro Tag", a: 22, u: "Stunden"},
+      {q: "Tageslänge auf Jupiter", a: 10, u: "Stunden"},
+      {q: "Alter Universum", a: 13.8, u: "Mrd. Jahre"},
+      {q: "Sekunden in einem Tag", a: 86400, u: ""},
+      {q: "Minuten in einer Woche", a: 10080, u: ""},
+      {q: "Lebensdauer Biene", a: 6, u: "Wochen"},
+      {q: "Lebenserwartung Hund (Durchschnitt)", a: 12, u: "Jahre"},
+      // TEMPERATUR
+      {q: "Temperatur Sonnenoberfläche", a: 5500, u: "°C"},
+      {q: "Kälteste Temperatur auf Erde je gemessen", a: -89, u: "°C"},
+      {q: "Durchschnittstemperatur Mars", a: -63, u: "°C"},
+      {q: "Siedepunkt Wasser auf Mt. Everest", a: 70, u: "°C"},
+      {q: "Körpertemperatur Hund", a: 39, u: "°C"},
+      {q: "Höchste Temperatur auf Erde je gemessen", a: 57, u: "°C"},
+      {q: "Schmelzpunkt Eisen", a: 1538, u: "°C"},
+      {q: "Temperatur im Erdkern", a: 5200, u: "°C"},
+      {q: "Gefrierpunkt Alkohol (Ethanol)", a: -114, u: "°C"},
+      {q: "Körpertemperatur Huhn", a: 42, u: "°C"},
+      // GELD & WIRTSCHAFT
+      {q: "Preis Big Mac in DE", a: 5.5, u: "€"},
+      {q: "Durchschnittsgehalt DE brutto/Monat", a: 4100, u: "€"},
+      {q: "Preis 1 Liter Benzin in DE", a: 1.75, u: "€"},
+      {q: "Mindestlohn DE pro Stunde", a: 12.41, u: "€"},
+      {q: "Teuerstes Gemälde aller Zeiten", a: 450, u: "Mio. $"},
+      {q: "Kaltmiete pro m² München", a: 20, u: "€"},
+      {q: "BIP Deutschland", a: 4100, u: "Mrd. €"},
+      {q: "Kosten ISS pro Astronaut", a: 55, u: "Mio. $"},
+      {q: "Jahresgehalt Fußball-Bundesliga (Durchschnitt)", a: 2, u: "Mio. €"},
+      {q: "Preis 1kg Gold", a: 60000, u: "€"},
+      // MENGE & ANZAHL
+      {q: "Anzahl Knochen im Körper", a: 206, u: ""},
+      {q: "Anzahl Länder der Welt", a: 195, u: ""},
+      {q: "Anzahl Zähne Hai", a: 3000, u: ""},
+      {q: "Sterne in der Milchstraße", a: 200000, u: "Mio."},
+      {q: "Herzschläge pro Tag", a: 100000, u: ""},
+      {q: "Anzahl Muskeln im Körper", a: 650, u: ""},
+      {q: "Anzahl Inseln Indonesien", a: 17508, u: ""},
+      {q: "Buchstaben deutsches Alphabet", a: 30, u: ""},
+      {q: "Augen einer Spinne", a: 8, u: ""},
+      {q: "Bundesländer Deutschland", a: 16, u: ""},
+      {q: "Tasten auf Klavier", a: 88, u: ""},
+      {q: "Spieler Fußballmannschaft", a: 11, u: ""},
+      {q: "Olympische Ringe", a: 5, u: ""},
+      {q: "Kontinente", a: 7, u: ""},
+      {q: "Planeten im Sonnensystem", a: 8, u: ""},
+      {q: "Karten in einem Pokerdeck", a: 52, u: ""},
+      {q: "Felder auf einem Schachbrett", a: 64, u: ""},
+      {q: "Löcher beim Golf (Standardrunde)", a: 18, u: ""},
+      {q: "Streifen US-Flagge", a: 13, u: ""},
+      {q: "Sterne auf US-Flagge", a: 50, u: ""},
+      // PROZENT
+      {q: "Anteil Wasser auf Erdoberfläche", a: 71, u: "%"},
+      {q: "Anteil Sauerstoff in Luft", a: 21, u: "%"},
+      {q: "Anteil Gehirn am Körpergewicht", a: 2, u: "%"},
+      {q: "Wahlbeteiligung Bundestagswahl 2021", a: 76.6, u: "%"},
+      {q: "Anteil erneuerbare Energien DE", a: 52, u: "%"},
+      {q: "DNA Mensch & Schimpanse gemeinsam", a: 98.7, u: "%"},
+      {q: "Wassergehalt einer Gurke", a: 96, u: "%"},
+      {q: "Alkoholgehalt Wodka", a: 40, u: "%"},
+      {q: "Anteil Stickstoff in Luft", a: 78, u: "%"},
+      {q: "Wassergehalt Wassermelone", a: 92, u: "%"},
+      // JAHRE & JAHRESZAHLEN
+      {q: "Jahr erste Mondlandung", a: 1969, u: ""},
+      {q: "Gründungsjahr Apple", a: 1976, u: ""},
+      {q: "Jahr Mauerfall", a: 1989, u: ""},
+      {q: "Jahr Entdeckung Amerikas", a: 1492, u: ""},
+      {q: "Gründungsjahr Facebook", a: 2004, u: ""},
+      {q: "Jahr erste Fußball-WM", a: 1930, u: ""},
+      {q: "Jahr Titanic gesunken", a: 1912, u: ""},
+      {q: "Gründungsjahr BRD", a: 1949, u: ""},
+      {q: "Jahr erstes iPhone", a: 2007, u: ""},
+      {q: "Jahr Französische Revolution", a: 1789, u: ""},
+      {q: "Jahr Wiedervereinigung DE", a: 1990, u: ""},
+      {q: "Gründungsjahr Google", a: 1998, u: ""},
+      {q: "Beginn 2. Weltkrieg", a: 1939, u: ""},
+      {q: "Beginn 1. Weltkrieg", a: 1914, u: ""},
+      {q: "Gründungsjahr Amazon", a: 1994, u: ""},
+      {q: "Jahr erster Weltkriegsende", a: 1918, u: ""},
+      {q: "Gründungsjahr Coca-Cola", a: 1886, u: ""},
+      {q: "Jahr Erfindung Buchdruck", a: 1450, u: ""},
+      {q: "Jahr Unabhängigkeit USA", a: 1776, u: ""},
+      {q: "Jahr erste E-Mail", a: 1971, u: ""},
+      // SPORT
+      {q: "Weltrekord Hochsprung", a: 245, u: "cm"},
+      {q: "Weltrekord Weitsprung", a: 8.95, u: "m"},
+      {q: "Meiste WM-Titel (Land)", a: 5, u: ""},
+      {q: "Länge Marathon", a: 42.195, u: "km"},
+      {q: "Meiste Bundesliga-Tore Saison", a: 41, u: ""},
+      {q: "Weltrekord 200m Sprint", a: 19.19, u: "Sek."},
+      {q: "Länge Fußballfeld (max.)", a: 120, u: "m"},
+      {q: "Durchmesser Basketballkorb", a: 45, u: "cm"},
+      {q: "Breite Fußballtor", a: 7.32, u: "m"},
+      {q: "Höhe Basketballkorb", a: 3.05, u: "m"},
+      {q: "Länge Tennisplatz", a: 23.77, u: "m"},
+      {q: "Gewicht Boxhandschuh (Schwergewicht)", a: 284, u: "g"},
+      {q: "Runden beim Boxen (Profi)", a: 12, u: ""},
+      {q: "Punkte für Touchdown", a: 6, u: ""},
+      {q: "Meter Schwimmbahn olympisch", a: 50, u: "m"},
+      // TECHNIK
+      {q: "Monatliche Instagram-Nutzer", a: 2000, u: "Mio."},
+      {q: "Jahr erster Tweet", a: 2006, u: ""},
+      {q: "Erste Festplatte 1956 Speicher", a: 5, u: "MB"},
+      {q: "Google-Suchanfragen pro Tag", a: 8500, u: "Mio."},
+      {q: "Verkaufte iPhones bisher", a: 2300, u: "Mio."},
+      {q: "Reichweite Tesla Model 3", a: 500, u: "km"},
+      {q: "Anzahl Wikipedia-Artikel", a: 60, u: "Mio."},
+      {q: "Tägliche YouTube-Views", a: 5000, u: "Mio."},
+      {q: "Akkukapazität iPhone 15 Pro", a: 3274, u: "mAh"},
+      {q: "Anzahl Netflix-Abonnenten", a: 260, u: "Mio."},
+      // TIERE
+      {q: "Lebenserwartung Eintagsfliege", a: 24, u: "Stunden"},
+      {q: "Herzschläge Maus pro Minute", a: 600, u: ""},
+      {q: "Beine Ameise", a: 6, u: ""},
+      {q: "Schlafstunden Löwe pro Tag", a: 20, u: ""},
+      {q: "Flügelschläge Kolibri pro Sekunde", a: 50, u: ""},
+      {q: "Größe größter Dinosaurier", a: 40, u: "m"},
+      {q: "Gewicht Kolibri", a: 2, u: "g"},
+      {q: "Länge Weißer Hai", a: 6, u: "m"},
+      {q: "Beine Tausendfüßler (bis zu)", a: 750, u: ""},
+      {q: "Lebensdauer Elefant", a: 70, u: "Jahre"},
+      {q: "Eier Strauß pro Jahr", a: 60, u: ""},
+      {q: "Zähne Krokodil", a: 80, u: ""},
+      {q: "Gewicht Giraffe", a: 1200, u: "kg"},
+      {q: "Länge Zunge Giraffe", a: 50, u: "cm"},
+      {q: "Schnellster Fisch (Segelfisch)", a: 110, u: "km/h"},
+      // KÖRPER & GESUNDHEIT
+      {q: "Liter Blut im Körper", a: 5, u: "Liter"},
+      {q: "Haare auf dem Kopf", a: 100000, u: ""},
+      {q: "Länge Dünndarm", a: 6, u: "m"},
+      {q: "Geschmacksknospen auf Zunge", a: 10000, u: ""},
+      {q: "Blutdruck systolisch optimal", a: 120, u: "mmHg"},
+      {q: "Speichel pro Tag", a: 1.5, u: "Liter"},
+      {q: "Kalorien in 100g Nutella", a: 539, u: "kcal"},
+      {q: "Koffein in Tasse Kaffee", a: 95, u: "mg"},
+      {q: "Kalorien in Banane", a: 89, u: "kcal"},
+      {q: "Lungen-Kapazität Erwachsener", a: 6, u: "Liter"},
+      {q: "Wimpernzahl pro Auge", a: 200, u: ""},
+      {q: "Nervenzellen im Gehirn", a: 86, u: "Mrd."},
+      {q: "Knochen in der Hand", a: 27, u: ""},
+      // MUSIK & KULTUR
+      {q: "Meistverkauftes Album (Thriller)", a: 70, u: "Mio."},
+      {q: "Symphonien von Beethoven", a: 9, u: ""},
+      {q: "Jahr Elvis gestorben", a: 1977, u: ""},
+      {q: "Meiste Grammy-Gewinne (Beyoncé)", a: 32, u: ""},
+      {q: "Harry Potter Bücher", a: 7, u: ""},
+      {q: "Einspielergebnis Avatar", a: 2900, u: "Mio. $"},
+      {q: "Länge längstes Lied Top 40", a: 8.5, u: "Min."},
+      {q: "Anzahl James Bond Filme", a: 25, u: ""},
+      {q: "Oscars für Film mit meisten", a: 11, u: ""},
+      {q: "Gemälde von Da Vinci (bekannt)", a: 15, u: ""},
+      // ESSEN & TRINKEN
+      {q: "Bierkonsum DE pro Kopf/Jahr", a: 92, u: "Liter"},
+      {q: "Kaffeetassen pro Tag (DE Durchschnitt)", a: 3.4, u: ""},
+      {q: "Fleischkonsum DE pro Kopf/Jahr", a: 52, u: "kg"},
+      {q: "Zucker pro Tag empfohlen (max.)", a: 50, u: "g"},
+      {q: "Wasserverbrauch pro Person/Tag DE", a: 125, u: "Liter"},
+      {q: "Kalorien Big Mac", a: 509, u: "kcal"},
+      {q: "Alkohol im Blut Promille Grenze Auto", a: 0.5, u: "‰"},
+      {q: "Salz pro Tag empfohlen (max.)", a: 6, u: "g"},
+      // GEOGRAFIE
+      {q: "Zeitzonen in Russland", a: 11, u: ""},
+      {q: "Prozent Erdoberfläche Wüste", a: 33, u: "%"},
+      {q: "Breite Ärmelkanal schmalste Stelle", a: 34, u: "km"},
+      {q: "Anzahl Inseln Philippinen", a: 7641, u: ""},
+      {q: "Länge Küste Norwegen", a: 25000, u: "km"},
+      {q: "Anzahl Vulkane weltweit (aktiv)", a: 1350, u: ""},
+      {q: "Tiefster See (Baikalsee)", a: 1642, u: "m"},
+      {q: "Größter See (Kaspisches Meer)", a: 371000, u: "km²"},
+      {q: "Höchste Welle je gemessen", a: 524, u: "m"},
+      {q: "Länge Äquator", a: 40075, u: "km"},
+      // VERSCHIEDENES
+      {q: "Durchschnittsalter erstes Kind DE", a: 30, u: "Jahre"},
+      {q: "Hochzeiten pro Tag in DE", a: 1000, u: ""},
+      {q: "CO2-Ausstoß pro Kopf DE", a: 8, u: "t/Jahr"},
+      {q: "Durchschnittliche Schuhgröße Mann DE", a: 43, u: ""},
+      {q: "Autos pro 1000 Einwohner DE", a: 580, u: ""},
+      {q: "Tägliche Schritte empfohlen", a: 10000, u: ""},
+      {q: "Durchschnittliche Bildschirmzeit pro Tag", a: 7, u: "Stunden"},
+      {q: "Pizza-Konsum DE pro Kopf/Jahr", a: 13, u: "Stück"},
+      {q: "Müll pro Person/Jahr DE", a: 450, u: "kg"},
+      {q: "Urlaubstage pro Jahr DE (Durchschnitt)", a: 28, u: "Tage"},
+      // MEHR FRAGEN
+      {q: "Durchmesser eines Fußballs", a: 22, u: "cm"},
+      {q: "Gewicht eines Goldballs", a: 46, u: "g"},
+      {q: "Länge einer Zigarette", a: 84, u: "mm"},
+      {q: "Höhe eines Doppeldeckerbusses", a: 4.4, u: "m"},
+      {q: "Durchmesser einer CD", a: 12, u: "cm"},
+      {q: "Länge einer Banane", a: 18, u: "cm"},
+      {q: "Durchmesser eines Tennisballs", a: 6.7, u: "cm"},
+      {q: "Länge eines Fußes (EU 42)", a: 27, u: "cm"},
+      {q: "Breite eines A4-Blattes", a: 21, u: "cm"},
+      {q: "Länge eines A4-Blattes", a: 29.7, u: "cm"},
+      {q: "Durchmesser einer Euro-Münze (1€)", a: 23.25, u: "mm"},
+      {q: "Länge Zigarettenschachtel", a: 88, u: "mm"},
+      {q: "Durchmesser Pizza groß", a: 32, u: "cm"},
+      {q: "Höhe einer Bierflasche (0.5l)", a: 25, u: "cm"},
+      {q: "Breite eines Smartphones", a: 7, u: "cm"},
+      {q: "Durchschnittliche Körpergröße Mann DE", a: 180, u: "cm"},
+      {q: "Durchschnittliche Körpergröße Frau DE", a: 166, u: "cm"},
+      {q: "Spannweite Boeing 747", a: 64, u: "m"},
+      {q: "Länge eines Fußballfeldes (min.)", a: 90, u: "m"},
+      {q: "Breite eines Fußballfeldes (min.)", a: 45, u: "m"},
+      {q: "Höhe eines Türrahmens (Standard)", a: 198, u: "cm"},
+      {q: "Breite einer Tür (Standard)", a: 86, u: "cm"},
+      {q: "Länge eines Pkw-Stellplatzes", a: 5, u: "m"},
+      {q: "Breite eines Pkw-Stellplatzes", a: 2.5, u: "m"},
+      {q: "Durchmesser einer Vinyl-Schallplatte", a: 30, u: "cm"},
+      {q: "Sitzplätze Allianz Arena München", a: 75000, u: ""},
+      {q: "Sitzplätze Olympiastadion Berlin", a: 74475, u: ""},
+      {q: "Fassungsvermögen Wembley Stadium", a: 90000, u: ""},
+      {q: "Länge eines Marathons in Metern", a: 42195, u: "m"},
+      {q: "Breite einer Autobahnspur", a: 3.75, u: "m"},
+      {q: "Geschwindigkeit auf dt. Autobahn Richtgeschwindigkeit", a: 130, u: "km/h"},
+      {q: "Maximale Punktzahl beim Bowling", a: 300, u: ""},
+      {q: "Punkte für perfektes Spiel Darts (9 Dart Finish)", a: 501, u: ""},
+      {q: "Höchstpunktzahl Snooker-Break", a: 147, u: ""},
+      {q: "Runden bei einem Boxkampf (Profi)", a: 12, u: ""},
+      {q: "Gewicht eines Profi-Boxhandschuhs", a: 284, u: "g"},
+      {q: "Durchmesser Dartscheibe", a: 45, u: "cm"},
+      {q: "Abstand Dartscheibe zur Wurflinie", a: 237, u: "cm"},
+      {q: "Höhe Tischtennisplatte", a: 76, u: "cm"},
+      {q: "Länge Tischtennisplatte", a: 274, u: "cm"},
+      {q: "Gewicht Tischtennisball", a: 2.7, u: "g"},
+      {q: "Durchmesser Tischtennisball", a: 40, u: "mm"},
+      {q: "Höhe Volleyballnetz Herren", a: 243, u: "cm"},
+      {q: "Höhe Volleyballnetz Damen", a: 224, u: "cm"},
+      {q: "Durchmesser Volleyball", a: 21, u: "cm"},
+      {q: "Punkte für Satz Volleyball", a: 25, u: ""},
+      {q: "Spieler pro Team Volleyball", a: 6, u: ""},
+      {q: "Spieler pro Team Handball", a: 7, u: ""},
+      {q: "Spielzeit Handball (Minuten)", a: 60, u: "Min."},
+      {q: "Durchmesser Handball Herren", a: 19, u: "cm"},
+      {q: "Breite Handballtor", a: 3, u: "m"},
+      {q: "Höhe Handballtor", a: 2, u: "m"},
+      {q: "Spieler pro Team Eishockey", a: 6, u: ""},
+      {q: "Durchmesser Eishockey-Puck", a: 7.6, u: "cm"},
+      {q: "Gewicht Eishockey-Puck", a: 170, u: "g"},
+      {q: "Länge Eishockeyschläger max.", a: 163, u: "cm"},
+      {q: "Spielzeit Eishockey Drittel", a: 20, u: "Min."},
+      {q: "Anzahl Drittel Eishockey", a: 3, u: ""},
+      {q: "Spieler pro Team Basketball", a: 5, u: ""},
+      {q: "Punkte für Dreipunktewurf", a: 3, u: ""},
+      {q: "Punkte für Freiwurf Basketball", a: 1, u: ""},
+      {q: "Spielzeit NBA Viertel", a: 12, u: "Min."},
+      {q: "Umfang Basketball", a: 75, u: "cm"},
+      {q: "Gewicht Basketball", a: 600, u: "g"},
+      {q: "Länge Golfplatz 18 Loch (ca.)", a: 6000, u: "m"},
+      {q: "Durchmesser Golfball", a: 43, u: "mm"},
+      {q: "Gewicht Golfball max.", a: 46, u: "g"},
+      {q: "Durchmesser Golfloch", a: 108, u: "mm"},
+      {q: "Anzahl Schläger im Golfbag max.", a: 14, u: ""},
+      {q: "Par für 18 Loch Golf", a: 72, u: ""},
+      {q: "Länge Rennstrecke Monaco F1", a: 3.337, u: "km"},
+      {q: "Länge Nürburgring Nordschleife", a: 20.8, u: "km"},
+      {q: "Runden Monaco GP", a: 78, u: ""},
+      {q: "Tankinhalt Formel 1 Auto", a: 110, u: "kg"},
+      {q: "PS eines Formel 1 Motors", a: 1000, u: "PS"},
+      {q: "Gewicht Formel 1 Auto mit Fahrer min.", a: 798, u: "kg"},
+      {q: "Breite Formel 1 Auto max.", a: 200, u: "cm"},
+      {q: "Länge Tour de France", a: 3500, u: "km"},
+      {q: "Etappen Tour de France", a: 21, u: ""},
+      {q: "Höchster Berg Tour de France", a: 2802, u: "m"},
+      {q: "Länge Ironman Schwimmen", a: 3.86, u: "km"},
+      {q: "Länge Ironman Radfahren", a: 180.2, u: "km"},
+      {q: "Länge Ironman Laufen", a: 42.195, u: "km"},
+      {q: "Weltrekord Ironman Zeit", a: 7.35, u: "Stunden"},
+      {q: "Länge 100m Hürden", a: 100, u: "m"},
+      {q: "Höhe Hürden Herren 110m", a: 106.7, u: "cm"},
+      {q: "Anzahl Hürden bei 110m Hürden", a: 10, u: ""},
+      {q: "Gewicht Kugelstoßen Herren", a: 7.26, u: "kg"},
+      {q: "Gewicht Kugelstoßen Damen", a: 4, u: "kg"},
+      {q: "Weltrekord Kugelstoßen Herren", a: 23.56, u: "m"},
+      {q: "Gewicht Diskus Herren", a: 2, u: "kg"},
+      {q: "Durchmesser Diskus", a: 22, u: "cm"},
+      {q: "Weltrekord Diskuswerfen Herren", a: 74.35, u: "m"},
+      {q: "Länge Speer Herren", a: 260, u: "cm"},
+      {q: "Gewicht Speer Herren", a: 800, u: "g"},
+      {q: "Weltrekord Speerwurf Herren", a: 98.48, u: "m"},
+      {q: "Länge Stabhochsprung-Stab max.", a: 520, u: "cm"},
+      {q: "Weltrekord Stabhochsprung", a: 624, u: "cm"},
+      {q: "Gewicht Hammer Hammerwerfen", a: 7.26, u: "kg"},
+      {q: "Länge Hammer mit Kette", a: 121.5, u: "cm"},
+      {q: "Weltrekord Hammerwerfen", a: 86.74, u: "m"},
+      {q: "Bahnen olympisches Schwimmbad", a: 8, u: ""},
+      {q: "Wassertiefe olympisches Schwimmbad", a: 2, u: "m"},
+      {q: "Wassertemperatur olympisches Schwimmbad", a: 26, u: "°C"},
+      {q: "Weltrekord 100m Freistil", a: 46.86, u: "Sek."},
+      {q: "Weltrekord 100m Brust", a: 56.88, u: "Sek."},
+      {q: "Weltrekord 100m Rücken", a: 51.60, u: "Sek."},
+      {q: "Weltrekord 100m Schmetterling", a: 49.45, u: "Sek."},
+      {q: "Höhe 10m-Brett Turmspringen", a: 10, u: "m"},
+      {q: "Höhe 3m-Brett Kunstspringen", a: 3, u: "m"},
+      {q: "Durchmesser Wasserball", a: 22, u: "cm"},
+      {q: "Spielzeit Wasserball Viertel", a: 8, u: "Min."},
+      {q: "Spieler pro Team Wasserball", a: 7, u: ""},
+      {q: "Länge Ruder-Achter Boot", a: 19.9, u: "m"},
+      {q: "Gewicht Ruder-Achter Boot min.", a: 96, u: "kg"},
+      {q: "Olympische Ruderstrecke", a: 2000, u: "m"},
+      {q: "Gewicht Ski-Abfahrtsski", a: 2.5, u: "kg"},
+      {q: "Breite Slalom-Tor", a: 4, u: "m"},
+      {q: "Breite Riesenslalom-Tor", a: 8, u: "m"},
+      {q: "Länge Skisprungschanze Normalschanze", a: 98, u: "m"},
+      {q: "Länge Skisprungschanze Großschanze", a: 140, u: "m"},
+      {q: "Weltrekord Skifliegen", a: 253.5, u: "m"},
+      {q: "Länge Langlaufstrecke Sprint", a: 1.5, u: "km"},
+      {q: "Länge Langlauf 50km", a: 50, u: "km"},
+      {q: "Gewicht Biathlon-Gewehr", a: 3.5, u: "kg"},
+      {q: "Schießentfernung Biathlon", a: 50, u: "m"},
+      {q: "Durchmesser Biathlon-Scheibe liegend", a: 45, u: "mm"},
+      {q: "Durchmesser Biathlon-Scheibe stehend", a: 115, u: "mm"},
+      {q: "Strafrunde Biathlon Länge", a: 150, u: "m"},
+      {q: "Runden Bob-Wettbewerb", a: 4, u: ""},
+      {q: "Geschwindigkeit Bob max.", a: 150, u: "km/h"},
+      {q: "Länge Skeleton-Schlitten", a: 120, u: "cm"},
+      {q: "Geschwindigkeit Skeleton max.", a: 140, u: "km/h"},
+      {q: "Länge Rodel-Schlitten Einsitzer", a: 150, u: "cm"},
+      {q: "Gewicht Curling-Stein", a: 20, u: "kg"},
+      {q: "Durchmesser Curling-Stein", a: 30, u: "cm"},
+      {q: "Länge Curling-Bahn", a: 45.72, u: "m"},
+      {q: "Durchmesser Curling-Haus", a: 3.66, u: "m"},
+      {q: "Stones pro End Curling", a: 16, u: ""},
+      {q: "Ends pro Curling-Spiel", a: 10, u: ""},
+      {q: "Spieler pro Curling-Team", a: 4, u: ""},
+      {q: "Länge Eisschnelllauf-Bahn", a: 400, u: "m"},
+      {q: "Weltrekord 500m Eisschnelllauf", a: 33.61, u: "Sek."},
+      {q: "Weltrekord 10000m Eisschnelllauf", a: 12.36, u: "Min."},
+      {q: "Durchmesser Eiskunstlauf-Bahn min.", a: 60, u: "m"},
+      {q: "Länge Short-Track-Bahn", a: 111.12, u: "m"},
+      {q: "Runden Short-Track 1500m", a: 13.5, u: ""},
+      {q: "Höhe Kletterwand Lead-Klettern", a: 15, u: "m"},
+      {q: "Höhe Kletterwand Speed-Klettern", a: 15, u: "m"},
+      {q: "Weltrekord Speed-Klettern Herren", a: 4.79, u: "Sek."},
+      {q: "Weltrekord Speed-Klettern Damen", a: 6.24, u: "Sek."},
+      {q: "Länge Surfbrett Shortboard", a: 180, u: "cm"},
+      {q: "Länge Surfbrett Longboard", a: 274, u: "cm"},
+      {q: "Höchste je gesurfte Welle", a: 26.21, u: "m"},
+      {q: "Länge Skateboard", a: 80, u: "cm"},
+      {q: "Durchmesser Skateboard-Räder", a: 55, u: "mm"},
+      {q: "Länge Snowboard", a: 160, u: "cm"},
+      {q: "Breite Halfpipe Snowboard", a: 22, u: "m"},
+      {q: "Höhe Halfpipe-Wand", a: 7, u: "m"},
+      {q: "Weltrekord Weitsprung Skateboard", a: 6.4, u: "m"},
+      {q: "Höchster Sprung BMX", a: 8.2, u: "m"},
+      {q: "Gewicht BMX-Rad", a: 11, u: "kg"},
+      {q: "Länge Motocross-Strecke", a: 1.5, u: "km"},
+      {q: "Hubraum MotoGP", a: 1000, u: "ccm"},
+      {q: "PS MotoGP-Motorrad", a: 260, u: "PS"},
+      {q: "Höchstgeschwindigkeit MotoGP", a: 360, u: "km/h"},
+      {q: "Reifen pro Saison MotoGP", a: 3000, u: ""},
+      {q: "Gewicht MotoGP-Motorrad min.", a: 157, u: "kg"},
+      {q: "Breite Sumo-Ring", a: 4.55, u: "m"},
+      {q: "Gewicht Sumo-Ringer Durchschnitt", a: 150, u: "kg"},
+      {q: "Länge Judokampf max.", a: 5, u: "Min."},
+      {q: "Punkte für Ippon Judo", a: 10, u: ""},
+      {q: "Runden MMA-Kampf normal", a: 3, u: ""},
+      {q: "Runden MMA-Titelkampf", a: 5, u: ""},
+      {q: "Länge MMA-Runde", a: 5, u: "Min."},
+      {q: "Durchmesser Octagon UFC", a: 9.1, u: "m"},
+      {q: "Länge Fechtkampf max.", a: 9, u: "Min."},
+      {q: "Länge Fechtbahn", a: 14, u: "m"},
+      {q: "Breite Fechtbahn", a: 2, u: "m"},
+      {q: "Treffer für Sieg Degenfechten", a: 15, u: ""},
+      {q: "Gewicht Florett", a: 500, u: "g"},
+      {q: "Gewicht Degen", a: 770, u: "g"},
+      {q: "Gewicht Säbel", a: 500, u: "g"},
+      {q: "Länge Florett-Klinge max.", a: 90, u: "cm"},
+      {q: "Pfeile pro Runde Bogenschießen", a: 6, u: ""},
+      {q: "Entfernung Bogenschießen olympisch", a: 70, u: "m"},
+      {q: "Durchmesser Bogenscheibe", a: 122, u: "cm"},
+      {q: "Punkte für 10er-Ring Bogenschießen", a: 10, u: ""},
+      {q: "Schüsse Luftgewehr olympisch", a: 60, u: ""},
+      {q: "Entfernung Luftgewehr olympisch", a: 10, u: "m"},
+      {q: "Durchmesser Luftgewehr-Scheibe", a: 45.5, u: "mm"},
+      {q: "Schüsse Kleinkalibergewehr olympisch", a: 60, u: ""},
+      {q: "Entfernung Kleinkalibergewehr olympisch", a: 50, u: "m"},
+      {q: "Gewicht Reiter plus Pferd Springreiten min.", a: 75, u: "kg"},
+      {q: "Höhe Hindernis Springreiten max.", a: 170, u: "cm"},
+      {q: "Länge Dressur-Viereck groß", a: 60, u: "m"},
+      {q: "Breite Dressur-Viereck groß", a: 20, u: "m"},
+      {q: "Länge Vielseitigkeits-Geländestrecke", a: 6, u: "km"},
+      {q: "Hindernisse Vielseitigkeits-Geländestrecke", a: 40, u: ""},
+      // GESCHICHTE & EREIGNISSE
+      {q: "Jahr Untergang Römisches Reich (Westrom)", a: 476, u: ""},
+      {q: "Jahr Schwarzer Freitag Börsencrash", a: 1929, u: ""},
+      {q: "Jahr Tschernobyl-Katastrophe", a: 1986, u: ""},
+      {q: "Jahr Fukushima-Katastrophe", a: 2011, u: ""},
+      {q: "Jahr Beginn Corona-Pandemie", a: 2020, u: ""},
+      {q: "Jahr erste Herztransplantation", a: 1967, u: ""},
+      {q: "Jahr Entdeckung Penicillin", a: 1928, u: ""},
+      {q: "Jahr Entdeckung DNA-Struktur", a: 1953, u: ""},
+      {q: "Jahr erste Atombombe (Hiroshima)", a: 1945, u: ""},
+      {q: "Jahr Kuba-Krise", a: 1962, u: ""},
+      {q: "Jahr Kennedy-Ermordung", a: 1963, u: ""},
+      {q: "Jahr Martin Luther King Ermordung", a: 1968, u: ""},
+      {q: "Jahr Ende Vietnamkrieg", a: 1975, u: ""},
+      {q: "Jahr Ende Apartheid Südafrika", a: 1994, u: ""},
+      {q: "Jahr 9/11 Anschläge", a: 2001, u: ""},
+      {q: "Jahr Euro-Einführung (Bargeld)", a: 2002, u: ""},
+      {q: "Jahr Brexit-Referendum", a: 2016, u: ""},
+      {q: "Jahr erster Mensch im Weltall (Gagarin)", a: 1961, u: ""},
+      {q: "Jahr erste Frau im Weltall", a: 1963, u: ""},
+      {q: "Jahr letzter Mensch auf dem Mond", a: 1972, u: ""},
+      {q: "Jahr Explosion der Challenger", a: 1986, u: ""},
+      {q: "Jahr Gründung UNO", a: 1945, u: ""},
+      {q: "Jahr Gründung NATO", a: 1949, u: ""},
+      {q: "Jahr Gründung EU (Maastricht)", a: 1993, u: ""},
+      {q: "Jahr D-Day Landung Normandie", a: 1944, u: ""},
+      {q: "Jahr Watergate-Skandal", a: 1972, u: ""},
+      {q: "Jahr Fall Sowjetunion", a: 1991, u: ""},
+      {q: "Jahr Unabhängigkeit Indien", a: 1947, u: ""},
+      {q: "Jahr Nelsonmandela aus Gefängnis", a: 1990, u: ""},
+      {q: "Jahr erste Olympische Spiele Neuzeit", a: 1896, u: ""},
+      {q: "Jahr erste Fußball-EM", a: 1960, u: ""},
+      {q: "Jahr Deutschland Fußball-WM Sieg (letzter)", a: 2014, u: ""},
+      {q: "Jahr Wunder von Bern", a: 1954, u: ""},
+      {q: "Jahr Concorde Erstflug", a: 1969, u: ""},
+      {q: "Jahr letzter Concorde Flug", a: 2003, u: ""},
+      {q: "Jahr Eröffnung Eurotunnel", a: 1994, u: ""},
+      {q: "Jahr Eröffnung Panamakanal", a: 1914, u: ""},
+      {q: "Jahr Eröffnung Suezkanal", a: 1869, u: ""},
+      {q: "Jahr Baubeginn Berliner Mauer", a: 1961, u: ""},
+      {q: "Dauer Berliner Mauer (Jahre)", a: 28, u: "Jahre"},
+      {q: "Jahr Boston Tea Party", a: 1773, u: ""},
+      {q: "Jahr Bastille-Sturm", a: 1789, u: ""},
+      {q: "Jahr Schlacht bei Waterloo", a: 1815, u: ""},
+      {q: "Jahr Erfindung Glühbirne (Edison)", a: 1879, u: ""},
+      {q: "Jahr Erfindung Telefon", a: 1876, u: ""},
+      {q: "Jahr erster Kinofilm (Lumière)", a: 1895, u: ""},
+      {q: "Jahr erster Tonfilm", a: 1927, u: ""},
+      {q: "Jahr erster Farbfilm (Wizard of Oz)", a: 1939, u: ""},
+      {q: "Jahr Woodstock Festival", a: 1969, u: ""},
+      {q: "Jahr Live Aid Konzert", a: 1985, u: ""},
+      {q: "Jahr Tod Michael Jackson", a: 2009, u: ""},
+      {q: "Jahr Tod Princess Diana", a: 1997, u: ""},
+      {q: "Jahr Hochzeit William & Kate", a: 2011, u: ""},
+      {q: "Jahr Tod Queen Elizabeth II", a: 2022, u: ""},
+      // REKORDE & SUPERLATIVE
+      {q: "Alter ältester Mensch je (Jahre)", a: 122, u: "Jahre"},
+      {q: "Größter Mensch je (cm)", a: 272, u: "cm"},
+      {q: "Kleinster erwachsener Mensch je (cm)", a: 54.6, u: "cm"},
+      {q: "Schwerster Mensch je (kg)", a: 635, u: "kg"},
+      {q: "Längste Fingernägel je (cm gesamt)", a: 909, u: "cm"},
+      {q: "Meiste Kinder einer Frau", a: 69, u: ""},
+      {q: "Längster Schluckauf (Jahre)", a: 68, u: "Jahre"},
+      {q: "Meiste Hotdogs in 10 Min gegessen", a: 76, u: ""},
+      {q: "Schnellster Rubiks Cube (Sekunden)", a: 3.13, u: "Sek."},
+      {q: "Längstes Konzert (Stunden)", a: 453, u: "Stunden"},
+      {q: "Meiste Oscars für einen Film", a: 11, u: ""},
+      {q: "Meiste Grammys in einer Nacht", a: 8, u: ""},
+      {q: "Teuerster Film aller Zeiten (Mio $)", a: 400, u: "Mio. $"},
+      {q: "Meistgesehene TV-Sendung weltweit (Mrd.)", a: 3.5, u: "Mrd."},
+      {q: "Meistverkauftes Videospiel (Mio.)", a: 238, u: "Mio."},
+      {q: "Meistverkauftes Album (Mio.)", a: 70, u: "Mio."},
+      {q: "Meiste Nr.1 Hits (Beatles)", a: 20, u: ""},
+      {q: "Längstes Lied je in Charts (Min.)", a: 17.5, u: "Min."},
+      {q: "Meiste Follower Instagram (Mio.)", a: 700, u: "Mio."},
+      {q: "Meistgeliktes Instagram-Bild (Mio.)", a: 75, u: "Mio."},
+      {q: "Meistgesehenes YouTube-Video (Mrd.)", a: 14, u: "Mrd."},
+      {q: "Reichster Mensch der Welt (Mrd. $)", a: 230, u: "Mrd. $"},
+      {q: "Reichste Frau der Welt (Mrd. $)", a: 100, u: "Mrd. $"},
+      {q: "Wertvollste Firma der Welt (Bio. $)", a: 3.5, u: "Bio. $"},
+      {q: "Teuerstes Auto je verkauft (Mio. $)", a: 142, u: "Mio. $"},
+      {q: "Teuerster Diamant je (Mio. $)", a: 71, u: "Mio. $"},
+      {q: "Teuerste Flasche Wein je (€)", a: 558000, u: "€"},
+      {q: "Höchste Transfersumme Fußball (Mio. €)", a: 222, u: "Mio. €"},
+      {q: "Meiste Tore Karriere (Cristiano)", a: 900, u: ""},
+      {q: "Meiste WM-Tore (Klose)", a: 16, u: ""},
+      {q: "Meiste Champions League Titel Spieler", a: 6, u: ""},
+      {q: "Meiste Bundesliga-Tore Karriere", a: 365, u: ""},
+      {q: "Längste Siegesserie NBA", a: 33, u: "Spiele"},
+      {q: "Meiste Punkte NBA-Spiel (Wilt)", a: 100, u: ""},
+      {q: "Meiste Grand Slams Tennis Herren", a: 24, u: ""},
+      {q: "Meiste Grand Slams Tennis Damen", a: 24, u: ""},
+      {q: "Längstes Tennismatch je (Stunden)", a: 11.08, u: "Stunden"},
+      {q: "Meiste Formel 1 WM-Titel", a: 7, u: ""},
+      {q: "Meiste Formel 1 Siege", a: 103, u: ""},
+      {q: "Meiste Tour de France Siege", a: 5, u: ""},
+      {q: "Meiste Olympia-Goldmedaillen (Phelps)", a: 23, u: ""},
+      {q: "Meiste Olympia-Medaillen gesamt", a: 28, u: ""},
+      // WISSENSCHAFT & NATUR
+      {q: "Alter des Universums (Mrd. Jahre)", a: 13.8, u: "Mrd. Jahre"},
+      {q: "Entfernung zur nächsten Galaxie (Mio. Lichtjahre)", a: 2.5, u: "Mio. Lj"},
+      {q: "Anzahl Galaxien im Universum (Mrd.)", a: 200, u: "Mrd."},
+      {q: "Temperatur absoluter Nullpunkt (°C)", a: -273.15, u: "°C"},
+      {q: "Siedepunkt Helium (°C)", a: -269, u: "°C"},
+      {q: "Schmelzpunkt Wolfram (°C)", a: 3422, u: "°C"},
+      {q: "Dichte von Gold (g/cm³)", a: 19.3, u: "g/cm³"},
+      {q: "Dichte von Wasser (g/cm³)", a: 1, u: "g/cm³"},
+      {q: "Masse der Sonne (x Erdmasse)", a: 333000, u: "x"},
+      {q: "Durchmesser der Sonne (km)", a: 1392700, u: "km"},
+      {q: "Entfernung Erde-Sonne (Mio. km)", a: 150, u: "Mio. km"},
+      {q: "Umlaufzeit Erde um Sonne (Tage)", a: 365.25, u: "Tage"},
+      {q: "Umlaufzeit Mond um Erde (Tage)", a: 27.3, u: "Tage"},
+      {q: "Durchmesser Mond (km)", a: 3474, u: "km"},
+      {q: "Anzahl Monde von Jupiter", a: 95, u: ""},
+      {q: "Anzahl Ringe von Saturn", a: 7, u: ""},
+      {q: "Durchmesser Jupiter (km)", a: 139820, u: "km"},
+      {q: "Temperatur auf Venus Oberfläche (°C)", a: 464, u: "°C"},
+      {q: "Länge eines Jahres auf Mars (Erdtage)", a: 687, u: "Tage"},
+      {q: "Tiefster Punkt der Erde unter Meeresspiegel (m)", a: 10994, u: "m"},
+      {q: "Höchster Punkt der Erde (m)", a: 8849, u: "m"},
+      {q: "Dicke Erdkruste (km)", a: 35, u: "km"},
+      {q: "Dicke Erdmantel (km)", a: 2900, u: "km"},
+      {q: "Radius Erdkern (km)", a: 3485, u: "km"},
+      {q: "Alter der ältesten Gesteine (Mrd. Jahre)", a: 4.4, u: "Mrd. Jahre"},
+      {q: "Jahr Aussterben Dinosaurier (Mio. Jahre her)", a: 66, u: "Mio. Jahre"},
+      {q: "Alter ältester Baum (Jahre)", a: 5000, u: "Jahre"},
+      {q: "Größter Baum Höhe (m)", a: 116, u: "m"},
+      {q: "Dickster Baum Umfang (m)", a: 36, u: "m"},
+      {q: "Größte Blume Durchmesser (cm)", a: 100, u: "cm"},
+      {q: "Schnellste Pflanzenbewegung (km/h)", a: 8, u: "km/h"},
+      {q: "Tiefste Wurzeln (m)", a: 120, u: "m"},
+      {q: "Anzahl Tierarten weltweit (Mio.)", a: 8.7, u: "Mio."},
+      {q: "Anzahl Insektenarten (Mio.)", a: 1, u: "Mio."},
+      {q: "Anzahl Vogelarten", a: 10000, u: ""},
+      {q: "Anzahl Säugetierarten", a: 6400, u: ""},
+      {q: "Anzahl Fischarten", a: 35000, u: ""},
+      {q: "Größtes Landtier Gewicht (t)", a: 6, u: "t"},
+      {q: "Größtes Tier je (Blauwal, m)", a: 33, u: "m"},
+      {q: "Kleinstes Säugetier (Spitzmaus, g)", a: 2, u: "g"},
+      {q: "Schnellstes Tier im Wasser (km/h)", a: 110, u: "km/h"},
+      {q: "Tiefster Tauchgang Säugetier (m)", a: 2992, u: "m"},
+      {q: "Höchster Vogelflug (m)", a: 11278, u: "m"},
+      {q: "Längste Vogelmigration (km)", a: 71000, u: "km"},
+      {q: "Größte Spannweite Vogel (m)", a: 3.7, u: "m"},
+      {q: "Schnellster Vogel horizontal (km/h)", a: 170, u: "km/h"},
+      {q: "Größtes Ei (Strauß, g)", a: 1500, u: "g"},
+      {q: "Kleinstes Ei (Kolibri, g)", a: 0.5, u: "g"},
+      {q: "Längste Schlange (m)", a: 10, u: "m"},
+      {q: "Giftigste Schlange LD50", a: 0.025, u: "mg/kg"},
+      {q: "Größte Spinne Spannweite (cm)", a: 30, u: "cm"},
+      {q: "Anzahl Beine Tausendfüßler max.", a: 750, u: ""},
+      {q: "Stärkste Beißkraft (Krokodil, kg)", a: 1800, u: "kg"},
+      // POLITIK & GESELLSCHAFT
+      {q: "Anzahl US-Präsidenten bisher", a: 46, u: ""},
+      {q: "Amtszeit US-Präsident (Jahre)", a: 4, u: "Jahre"},
+      {q: "Maximale Amtszeiten US-Präsident", a: 2, u: ""},
+      {q: "Anzahl Sitze US-Senat", a: 100, u: ""},
+      {q: "Anzahl Sitze US-Repräsentantenhaus", a: 435, u: ""},
+      {q: "Wahlmänner für US-Präsidentschaft", a: 538, u: ""},
+      {q: "Benötigte Wahlmänner für US-Sieg", a: 270, u: ""},
+      {q: "Anzahl Sitze Bundestag", a: 736, u: ""},
+      {q: "Anzahl Sitze EU-Parlament", a: 705, u: ""},
+      {q: "Anzahl EU-Mitgliedsstaaten", a: 27, u: ""},
+      {q: "Jahr EU-Beitritt Deutschland", a: 1958, u: ""},
+      {q: "Anzahl NATO-Mitglieder", a: 32, u: ""},
+      {q: "Anzahl UN-Mitgliedsstaaten", a: 193, u: ""},
+      {q: "Anzahl ständige UN-Sicherheitsratsmitglieder", a: 5, u: ""},
+      {q: "Wahlalter Deutschland", a: 18, u: "Jahre"},
+      {q: "Volljährigkeit Deutschland", a: 18, u: "Jahre"},
+      {q: "Führerscheinalter PKW Deutschland", a: 18, u: "Jahre"},
+      {q: "Rentenalter Deutschland (ab Jahrgang 1964)", a: 67, u: "Jahre"},
+      {q: "Schulpflicht Deutschland (Jahre)", a: 9, u: "Jahre"},
+      {q: "Mehrwertsteuer Deutschland (%)", a: 19, u: "%"},
+      {q: "Ermäßigte Mehrwertsteuer DE (%)", a: 7, u: "%"},
+      {q: "Höchster Einkommensteuersatz DE (%)", a: 45, u: "%"},
+      {q: "Körperschaftsteuer DE (%)", a: 15, u: "%"},
+      {q: "Promillegrenze Autofahren DE", a: 0.5, u: "‰"},
+      {q: "Geschwindigkeitsbegrenzung Autobahn DE", a: 0, u: "km/h"},
+      {q: "Geschwindigkeitsbegrenzung Landstraße DE", a: 100, u: "km/h"},
+      {q: "Geschwindigkeitsbegrenzung innerorts DE", a: 50, u: "km/h"},
+      // KULTUR & UNTERHALTUNG
+      {q: "Anzahl Disney Animationsfilme", a: 62, u: ""},
+      {q: "Anzahl Marvel Cinematic Universe Filme", a: 33, u: ""},
+      {q: "Anzahl Star Wars Filme (Hauptreihe)", a: 9, u: ""},
+      {q: "Anzahl James Bond Darsteller", a: 6, u: ""},
+      {q: "Anzahl Staffeln Simpsons", a: 35, u: ""},
+      {q: "Anzahl Episoden Simpsons", a: 770, u: ""},
+      {q: "Anzahl Staffeln Game of Thrones", a: 8, u: ""},
+      {q: "Anzahl Staffeln Breaking Bad", a: 5, u: ""},
+      {q: "Anzahl Staffeln Friends", a: 10, u: ""},
+      {q: "Anzahl Episoden Friends", a: 236, u: ""},
+      {q: "Anzahl Herr der Ringe Filme", a: 3, u: ""},
+      {q: "Länge aller HdR Filme Extended (Std.)", a: 11.4, u: "Stunden"},
+      {q: "Anzahl Bände One Piece Manga", a: 108, u: ""},
+      {q: "Meistverkaufter Manga (Mio.)", a: 516, u: "Mio."},
+      {q: "Anzahl Pokémon (Gen 9)", a: 1025, u: ""},
+      {q: "Meistverkauftes Pokémon-Spiel (Mio.)", a: 31, u: "Mio."},
+      {q: "Jahr erstes Super Mario Bros", a: 1985, u: ""},
+      {q: "Jahr erstes Tetris", a: 1984, u: ""},
+      {q: "Jahr erstes Minecraft", a: 2011, u: ""},
+      {q: "Jahr erstes Fortnite", a: 2017, u: ""},
+      {q: "Meiste Twitch-Zuschauer gleichzeitig (Mio.)", a: 2.5, u: "Mio."},
+      {q: "Meiste Spotify-Streams Song (Mrd.)", a: 4, u: "Mrd."},
+      {q: "Länge kürzester Nr.1 Hit (Sek.)", a: 119, u: "Sek."},
+      {q: "Jahr MTV Gründung", a: 1981, u: ""},
+      {q: "Jahr Spotify Gründung", a: 2006, u: ""},
+      {q: "Jahr Netflix Gründung", a: 1997, u: ""},
+      {q: "Jahr TikTok weltweiter Start", a: 2017, u: ""},
+      {q: "Jahr Twitter/X Gründung", a: 2006, u: ""},
+      {q: "Jahr WhatsApp Gründung", a: 2009, u: ""},
+      {q: "Kaufpreis WhatsApp durch Facebook (Mrd. $)", a: 19, u: "Mrd. $"},
+      {q: "Kaufpreis Instagram durch Facebook (Mrd. $)", a: 1, u: "Mrd. $"},
+      {q: "Kaufpreis YouTube durch Google (Mrd. $)", a: 1.65, u: "Mrd. $"},
+      // EXTRA ALLTAG & VERSCHIEDENES
+      {q: "Durchschnittliche Lebensdauer Waschmaschine", a: 10, u: "Jahre"},
+      {q: "Durchschnittliche Lebensdauer Kühlschrank", a: 15, u: "Jahre"},
+      {q: "Durchschnittliche Lebensdauer Smartphone", a: 2.5, u: "Jahre"},
+      {q: "Durchschnittliche Nutzungsdauer Auto DE", a: 10, u: "Jahre"},
+      {q: "Durchschnittliche Fahrleistung Auto DE/Jahr", a: 13000, u: "km"},
+      {q: "Tankinhalt VW Golf (Liter)", a: 50, u: "Liter"},
+      {q: "Verbrauch VW Golf (L/100km)", a: 6, u: "L/100km"},
+      {q: "Preis Neuwagen Durchschnitt DE (€)", a: 42000, u: "€"},
+      {q: "Preis Gebrauchtwagen Durchschnitt DE (€)", a: 18000, u: "€"},
+      {q: "Kfz-Steuer Golf pro Jahr (€)", a: 100, u: "€"},
+      {q: "Kfz-Versicherung Durchschnitt DE (€/Jahr)", a: 500, u: "€"},
+      {q: "Spritkosten pro Jahr Durchschnitt (€)", a: 1500, u: "€"},
+      {q: "Durchschnittliche Wohnfläche pro Person DE", a: 47, u: "m²"},
+      {q: "Durchschnittliche Haushaltsgröße DE", a: 2, u: "Personen"},
+      {q: "Durchschnittliche Zimmerzahl Wohnung DE", a: 4.4, u: ""},
+      {q: "Nebenkosten pro m² Durchschnitt (€)", a: 4, u: "€"},
+      {q: "Heizkosten pro m² Jahr (€)", a: 15, u: "€"},
+      {q: "Strompreis pro kWh DE (Cent)", a: 40, u: "Cent"},
+      {q: "Wasserpreis pro m³ DE (€)", a: 2, u: "€"},
+      {q: "Müllgebühren pro Jahr Durchschnitt (€)", a: 200, u: "€"},
+      {q: "GEZ-Gebühr pro Monat (€)", a: 18.36, u: "€"},
+      {q: "Handyvertrag Durchschnitt pro Monat (€)", a: 25, u: "€"},
+      {q: "Internet-Flat pro Monat Durchschnitt (€)", a: 35, u: "€"},
+      {q: "Fitnessstudio pro Monat Durchschnitt (€)", a: 40, u: "€"},
+      {q: "Kino-Ticket Durchschnittspreis (€)", a: 12, u: "€"},
+      {q: "Konzert-Ticket Durchschnittspreis (€)", a: 80, u: "€"},
+      {q: "Bier 0.5L Kneipe Durchschnitt (€)", a: 4.5, u: "€"},
+      {q: "Cocktail Bar Durchschnitt (€)", a: 12, u: "€"},
+      {q: "Döner Durchschnittspreis (€)", a: 7, u: "€"},
+      {q: "Pizza Lieferservice Durchschnitt (€)", a: 12, u: "€"},
+      {q: "Friseur Herren Durchschnitt (€)", a: 25, u: "€"},
+      {q: "Friseur Damen Durchschnitt (€)", a: 60, u: "€"},
+    ];
+
+    const SchaetzDuell = ({onBack}) => {
+      const [phase, setPhase] = useState('setup');
+      const [players, setPlayers] = useState([]);
+      const [mode, setMode] = useState('loser'); // 'loser' = nur Schlechtester, 'allButWinner' = alle außer Gewinner
+      const [question, setQuestion] = useState(null);
+      const [guesses, setGuesses] = useState({});
+      const [curGuesser, setCurGuesser] = useState(0);
+      const [input, setInput] = useState('');
+      const [result, setResult] = useState(null);
+      const [shuffledQuestions, setShuffledQuestions] = useState([]);
+      const [questionIdx, setQuestionIdx] = useState(0);
+      const inputRef = useRef(null);
+
+      // Fisher-Yates Shuffle beim ersten Laden
+      useEffect(() => {
+        const shuffled = [...SCHAETZ_FRAGEN];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        setShuffledQuestions(shuffled);
+      }, []);
+
+      const nextQuestion = () => {
+        let nextIdx = questionIdx;
+        if (nextIdx >= shuffledQuestions.length) {
+          // Neu shufflen wenn durch
+          const shuffled = [...SCHAETZ_FRAGEN];
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+          }
+          setShuffledQuestions(shuffled);
+          nextIdx = 0;
+        }
+        setQuestion(shuffledQuestions[nextIdx] || SCHAETZ_FRAGEN[Math.floor(Math.random() * SCHAETZ_FRAGEN.length)]);
+        setQuestionIdx(nextIdx + 1);
+        setGuesses({});
+        setCurGuesser(0);
+        setInput('');
+        setResult(null);
+        setPhase('guessing');
+        setTimeout(() => inputRef.current?.focus(), 100);
+      };
+
+      const submitGuess = () => {
+        const val = parseFloat(input.replace(',', '.'));
+        if (isNaN(val)) return;
+        
+        const newGuesses = {...guesses, [players[curGuesser].name]: val};
+        setGuesses(newGuesses);
+        setInput('');
+        
+        if (curGuesser + 1 < players.length) {
+          setCurGuesser(curGuesser + 1);
+          setTimeout(() => inputRef.current?.focus(), 100);
+        } else {
+          // Alle haben geschätzt - Ergebnis berechnen
+          calculateResult(newGuesses);
+        }
+      };
+
+      const calculateResult = (allGuesses) => {
+        const diffs = Object.entries(allGuesses).map(([name, guess]) => ({
+          name,
+          guess,
+          diff: Math.abs(guess - question.a),
+          percent: Math.abs((guess - question.a) / question.a * 100)
+        })).sort((a, b) => a.diff - b.diff);
+        
+        const winner = diffs[0];
+        const loser = diffs[diffs.length - 1];
+        
+        if (mode === 'loser') {
+          // Nur der Schlechteste trinkt
+          setPlayers(ps => ps.map(p => p.name === loser.name ? {...p, drinks: p.drinks + 1} : p));
+        } else {
+          // Alle außer Gewinner trinken
+          setPlayers(ps => ps.map(p => p.name !== winner.name ? {...p, drinks: p.drinks + 1} : p));
+        }
+        
+        setResult({diffs, winner, loser, answer: question.a});
+        setPhase('result');
+      };
+
+      if (phase === 'setup') return (
+        <div style={{padding: 20, minHeight: '100vh', paddingBottom: 40}}>
+          <GameHeader title="🎯 SCHÄTZ-DUELL 🍺" onBack={onBack} />
+          <div style={{background: 'rgba(0,0,0,0.3)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+            <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 10, textAlign: 'center'}}>📜 Spielregeln</h3>
+            <ul style={{fontSize: '0.9rem', lineHeight: 1.6, paddingLeft: 20, margin: 0, opacity: 0.9}}>
+              <li>Eine Schätzfrage wird gestellt</li>
+              <li>Jeder gibt seine Schätzung ab</li>
+              <li>Wer am nächsten dran ist, gewinnt!</li>
+              <li>500+ verschiedene Fragen!</li>
+            </ul>
+          </div>
+          
+          <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+            <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 15, textAlign: 'center'}}>Spielmodus</h3>
+            <div style={{display: 'flex', gap: 10}}>
+              <button onClick={() => setMode('loser')} style={{flex: 1, padding: 15, background: mode === 'loser' ? 'linear-gradient(135deg, #ffd700, #ff8c00)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, color: mode === 'loser' ? '#1a1a1a' : '#fff', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center'}}>
+                <div style={{fontSize: '1.3rem', marginBottom: 5}}>🥴</div>
+                <div style={{fontSize: '0.9rem'}}>Schlechtester trinkt</div>
+              </button>
+              <button onClick={() => setMode('allButWinner')} style={{flex: 1, padding: 15, background: mode === 'allButWinner' ? 'linear-gradient(135deg, #ffd700, #ff8c00)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, color: mode === 'allButWinner' ? '#1a1a1a' : '#fff', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center'}}>
+                <div style={{fontSize: '1.3rem', marginBottom: 5}}>🏆</div>
+                <div style={{fontSize: '0.9rem'}}>Nur Gewinner frei</div>
+              </button>
+            </div>
+          </div>
+          
+          <PlayerSetup players={players} setPlayers={setPlayers} onStart={nextQuestion} />
+        </div>
+      );
+
+      return (
+        <div style={{padding: 20, minHeight: '100vh', paddingBottom: 40}}>
+          <GameHeader title="🎯 SCHÄTZ-DUELL 🍺" onBack={onBack} />
+          <PlayerBar players={players} current={phase === 'guessing' ? curGuesser : -1} />
+          
+          <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 20, padding: 25, textAlign: 'center', maxWidth: 450, margin: '0 auto'}}>
+            {phase === 'guessing' && question && <>
+              <h2 style={{color: '#ffd700', marginBottom: 20, fontSize: '1.3rem', lineHeight: 1.4}}>{question.q}</h2>
+              {question.u && <div style={{fontSize: '1rem', opacity: 0.7, marginBottom: 20}}>Antwort in: <strong>{question.u}</strong></div>}
+              
+              <h3 style={{marginBottom: 15}}>{players[curGuesser]?.name} schätzt:</h3>
+              
+              {/* Bisherige Schätzungen verdeckt */}
+              {Object.keys(guesses).length > 0 && (
+                <div style={{display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginBottom: 20}}>
+                  {Object.entries(guesses).map(([name]) => (
+                    <div key={name} style={{background: 'rgba(255,255,255,0.1)', padding: '8px 15px', borderRadius: 10}}>
+                      {name}: ✓
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div style={{display: 'flex', gap: 10, marginBottom: 15}}>
+                <input
+                  ref={inputRef}
+                  type="number"
+                  step="any"
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyPress={e => e.key === 'Enter' && submitGuess()}
+                  placeholder="Deine Schätzung..."
+                  style={{flex: 1, padding: 15, borderRadius: 12, border: 'none', background: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: '1.2rem', outline: 'none', textAlign: 'center'}}
+                />
+                <Btn onClick={submitGuess} primary>→</Btn>
+              </div>
+            </>}
+            
+            {phase === 'result' && result && <>
+              <h2 style={{color: '#ffd700', marginBottom: 10}}>Richtige Antwort:</h2>
+              <div style={{fontSize: '2.5rem', color: '#27ae60', fontWeight: 'bold', marginBottom: 20}}>
+                {result.answer} {question.u}
+              </div>
+              
+              <div style={{marginBottom: 25}}>
+                {result.diffs.map((d, i) => (
+                  <div key={d.name} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px 15px',
+                    background: i === 0 ? 'rgba(39,174,96,0.2)' : i === result.diffs.length - 1 ? 'rgba(231,76,60,0.2)' : 'rgba(255,255,255,0.05)',
+                    borderRadius: 10,
+                    marginBottom: 8,
+                    border: i === 0 ? '2px solid #27ae60' : i === result.diffs.length - 1 ? '2px solid #e74c3c' : 'none'
+                  }}>
+                    <span style={{fontWeight: 'bold'}}>
+                      {i === 0 ? '🏆 ' : i === result.diffs.length - 1 ? '🥴 ' : ''}{d.name}
+                    </span>
+                    <span>
+                      {d.guess} {question.u}
+                      <span style={{opacity: 0.6, marginLeft: 10, fontSize: '0.9rem'}}>
+                        (Δ {d.diff.toFixed(1)})
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              
+              <div style={{background: 'rgba(255,107,107,0.2)', borderRadius: 15, padding: 15, marginBottom: 20, border: '2px solid #ff6b6b'}}>
+                {mode === 'loser' 
+                  ? <span style={{fontSize: '1.1rem'}}><strong>{result.loser.name}</strong> trinkt! 🍺</span>
+                  : <span style={{fontSize: '1.1rem'}}>Alle außer <strong>{result.winner.name}</strong> trinken! 🍺</span>
+                }
+              </div>
+              
+              <Btn onClick={nextQuestion} style={{fontSize: '1.1rem'}}>Nächste Frage →</Btn>
+            </>}
+          </div>
+        </div>
+      );
+    };
+
+
+    // ===== MAIN =====
+    const games = [
+      {id: 'meiern', name: 'Meiern (Mäxle)', icon: '🎲', desc: 'Bluff-Würfelspiel', color: '#e74c3c'},
+      {id: 'pyramid', name: 'Pyramide', icon: '🃏', desc: 'Karten-Pyramide', color: '#27ae60'},
+      {id: 'kings', name: 'Kings Cup', icon: '👑', desc: 'Karten mit Regeln', color: '#9b59b6'},
+      {id: 'bus', name: 'Busfahrer', icon: '🚌', desc: 'Karten raten', color: '#3498db'},
+      {id: 'reaktion', name: 'Reaktions-Duell', icon: '⚡', desc: 'Wer ist am langsamsten?', color: '#f39c12'},
+      {id: 'farben', name: 'Farben-Reaktion', icon: '🎨', desc: 'Tippe deine Farbe!', color: '#8e44ad'},
+      {id: 'rhythmus', name: 'Rhythmus-Spiel', icon: '🥁', desc: 'Bleib im Takt!', color: '#16a085'},
+      {id: 'schaetzen', name: 'Schätz-Duell', icon: '🎯', desc: 'Wer liegt näher dran?', color: '#c0392b'},
+    ];
+
+    const App = () => {
+      const [game, setGame] = useState(null);
+      const back = () => setGame(null);
+      if (game === 'meiern') return <Meiern onBack={back} />;
+      if (game === 'pyramid') return <Pyramide onBack={back} />;
+      if (game === 'kings') return <KingsCup onBack={back} />;
+      if (game === 'bus') return <Busfahrer onBack={back} />;
+      if (game === 'reaktion') return <Reaktion onBack={back} />;
+      if (game === 'farben') return <FarbenReaktion onBack={back} />;
+      if (game === 'rhythmus') return <RhythmusSpiel onBack={back} />;
+      if (game === 'schaetzen') return <SchaetzDuell onBack={back} />;
+
+      return (
+        <div style={{padding: 20, minHeight: '100vh', paddingBottom: 40}}>
+          <div style={{textAlign: 'center', marginBottom: 35}}>
+            <h1 style={{fontSize: '2.8rem', background: 'linear-gradient(90deg, #ffd700, #ff6b6b, #ffd700)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: '0 0 10px'}}>🍺 TRINKSPIELE 🍺</h1>
+            <p style={{opacity: 0.7, fontSize: '1.1rem'}}>Wähle ein Spiel!</p>
+          </div>
+          <div style={{maxWidth: 420, margin: '0 auto'}}>
+            {games.map(g => (
+              <button key={g.id} onClick={() => setGame(g.id)} style={{width: '100%', padding: 22, marginBottom: 16, background: `linear-gradient(135deg, ${g.color}, ${g.color}dd)`, border: 'none', borderRadius: 18, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 18, boxShadow: `0 6px 25px ${g.color}40`, transition: 'transform 0.1s'}}>
+                <span style={{fontSize: '3rem'}}>{g.icon}</span>
+                <div style={{textAlign: 'left'}}><div style={{fontSize: '1.4rem', fontWeight: 'bold'}}>{g.name}</div><div style={{opacity: 0.9, fontSize: '1rem'}}>{g.desc}</div></div>
+              </button>
+            ))}
+          </div>
+          <p style={{textAlign: 'center', marginTop: 35, opacity: 0.5, fontSize: '0.9rem'}}>Bitte trinke verantwortungsvoll! 🍻</p>
+          
+          {/* Footer */}
+          <div style={{marginTop: 40, padding: 20, background: 'rgba(0,0,0,0.3)', borderRadius: 20, textAlign: 'center'}}>
+            <p style={{fontSize: '1rem', marginBottom: 15, lineHeight: 1.6}}>
+              Viel Spaß beim Spielen! 🎉
+            </p>
+            <p style={{marginTop: 10, fontSize: '0.75rem', opacity: 0.4}}>
+              🍺 LKT Trinkspiele
+            </p>
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
