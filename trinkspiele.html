@@ -921,24 +921,25 @@
         const interval = 60000 / getDifficultyBpm();
         startTimeRef.current = Date.now();
         
-        // Berechne erwartete Tap-Zeiten
-        const expected = [];
-        currentPattern.forEach((beat, i) => {
-          if (beat === 1) {
-            expected.push(i * interval);
-          }
-        });
-        setExpectedTapTimes(expected);
+        // Reset player taps
+        const freshTaps = {};
+        players.forEach(p => freshTaps[p.name] = []);
+        setPlayerTaps(freshTaps);
         
         let beat = 0;
+        
+        // Erster Beat sofort anzeigen (Beat 0)
+        setCurrentBeat(0);
+        
         beatIntervalRef.current = setInterval(() => {
           beat++;
-          setCurrentBeat(beat);
-          
           if (beat >= currentPattern.length) {
             clearInterval(beatIntervalRef.current);
+            setCurrentBeat(-1); // Kein aktiver Beat mehr
             // Warte kurz, dann auswerten
-            setTimeout(() => evaluateRound(), 500);
+            setTimeout(() => evaluateRound(), 600);
+          } else {
+            setCurrentBeat(beat);
           }
         }, interval);
       };
@@ -954,6 +955,8 @@
 
       const evaluateRound = () => {
         const interval = 60000 / getDifficultyBpm();
+        
+        // Berechne wann jeder Beat erwartet wird (nur für ● Beats)
         const expectedTaps = [];
         currentPattern.forEach((beat, i) => {
           if (beat === 1) {
@@ -967,35 +970,28 @@
         
         players.forEach(p => {
           const taps = playerTaps[p.name] || [];
-          let missedBeats = 0;
+          let hits = 0;
           
-          // Prüfe ob jeder erwartete Beat getroffen wurde
-          const usedTaps = new Set();
+          // Für jeden erwarteten Beat, prüfe ob ein Tap in der Nähe war
           expectedTaps.forEach(expected => {
-            let found = false;
-            for (let i = 0; i < taps.length; i++) {
-              if (usedTaps.has(i)) continue;
-              const deviation = Math.abs(taps[i] - expected);
-              if (deviation <= TOLERANCE) {
-                found = true;
-                usedTaps.add(i);
-                break;
-              }
-            }
-            if (!found) missedBeats++;
+            const hasHit = taps.some(tap => Math.abs(tap - expected) <= TOLERANCE);
+            if (hasHit) hits++;
           });
+          
+          const missed = expectedTaps.length - hits;
           
           playerResults[p.name] = {
             taps: taps.length,
             expected: expectedTaps.length,
-            errors: missedBeats
+            hits: hits,
+            errors: missed
           };
           
           // Score = verpasste Beats
-          if (missedBeats > worstScore) {
-            worstScore = missedBeats;
+          if (missed > worstScore) {
+            worstScore = missed;
             losers = [p.name];
-          } else if (missedBeats === worstScore && worstScore > 0) {
+          } else if (missed === worstScore && missed > 0) {
             losers.push(p.name);
           }
         });
@@ -1244,8 +1240,8 @@
                     <span style={{marginLeft: 10, opacity: 0.7}}>🍺 {p.drinks}</span>
                   </div>
                   <div style={{textAlign: 'right', fontSize: '0.9rem'}}>
-                    <div>{res.taps}/{res.expected} Taps</div>
-                    {res.errors > 0 && <div style={{color: '#e74c3c'}}>{res.errors} Fehler</div>}
+                    <div style={{color: res.errors === 0 ? '#27ae60' : '#fff'}}>{res.hits || (res.expected - res.errors)}/{res.expected} Treffer</div>
+                    {res.errors > 0 && <div style={{color: '#e74c3c'}}>{res.errors} verpasst</div>}
                   </div>
                 </div>
               );
