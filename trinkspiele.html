@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="de">
 <head>
   <meta charset="UTF-8">
@@ -9,7 +10,7 @@
   <meta name="theme-color" content="#1a1a2e">
   <meta name="mobile-web-app-capable" content="yes">
   <title>🍺 Trinkspiele</title>
-  
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     html { height: 100%; background: #1a1a2e; }
@@ -54,14 +55,17 @@
       user-select: text;
     }
   </style>
-  
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
 </head>
 <body>
   <div id="root"></div>
-  
+
   <script type="text/babel">
     const { useState, useRef, useCallback, useEffect } = React;
 
@@ -167,6 +171,15 @@
       const [looking, setLooking] = useState(false);
       const [rolling, setRolling] = useState(false);
       const [result, setResult] = useState(null);
+      const [blindPlayer, setBlindPlayer] = useState(null); // Wer hat blind weitergegeben?
+      const [blindRolled, setBlindRolled] = useState(null); // Was wurde blind gewürfelt?
+
+      // Nächsthöheren Wert in der Meiern-Reihenfolge finden
+      const getNextHigherValue = (val) => {
+        const idx = ALL_VALS.indexOf(val);
+        if (idx === -1 || idx === ALL_VALS.length - 1) return null;
+        return ALL_VALS[idx + 1];
+      };
 
       const roll = () => {
         setRolling(true); setLooking(false);
@@ -177,7 +190,7 @@
         }, 80);
       };
 
-      const announce = v => { setAnnounced(v); setPhase('doubting'); };
+      const announce = v => { setAnnounced(v); setBlindPlayer(null); setBlindRolled(null); setPhase('doubting'); };
       
       const believe = () => { 
         // Wenn Mäxchen geglaubt wird, trinkt der Gläubige und neue Runde startet
@@ -195,18 +208,62 @@
           setPrev(announced); 
           setCur((cur + 1) % players.length); 
           setAnnounced(null); 
-          setRolled(null); 
+          setRolled(null);
+          setBlindPlayer(null);
+          setBlindRolled(null);
           setPhase('rolling'); 
         }
       };
       
       const doubt = () => { 
-        const lied = getValRank(rolled) < getValRank(announced); 
-        const loserIdx = lied ? cur : (cur + 1) % players.length; 
+        // Bei Blind-Weitergabe: Prüfe ob der blinde Wurf >= angesagte Zahl ist
+        const actualRoll = blindRolled !== null ? blindRolled : rolled;
+        const lied = getValRank(actualRoll) < getValRank(announced);
+        
+        // Wer trinkt? Bei Blind der Blind-Spieler wenn gelogen, sonst der Zweifler
+        let loserIdx;
+        if (blindPlayer !== null) {
+          loserIdx = lied ? blindPlayer : (cur + 1) % players.length;
+        } else {
+          loserIdx = lied ? cur : (cur + 1) % players.length;
+        }
+        
         const drinks = announced === 21 ? 2 : 1; 
         setPlayers(players.map((p, i) => i === loserIdx ? {...p, drinks: p.drinks + drinks} : p)); 
-        setResult({type: 'doubt', lied, loser: players[loserIdx].name, drinks, actual: rolled, announced}); 
+        setResult({
+          type: 'doubt', 
+          lied, 
+          loser: players[loserIdx].name, 
+          drinks, 
+          actual: actualRoll, 
+          announced,
+          wasBlind: blindPlayer !== null
+        }); 
         setPhase('result'); 
+      };
+      
+      const blindPass = () => {
+        // Würfle blind (ohne zu schauen)
+        const d1 = Math.floor(Math.random()*6)+1;
+        const d2 = Math.floor(Math.random()*6)+1;
+        const blindValue = getDiceVal(d1, d2);
+        
+        // Speichere blind-Wurf und wer es war
+        setBlindRolled(blindValue);
+        setBlindPlayer((cur + 1) % players.length);
+        setDice([d1, d2]);
+        
+        // Nächsthöhere Ansage automatisch setzen
+        const nextAnnounce = getNextHigherValue(announced);
+        if (nextAnnounce === null) {
+          // Kann nicht höher gehen (schon bei Mäxchen)
+          return;
+        }
+        
+        setAnnounced(nextAnnounce);
+        setPrev(announced);
+        setCur((cur + 1) % players.length);
+        // Phase bleibt 'doubting' für den nächsten Spieler
       };
       
       const nextRound = () => { 
@@ -217,7 +274,7 @@
         } else {
           nextPlayer = result.lied ? cur : (cur + 1) % players.length; 
         }
-        setCur(nextPlayer); setPrev(null); setAnnounced(null); setRolled(null); setResult(null); setPhase('rolling'); 
+        setCur(nextPlayer); setPrev(null); setAnnounced(null); setRolled(null); setResult(null); setBlindPlayer(null); setBlindRolled(null); setPhase('rolling'); 
       };
       const validOptions = prev ? ALL_VALS.filter(v => getValRank(v) > getValRank(prev)) : ALL_VALS;
 
@@ -230,10 +287,11 @@
               <ul style={{fontSize: '0.9rem', lineHeight: 1.6, paddingLeft: 20, margin: 0, opacity: 0.9}}>
                 <li>Würfle und schau dir geheim dein Ergebnis an</li>
                 <li>Sage einen Wert an - du darfst lügen!</li>
-                <li>Der nächste Spieler muss glauben oder anzweifeln</li>
-                <li>Glaubt er, muss er höher ansagen</li>
-                <li>Zweifelt er und du hast gelogen → du trinkst</li>
-                <li>Zweifelt er und du hast nicht gelogen → er trinkt</li>
+                <li>Der nächste Spieler kann:</li>
+                <li style={{marginLeft: 15}}>✓ <strong>Glauben</strong> → selbst würfeln, höher ansagen</li>
+                <li style={{marginLeft: 15}}>✗ <strong>Aufdecken</strong> → Lügner trinkt!</li>
+                <li style={{marginLeft: 15}}>🎲 <strong>Blind Weitergeben</strong> → würfelt ohne zu schauen, sagt nächsthöhere Zahl</li>
+                <li>Bei Blind: Wenn aufgedeckt wird und der Wurf zu niedrig ist, trinkt der Blind-Spieler!</li>
                 <li><strong>Mäxchen (21)</strong> ist der höchste Wurf = 2x trinken!</li>
               </ul>
             </div>
@@ -285,10 +343,18 @@
               {phase === 'doubting' && <>
                 <h2 style={{color: '#ffd700', marginBottom: 10}}>{players[cur]?.name} sagt:</h2>
                 <div style={{fontSize: '2.5rem', color: announced === 21 ? '#ff6b6b' : '#ffd700', margin: '20px 0', fontWeight: 'bold'}}>{fmtDice(announced)}</div>
-                <h3 style={{marginBottom: 20}}>{players[(cur+1) % players.length]?.name}, glaubst du das?</h3>
-                <div style={{display: 'flex', gap: 15, justifyContent: 'center'}}>
-                  <Btn onClick={believe} primary style={{flex: 1, maxWidth: 150}}>✓ Glaube!</Btn>
-                  <Btn onClick={doubt} danger style={{flex: 1, maxWidth: 150}}>✗ Anzweifeln!</Btn>
+                {blindPlayer !== null && <div style={{background: 'rgba(155,89,182,0.2)', padding: 10, borderRadius: 10, marginBottom: 15, fontSize: '0.9rem'}}>🎲 Blind weitergegeben!</div>}
+                <h3 style={{marginBottom: 20}}>{players[(cur+1) % players.length]?.name}, was machst du?</h3>
+                <div style={{display: 'flex', flexDirection: 'column', gap: 12}}>
+                  <div style={{display: 'flex', gap: 12, justifyContent: 'center'}}>
+                    <Btn onClick={believe} primary style={{flex: 1, maxWidth: 150}}>✓ Glauben</Btn>
+                    <Btn onClick={doubt} danger style={{flex: 1, maxWidth: 150}}>✗ Aufdecken</Btn>
+                  </div>
+                  {getNextHigherValue(announced) && (
+                    <Btn onClick={blindPass} style={{background: 'linear-gradient(135deg, #9b59b6, #8e44ad)', width: '100%'}}>
+                      🎲 Blind Weitergeben → {fmtDice(getNextHigherValue(announced))}
+                    </Btn>
+                  )}
                 </div>
               </>}
               
@@ -761,474 +827,379 @@
       {color: '#795548', name: 'BRAUN'},
     ];
 
-    const FarbenReaktion = ({onBack}) => {
-      const [phase, setPhase] = useState('setup');
-      const [players, setPlayers] = useState([]);
-      const [playerColors, setPlayerColors] = useState([]);
-      const [targetColorIdx, setTargetColorIdx] = useState(null);
-      const [tapped, setTapped] = useState(null);
-      const [startTime, setStartTime] = useState(null);
-      const [reactionTime, setReactionTime] = useState(null);
-      const [roundResult, setRoundResult] = useState(null);
-      const [roundNum, setRoundNum] = useState(0);
-      const timeoutRef = useRef(null);
-      const disappearRef = useRef(null);
-
-      const setupGame = () => {
-        // Jeder Spieler bekommt eine zufällige Farbe, plus 4-5 Extra-Farben
-        const shuffled = [...ALL_COLORS].sort(() => Math.random() - 0.5);
-        const extraCount = 4 + Math.floor(Math.random() * 2); // 4-5 Extra
-        const colors = shuffled.slice(0, Math.min(players.length + extraCount, 9));
-        setPlayerColors(colors);
-        setRoundNum(0);
-        startRound(colors);
-      };
-
-      const startRound = (colors = playerColors) => {
-        setTapped(null);
-        setReactionTime(null);
-        setRoundResult(null);
-        setTargetColorIdx(null);
-        setPhase('waiting');
-        setRoundNum(r => r + 1);
-        
-        const showColor = () => {
-          const delay = 800 + Math.random() * 1500;
-          timeoutRef.current = setTimeout(() => {
-            // Zufällige Farbe aus ALLEN verfügbaren (inkl. Extra-Farben)
-            const colorIdx = Math.floor(Math.random() * colors.length);
-            setTargetColorIdx(colorIdx);
-            setStartTime(Date.now());
-            setPhase('react');
-            
-            // Extra-Farbe? Nur kurz zeigen und dann neue Farbe!
-            if (colorIdx >= players.length) {
-              // Extra-Farbe: 600-900ms zeigen, dann neue Farbe
-              timeoutRef.current = setTimeout(() => {
-                setTargetColorIdx(null);
-                setPhase('waiting');
-                showColor(); // Rekursiv neue Farbe zeigen
-              }, 600 + Math.random() * 300);
-            } else {
-              // Spieler-Farbe: Timeout nach 750ms
-              timeoutRef.current = setTimeout(() => {
-                handleTimeout(colorIdx, colors);
-              }, 750);
-            }
-          }, delay);
-        };
-        
-        showColor();
-      };
-
-      const handleTimeout = (colorIdx, colors) => {
-        if (tapped !== null) return;
-        clearTimeout(disappearRef.current);
-        
-        // Nur Spieler-Farben können Timeout haben
-        if (colorIdx < players.length) {
-          const playerWithColor = players[colorIdx].name;
-          setRoundResult({type: 'timeout', loser: playerWithColor});
-          setPlayers(ps => ps.map(p => p.name === playerWithColor ? {...p, drinks: p.drinks + 1} : p));
-          setPhase('result');
-        }
-      };
-
-      const handleTap = (playerIdx) => {
-        if (phase !== 'react' || tapped !== null) return;
-        
-        clearTimeout(timeoutRef.current);
-        clearTimeout(disappearRef.current);
-        const time = Date.now() - startTime;
-        setReactionTime(time);
-        setTapped(playerIdx);
-        
-        // Extra-Farbe? Dann darf NIEMAND tippen!
-        if (targetColorIdx >= players.length) {
-          setRoundResult({type: 'wrong', loser: players[playerIdx].name, correctColor: 'NIEMAND (Extra-Farbe!)'});
-          setPlayers(ps => ps.map((p, i) => i === playerIdx ? {...p, drinks: p.drinks + 2} : p));
-          setPhase('result');
-          return;
-        }
-        
-        // Hat der Spieler die richtige Farbe?
-        if (playerIdx === targetColorIdx) {
-          // Richtig!
-          setRoundResult({type: 'correct', winner: players[playerIdx].name, time});
-          // Alle anderen trinken
-          setPlayers(ps => ps.map((p, i) => i !== playerIdx ? {...p, drinks: p.drinks + 1} : p));
-        } else {
-          // Falsch! (falsche Spieler-Farbe)
-          setRoundResult({type: 'wrong', loser: players[playerIdx].name, correctColor: playerColors[targetColorIdx]?.name || 'NIEMAND'});
-          setPlayers(ps => ps.map((p, i) => i === playerIdx ? {...p, drinks: p.drinks + 2} : p));
-        }
-        setPhase('result');
-      };
-
-      useEffect(() => {
-        return () => { clearTimeout(timeoutRef.current); clearTimeout(disappearRef.current); };
-      }, []);
-
-      const getGridStyle = () => players.length === 2 ? {gridTemplateRows: '1fr 1fr', gridTemplateColumns: '1fr'} : {gridTemplateRows: '1fr 1fr', gridTemplateColumns: '1fr 1fr'};
-      const getArea = (index) => { const n = players.length; if (n === 2) return index === 0 ? {gridRow: '1', gridColumn: '1'} : {gridRow: '2', gridColumn: '1'}; if (n === 3) { if (index === 0) return {gridRow: '1', gridColumn: '1 / 3'}; return index === 1 ? {gridRow: '2', gridColumn: '1'} : {gridRow: '2', gridColumn: '2'}; } return {gridRow: index < 2 ? '1' : '2', gridColumn: index % 2 === 0 ? '1' : '2'}; };
-      const getRotation = (index) => { const n = players.length; if (n === 2 && index === 0) return 'rotate(180deg)'; if (n >= 3 && index === 0) return 'rotate(180deg)'; if (n === 4 && index === 1) return 'rotate(180deg)'; return 'none'; };
-
-      if (phase === 'setup') return (
-        <div style={{padding: 20, minHeight: '100vh', paddingBottom: 40}}>
-          <GameHeader title="🎨 FARBEN-REAKTION 🍺" onBack={onBack} />
-          <div style={{background: 'rgba(0,0,0,0.3)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
-            <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 10, textAlign: 'center'}}>📜 Spielregeln</h3>
-            <ul style={{fontSize: '0.9rem', lineHeight: 1.6, paddingLeft: 20, margin: 0, opacity: 0.9}}>
-              <li>Jeder Spieler hat eine Farbe</li>
-              <li>Es gibt 4-5 Extra-Farben ohne Spieler!</li>
-              <li>In der Mitte erscheint eine Farbe - <strong>0,75 Sek!</strong></li>
-              <li>Nur wer DIESE Farbe hat darf tippen!</li>
-              <li>Extra-Farbe? <strong>Niemand tippen!</strong></li>
-              <li>Richtig = alle anderen trinken</li>
-              <li>Falsch/Zu langsam = 2x trinken</li>
-            </ul>
-          </div>
-          <PlayerSetup players={players} setPlayers={setPlayers} onStart={setupGame} min={2} max={4} />
-        </div>
-      );
-
-      return (
-        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'grid', ...getGridStyle(), gap: 4, background: '#000'}}>
-          {players.slice(0, 4).map((p, i) => (
-            <div
-              key={p.name}
-              onTouchStart={(e) => { e.preventDefault(); handleTap(i); }}
-              onMouseDown={() => handleTap(i)}
-              className="no-select"
-              style={{...getArea(i), background: playerColors[i]?.color || '#333', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'background 0.15s', touchAction: 'manipulation', opacity: phase === 'result' && tapped !== null && tapped !== i && roundResult?.type === 'correct' ? 0.5 : 1}}
-            >
-              <div style={{transform: getRotation(i), textAlign: 'center', pointerEvents: 'none'}}>
-                <div style={{fontSize: '1.6rem', fontWeight: 'bold', marginBottom: 3, color: '#fff', textShadow: '2px 2px 4px rgba(0,0,0,0.5)'}}>{p.name}</div>
-                <div style={{fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)', marginBottom: 8}}>🍺 {p.drinks}</div>
-                <div style={{fontSize: '1.1rem', color: '#fff', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.5)', background: 'rgba(0,0,0,0.3)', padding: '5px 15px', borderRadius: 10}}>{playerColors[i]?.name}</div>
-                
-                {phase === 'result' && roundResult?.type === 'correct' && tapped === i && (
-                  <div style={{fontSize: '1.4rem', marginTop: 12}}>🏆 {reactionTime}ms</div>
-                )}
-                {phase === 'result' && roundResult?.type === 'wrong' && tapped === i && (
-                  <div style={{fontSize: '1.2rem', marginTop: 12, lineHeight: 1.3}}>❌ FALSCH!<br/>2x Trinken!</div>
-                )}
-                {phase === 'result' && roundResult?.type === 'timeout' && roundResult.loser === p.name && (
-                  <div style={{fontSize: '1.2rem', marginTop: 12, lineHeight: 1.3}}>⏰ ZU LANGSAM!<br/>Trinken!</div>
-                )}
-              </div>
-            </div>
-          ))}
-          
-          {/* Extra-Farben Anzeige */}
-          {playerColors.length > players.length && (
-            <div style={{position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', zIndex: 40, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', maxWidth: '90%'}}>
-              {playerColors.slice(players.length).map((c, i) => (
-                <div key={i} style={{background: c.color, padding: '4px 10px', borderRadius: 6, fontSize: '0.7rem', color: '#fff', fontWeight: 'bold', textShadow: '1px 1px 2px rgba(0,0,0,0.5)'}}>
-                  {c.name} ❌
-                </div>
-              ))}
-            </div>
-          )}
-          
-          {/* Farb-Anzeige in der Mitte */}
-          <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 50}}>
-            {phase === 'waiting' && (
-              <div style={{background: 'rgba(0,0,0,0.9)', padding: 25, borderRadius: 20, textAlign: 'center'}}>
-                <div style={{fontSize: '1.5rem', color: '#fff'}}>Runde {roundNum + 1}</div>
-                <div style={{fontSize: '1rem', color: '#aaa', marginTop: 5}}>Warte...</div>
-              </div>
-            )}
-            {phase === 'react' && targetColorIdx !== null && (
-              <div style={{
-                background: playerColors[targetColorIdx]?.color,
-                padding: 50,
-                borderRadius: 30,
-                textAlign: 'center',
-                boxShadow: `0 0 60px ${playerColors[targetColorIdx]?.color}`,
-                animation: 'pulse 0.15s infinite'
-              }}>
-                <div style={{fontSize: '2.5rem', color: '#fff', fontWeight: 'bold', textShadow: '3px 3px 6px rgba(0,0,0,0.5)'}}>
-                  {playerColors[targetColorIdx]?.name}!
-                </div>
-              </div>
-            )}
-            {phase === 'result' && roundResult?.type === 'nobody' && (
-              <div style={{background: 'rgba(39,174,96,0.9)', padding: 25, borderRadius: 20, textAlign: 'center'}}>
-                <div style={{fontSize: '1.3rem', color: '#fff'}}>✓ Niemand durfte tippen!</div>
-              </div>
-            )}
-          </div>
-          
-          {phase === 'result' && (
-            <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 100, display: 'flex', flexDirection: 'column', gap: 12, marginTop: 80}}>
-              <button onClick={() => startRound()} style={{padding: '18px 40px', fontSize: '1.3rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #ffd700, #ff8c00)', border: 'none', borderRadius: 30, color: '#1a1a1a', cursor: 'pointer'}}>🔄 Nächste Runde</button>
-              <button onClick={onBack} style={{padding: '12px 25px', background: 'rgba(0,0,0,0.8)', border: '2px solid #fff', borderRadius: 20, color: '#fff', cursor: 'pointer', fontWeight: 'bold'}}>← Zurück</button>
-            </div>
-          )}
-        </div>
-      );
+    // ===== RHYTHMUS-SPIEL mit Pattern-Modus =====
+    const PATTERNS = {
+      easy: [
+        [1, 1, 1, 1],
+        [1, 1, 0, 1],
+        [1, 0, 1, 1],
+        [1, 1, 1, 0],
+        [0, 1, 1, 1],
+      ],
+      medium: [
+        [1, 0, 1, 0, 1, 1],
+        [1, 1, 0, 1, 0, 1],
+        [0, 1, 1, 0, 1, 1],
+        [1, 0, 1, 1, 0, 1],
+        [1, 1, 0, 0, 1, 1],
+        [1, 0, 0, 1, 1, 1],
+      ],
+      hard: [
+        [1, 0, 1, 0, 1, 0, 1, 1],
+        [1, 1, 0, 1, 0, 1, 1, 0],
+        [0, 1, 1, 0, 1, 0, 1, 1],
+        [1, 0, 1, 1, 0, 0, 1, 1],
+        [1, 1, 0, 0, 1, 1, 0, 1],
+        [0, 1, 0, 1, 1, 0, 1, 1],
+        [1, 0, 1, 0, 0, 1, 1, 1],
+      ]
     };
-
-    // ===== RHYTHMUS-SPIEL (verbessert) =====
+    
     const RhythmusSpiel = ({onBack}) => {
       const [phase, setPhase] = useState('setup');
       const [players, setPlayers] = useState([]);
+      const [difficulty, setDifficulty] = useState('easy');
       const [bpm, setBpm] = useState(100);
-      const [beatCount, setBeatCount] = useState(0);
-      const [beatVisible, setBeatVisible] = useState(false);
-      const [taps, setTaps] = useState({});
-      const [tapTimes, setTapTimes] = useState({});
-      const [loser, setLoser] = useState(null);
-      const [isBlind, setIsBlind] = useState(false);
+      const [currentPattern, setCurrentPattern] = useState([]);
+      const [currentBeat, setCurrentBeat] = useState(-1);
       const [countdown, setCountdown] = useState(0);
-      const [barProgress, setBarProgress] = useState(0);
+      const [playerTaps, setPlayerTaps] = useState({});
+      const [expectedTapTimes, setExpectedTapTimes] = useState([]);
+      const [results, setResults] = useState(null);
+      const [roundNumber, setRoundNumber] = useState(0);
       const beatIntervalRef = useRef(null);
-      const barIntervalRef = useRef(null);
       const startTimeRef = useRef(null);
-      const roundBeats = 8;
+      const TOLERANCE = 150; // ±150ms
 
-      const startRound = () => {
-        const newTaps = {}; 
-        const newTapTimes = {};
-        players.forEach(p => { newTaps[p.name] = 0; newTapTimes[p.name] = []; });
-        setTaps(newTaps);
-        setTapTimes(newTapTimes);
-        setBeatCount(0);
-        setLoser(null);
-        setIsBlind(false);
-        setBarProgress(0);
-        setPhase('countdown');
-        setCountdown(3);
-        
-        let count = 3;
-        const countdownInterval = setInterval(() => {
-          count--;
-          setCountdown(count);
-          if (count <= 0) {
-            clearInterval(countdownInterval);
-            startBeats(false);
-          }
-        }, 1000);
+      const getDifficultyBpm = () => {
+        if (difficulty === 'easy') return 80;
+        if (difficulty === 'medium') return 100;
+        return 120;
       };
 
-      const startBeats = (blind) => {
-        setIsBlind(blind);
+      const startGame = () => {
+        setBpm(getDifficultyBpm());
+        setRoundNumber(1);
+        nextPattern();
+      };
+
+      const nextPattern = () => {
+        const patterns = PATTERNS[difficulty];
+        const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+        setCurrentPattern(pattern);
+        setCurrentBeat(-1);
+        setPlayerTaps({});
+        setResults(null);
+        
+        // Init player taps
+        const taps = {};
+        players.forEach(p => taps[p.name] = []);
+        setPlayerTaps(taps);
+        
+        // Erst Pattern anzeigen
+        setPhase('showPattern');
+        
+        // Nach 2 Sekunden Countdown starten
+        setTimeout(() => {
+          setPhase('countdown');
+          setCountdown(3);
+          let count = 3;
+          const countdownInterval = setInterval(() => {
+            count--;
+            setCountdown(count);
+            if (count <= 0) {
+              clearInterval(countdownInterval);
+              startPlaying();
+            }
+          }, 800);
+        }, 2500);
+      };
+
+      const startPlaying = () => {
         setPhase('playing');
-        setBeatCount(0);
-        setBarProgress(0);
-        const interval = 60000 / bpm;
-        let beat = 0;
+        setCurrentBeat(0);
+        const interval = 60000 / getDifficultyBpm();
         startTimeRef.current = Date.now();
         
-        const newTapTimes = {};
-        players.forEach(p => newTapTimes[p.name] = []);
-        setTapTimes(newTapTimes);
+        // Berechne erwartete Tap-Zeiten
+        const expected = [];
+        currentPattern.forEach((beat, i) => {
+          if (beat === 1) {
+            expected.push(i * interval);
+          }
+        });
+        setExpectedTapTimes(expected);
         
-        // Balken für Blind-Phase
-        if (blind) {
-          const totalDuration = interval * roundBeats;
-          barIntervalRef.current = setInterval(() => {
-            const elapsed = Date.now() - startTimeRef.current;
-            setBarProgress(Math.min(100, (elapsed / totalDuration) * 100));
-          }, 50);
-        }
-        
+        let beat = 0;
         beatIntervalRef.current = setInterval(() => {
           beat++;
-          setBeatCount(beat);
-          if (!blind) {
-            setBeatVisible(true);
-            setTimeout(() => setBeatVisible(false), 80);
-          }
+          setCurrentBeat(beat);
           
-          if (beat >= roundBeats) {
+          if (beat >= currentPattern.length) {
             clearInterval(beatIntervalRef.current);
-            clearInterval(barIntervalRef.current);
-            
-            if (!blind) {
-              // Direkt weitermachen ohne Pause!
-              startBeats(true);
-            } else {
-              setTimeout(() => calculateResults(), 500);
-            }
+            // Warte kurz, dann auswerten
+            setTimeout(() => evaluateRound(), 500);
           }
         }, interval);
       };
 
-      const handleTap = (name) => {
+      const handleTap = (playerName) => {
         if (phase !== 'playing') return;
-        const now = Date.now() - startTimeRef.current;
-        setTaps(t => ({...t, [name]: (t[name] || 0) + 1}));
-        setTapTimes(t => ({...t, [name]: [...(t[name] || []), now]}));
+        const tapTime = Date.now() - startTimeRef.current;
+        setPlayerTaps(prev => ({
+          ...prev,
+          [playerName]: [...(prev[playerName] || []), tapTime]
+        }));
       };
 
-      const calculateResults = () => {
-        const interval = 60000 / bpm;
-        const scores = {};
-        
-        players.forEach(p => {
-          const playerTapTimes = tapTimes[p.name] || [];
-          
-          if (playerTapTimes.length === 0) {
-            scores[p.name] = 99999;
-            return;
+      const evaluateRound = () => {
+        const interval = 60000 / getDifficultyBpm();
+        const expectedTaps = [];
+        currentPattern.forEach((beat, i) => {
+          if (beat === 1) {
+            expectedTaps.push(i * interval);
           }
-          
-          let totalError = 0;
-          const expectedBeats = [];
-          for (let i = 0; i < roundBeats; i++) {
-            expectedBeats.push(i * interval);
-          }
-          
-          playerTapTimes.forEach(tap => {
-            let minError = Infinity;
-            expectedBeats.forEach(expected => {
-              const error = Math.abs(tap - expected);
-              if (error < minError) minError = error;
-            });
-            totalError += minError;
-          });
-          
-          const tapDiff = Math.abs(playerTapTimes.length - roundBeats);
-          scores[p.name] = (totalError / playerTapTimes.length) + (tapDiff * 300);
         });
         
-        const worst = Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
-        setLoser(worst);
-        setPlayers(ps => ps.map(p => p.name === worst ? {...p, drinks: p.drinks + 2} : p));
+        const playerResults = {};
+        let losers = [];
+        let worstScore = -1;
+        
+        players.forEach(p => {
+          const taps = playerTaps[p.name] || [];
+          let errors = 0;
+          let totalDeviation = 0;
+          
+          // Prüfe ob jeder erwartete Beat getroffen wurde
+          expectedTaps.forEach(expected => {
+            const closestTap = taps.reduce((closest, tap) => {
+              const diff = Math.abs(tap - expected);
+              return diff < Math.abs(closest - expected) ? tap : closest;
+            }, Infinity);
+            
+            const deviation = Math.abs(closestTap - expected);
+            if (deviation > TOLERANCE || closestTap === Infinity) {
+              errors++;
+            }
+            totalDeviation += deviation === Infinity ? 1000 : deviation;
+          });
+          
+          // Prüfe ob zu viele Taps (falsche Taps bei Pausen)
+          const extraTaps = Math.max(0, taps.length - expectedTaps.length);
+          errors += extraTaps;
+          
+          playerResults[p.name] = {
+            taps: taps.length,
+            expected: expectedTaps.length,
+            errors,
+            avgDeviation: expectedTaps.length > 0 ? Math.round(totalDeviation / expectedTaps.length) : 0
+          };
+          
+          const score = errors * 1000 + totalDeviation;
+          if (score > worstScore) {
+            worstScore = score;
+            losers = [p.name];
+          } else if (score === worstScore) {
+            losers.push(p.name);
+          }
+        });
+        
+        // Verlierer trinken
+        setPlayers(ps => ps.map(p => losers.includes(p.name) ? {...p, drinks: p.drinks + 1} : p));
+        setResults({ playerResults, losers });
         setPhase('result');
       };
 
+      const nextRound = () => {
+        setRoundNumber(r => r + 1);
+        nextPattern();
+      };
+
       useEffect(() => {
-        return () => { clearInterval(beatIntervalRef.current); clearInterval(barIntervalRef.current); };
+        return () => clearInterval(beatIntervalRef.current);
       }, []);
 
-      const getGridStyle = () => players.length === 2 ? {gridTemplateRows: '1fr 1fr', gridTemplateColumns: '1fr'} : {gridTemplateRows: '1fr 1fr', gridTemplateColumns: '1fr 1fr'};
-      const getArea = (index) => { const n = players.length; if (n === 2) return index === 0 ? {gridRow: '1', gridColumn: '1'} : {gridRow: '2', gridColumn: '1'}; if (n === 3) { if (index === 0) return {gridRow: '1', gridColumn: '1 / 3'}; return index === 1 ? {gridRow: '2', gridColumn: '1'} : {gridRow: '2', gridColumn: '2'}; } return {gridRow: index < 2 ? '1' : '2', gridColumn: index % 2 === 0 ? '1' : '2'}; };
-      const getRotation = (index) => { const n = players.length; if (n === 2 && index === 0) return 'rotate(180deg)'; if (n >= 3 && index === 0) return 'rotate(180deg)'; if (n === 4 && index === 1) return 'rotate(180deg)'; return 'none'; };
-
+      // Setup Screen
       if (phase === 'setup') return (
         <div style={{padding: 20, minHeight: '100vh', paddingBottom: 40}}>
           <GameHeader title="🥁 RHYTHMUS-SPIEL 🍺" onBack={onBack} />
           <div style={{background: 'rgba(0,0,0,0.3)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
             <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 10, textAlign: 'center'}}>📜 Spielregeln</h3>
             <ul style={{fontSize: '0.9rem', lineHeight: 1.6, paddingLeft: 20, margin: 0, opacity: 0.9}}>
-              <li><strong>Phase 1:</strong> 8 Beats MIT visueller Hilfe</li>
-              <li><strong>Phase 2:</strong> 8 Beats nur mit Balken!</li>
-              <li>Tippe genau im Takt zum Beat</li>
-              <li>Wer am schlechtesten im Rhythmus ist = 2x trinken!</li>
+              <li>Ein Rhythmus-Pattern wird angezeigt</li>
+              <li>● = Tippen, ○ = Pause</li>
+              <li>Alle tippen gleichzeitig das Pattern</li>
+              <li>±150ms Toleranz pro Beat</li>
+              <li>Wer Fehler macht, trinkt!</li>
             </ul>
           </div>
           
           <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
-            <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 15, textAlign: 'center'}}>Tempo: {bpm} BPM</h3>
+            <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 15, textAlign: 'center'}}>Schwierigkeit</h3>
             <div style={{display: 'flex', gap: 10}}>
-              <button onClick={() => setBpm(80)} style={{flex: 1, padding: 12, background: bpm === 80 ? '#27ae60' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 'bold', cursor: 'pointer'}}>🐢 80</button>
-              <button onClick={() => setBpm(100)} style={{flex: 1, padding: 12, background: bpm === 100 ? '#f39c12' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 'bold', cursor: 'pointer'}}>🚶 100</button>
-              <button onClick={() => setBpm(120)} style={{flex: 1, padding: 12, background: bpm === 120 ? '#e74c3c' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 'bold', cursor: 'pointer'}}>🏃 120</button>
+              <button onClick={() => setDifficulty('easy')} style={{flex: 1, padding: 15, background: difficulty === 'easy' ? 'linear-gradient(135deg, #27ae60, #2ecc71)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center'}}>
+                <div style={{fontSize: '1.5rem', marginBottom: 5}}>🐢</div>
+                <div>Leicht</div>
+                <div style={{fontSize: '0.75rem', opacity: 0.7}}>4 Beats • 80 BPM</div>
+              </button>
+              <button onClick={() => setDifficulty('medium')} style={{flex: 1, padding: 15, background: difficulty === 'medium' ? 'linear-gradient(135deg, #f39c12, #e67e22)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center'}}>
+                <div style={{fontSize: '1.5rem', marginBottom: 5}}>🚶</div>
+                <div>Mittel</div>
+                <div style={{fontSize: '0.75rem', opacity: 0.7}}>6 Beats • 100 BPM</div>
+              </button>
+              <button onClick={() => setDifficulty('hard')} style={{flex: 1, padding: 15, background: difficulty === 'hard' ? 'linear-gradient(135deg, #e74c3c, #c0392b)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 12, color: '#fff', fontWeight: 'bold', cursor: 'pointer', textAlign: 'center'}}>
+                <div style={{fontSize: '1.5rem', marginBottom: 5}}>🏃</div>
+                <div>Schwer</div>
+                <div style={{fontSize: '0.75rem', opacity: 0.7}}>8 Beats • 120 BPM</div>
+              </button>
             </div>
           </div>
           
-          <PlayerSetup players={players} setPlayers={setPlayers} onStart={startRound} min={2} max={4} />
+          <PlayerSetup players={players} setPlayers={setPlayers} onStart={startGame} min={2} max={8} />
         </div>
       );
 
-      return (
-        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, display: 'grid', ...getGridStyle(), gap: 4, background: '#000'}}>
-          {players.slice(0, 4).map((p, i) => (
-            <div
-              key={p.name}
-              onTouchStart={(e) => { e.preventDefault(); handleTap(p.name); }}
-              onMouseDown={() => handleTap(p.name)}
-              className="no-select"
-              style={{...getArea(i), background: phase === 'result' && loser === p.name ? '#e74c3c' : phase === 'result' ? '#27ae60' : beatVisible && !isBlind ? '#9b59b6' : '#2c3e50', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', touchAction: 'manipulation', transition: 'background 0.05s'}}
-            >
-              <div style={{transform: getRotation(i), textAlign: 'center', pointerEvents: 'none'}}>
-                <div style={{fontSize: '1.6rem', fontWeight: 'bold', marginBottom: 5, color: '#fff'}}>{p.name}</div>
-                <div style={{fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)', marginBottom: 8}}>🍺 {p.drinks}</div>
-                
-                {phase === 'playing' && (
-                  <div style={{fontSize: '1.3rem', color: '#ffd700', fontWeight: 'bold'}}>Taps: {taps[p.name] || 0}</div>
-                )}
-                
-                {phase === 'result' && loser === p.name && (
-                  <div style={{fontSize: '1.2rem', marginTop: 10, lineHeight: 1.3}}>🥴 Kein Rhythmus!<br/>2x Trinken!</div>
-                )}
-                {phase === 'result' && loser !== p.name && (
-                  <div style={{fontSize: '2rem', marginTop: 10}}>🎵</div>
-                )}
+      // Show Pattern
+      if (phase === 'showPattern') return (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#1a1a2e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+          <div style={{fontSize: '1.2rem', color: '#ffd700', marginBottom: 20}}>Runde {roundNumber} - Merk dir das Pattern!</div>
+          <div style={{display: 'flex', gap: 15, marginBottom: 30}}>
+            {currentPattern.map((beat, i) => (
+              <div key={i} style={{
+                width: 50, height: 50, borderRadius: '50%',
+                background: beat === 1 ? '#e74c3c' : 'rgba(255,255,255,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.5rem', color: '#fff',
+                boxShadow: beat === 1 ? '0 0 20px rgba(231,76,60,0.5)' : 'none'
+              }}>
+                {beat === 1 ? '●' : '○'}
               </div>
-            </div>
-          ))}
-          
-          {/* Beat-Anzeige in der Mitte */}
-          <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 50}}>
-            {phase === 'countdown' && (
-              <div style={{background: 'rgba(0,0,0,0.9)', padding: 35, borderRadius: 25, textAlign: 'center'}}>
-                <div style={{fontSize: '1.2rem', color: '#aaa', marginBottom: 10}}>{isBlind ? '😎 NUR BALKEN!' : '👀 MIT HILFE'}</div>
-                <div style={{fontSize: '4rem', color: '#ffd700', fontWeight: 'bold'}}>{countdown}</div>
-              </div>
-            )}
-            {phase === 'playing' && !isBlind && (
-              <div style={{textAlign: 'center'}}>
-                <div style={{
-                  width: beatVisible ? 130 : 90,
-                  height: beatVisible ? 130 : 90,
-                  background: beatVisible ? '#e74c3c' : '#555',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.05s',
-                  boxShadow: beatVisible ? '0 0 60px #e74c3c' : 'none',
-                  margin: '0 auto'
-                }}>
-                  <span style={{fontSize: '1.8rem', color: '#fff', fontWeight: 'bold'}}>{beatCount}/{roundBeats}</span>
-                </div>
-                <div style={{marginTop: 15, fontSize: '1rem', color: '#27ae60', fontWeight: 'bold', background: 'rgba(0,0,0,0.7)', padding: '8px 20px', borderRadius: 15}}>
-                  👀 Schau hin!
-                </div>
-              </div>
-            )}
-            {phase === 'playing' && isBlind && (
-              <div style={{textAlign: 'center', width: 200}}>
-                <div style={{fontSize: '1rem', color: '#e74c3c', fontWeight: 'bold', marginBottom: 15}}>😎 NUR BALKEN!</div>
-                {/* Fortschrittsbalken */}
-                <div style={{background: 'rgba(255,255,255,0.2)', borderRadius: 10, height: 30, overflow: 'hidden', position: 'relative'}}>
-                  <div style={{
-                    background: 'linear-gradient(90deg, #e74c3c, #f39c12)',
-                    height: '100%',
-                    width: `${barProgress}%`,
-                    transition: 'width 0.05s linear',
-                    borderRadius: 10
-                  }}/>
-                  {/* Beat-Markierungen */}
-                  {[...Array(roundBeats)].map((_, i) => (
-                    <div key={i} style={{
-                      position: 'absolute',
-                      left: `${(i / roundBeats) * 100}%`,
-                      top: 0,
-                      bottom: 0,
-                      width: 2,
-                      background: 'rgba(255,255,255,0.5)'
-                    }}/>
-                  ))}
-                </div>
-                <div style={{marginTop: 10, fontSize: '1.2rem', color: '#fff'}}>Taps: {Object.values(taps).reduce((a, b) => a + b, 0)}</div>
-              </div>
-            )}
+            ))}
           </div>
-          
-          {phase === 'result' && (
-            <div style={{position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 100, display: 'flex', flexDirection: 'column', gap: 12}}>
-              <button onClick={startRound} style={{padding: '18px 40px', fontSize: '1.3rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #ffd700, #ff8c00)', border: 'none', borderRadius: 30, color: '#1a1a1a', cursor: 'pointer'}}>🔄 Nächste Runde</button>
-              <button onClick={onBack} style={{padding: '12px 25px', background: 'rgba(0,0,0,0.8)', border: '2px solid #fff', borderRadius: 20, color: '#fff', cursor: 'pointer', fontWeight: 'bold'}}>← Zurück</button>
-            </div>
-          )}
+          <div style={{fontSize: '1rem', opacity: 0.7}}>● = Tippen &nbsp;&nbsp; ○ = Pause</div>
         </div>
       );
+
+      // Countdown
+      if (phase === 'countdown') return (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#1a1a2e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center'}}>
+          <div style={{display: 'flex', gap: 12, marginBottom: 30}}>
+            {currentPattern.map((beat, i) => (
+              <div key={i} style={{
+                width: 40, height: 40, borderRadius: '50%',
+                background: beat === 1 ? '#e74c3c' : 'rgba(255,255,255,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.2rem', color: '#fff'
+              }}>
+                {beat === 1 ? '●' : '○'}
+              </div>
+            ))}
+          </div>
+          <div style={{fontSize: '5rem', color: '#ffd700', fontWeight: 'bold', animation: 'pulse 0.5s infinite'}}>{countdown}</div>
+          <div style={{fontSize: '1.2rem', marginTop: 20, opacity: 0.7}}>Bereit machen!</div>
+        </div>
+      );
+
+      // Playing - Fullscreen Tap Area
+      if (phase === 'playing') return (
+        <div 
+          onTouchStart={(e) => { e.preventDefault(); players.forEach(p => handleTap(p.name)); }}
+          onMouseDown={() => players.forEach(p => handleTap(p.name))}
+          style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#1a1a2e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', touchAction: 'manipulation'}}
+        >
+          {/* Pattern-Anzeige mit aktuellem Beat */}
+          <div style={{display: 'flex', gap: 15, marginBottom: 40}}>
+            {currentPattern.map((beat, i) => (
+              <div key={i} style={{
+                width: 50, height: 50, borderRadius: '50%',
+                background: i === currentBeat 
+                  ? (beat === 1 ? '#e74c3c' : '#3498db')
+                  : i < currentBeat 
+                    ? 'rgba(255,255,255,0.1)' 
+                    : (beat === 1 ? 'rgba(231,76,60,0.3)' : 'rgba(255,255,255,0.1)'),
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.5rem', color: '#fff',
+                transform: i === currentBeat ? 'scale(1.3)' : 'scale(1)',
+                transition: 'all 0.1s',
+                boxShadow: i === currentBeat && beat === 1 ? '0 0 30px #e74c3c' : 'none'
+              }}>
+                {beat === 1 ? '●' : '○'}
+              </div>
+            ))}
+          </div>
+          
+          <div style={{fontSize: '3rem', marginBottom: 20}}>
+            {currentPattern[currentBeat] === 1 ? '👆 TAP!' : '✋ WAIT'}
+          </div>
+          
+          <div style={{fontSize: '1.2rem', opacity: 0.7}}>
+            Taps: {Object.values(playerTaps).flat().length}
+          </div>
+        </div>
+      );
+
+      // Results
+      if (phase === 'result' && results) return (
+        <div style={{position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: '#1a1a2e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20}}>
+          <div style={{fontSize: '1.5rem', color: '#ffd700', marginBottom: 20}}>Runde {roundNumber} - Ergebnis</div>
+          
+          {/* Pattern Recap */}
+          <div style={{display: 'flex', gap: 10, marginBottom: 25}}>
+            {currentPattern.map((beat, i) => (
+              <div key={i} style={{
+                width: 35, height: 35, borderRadius: '50%',
+                background: beat === 1 ? '#e74c3c' : 'rgba(255,255,255,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1rem', color: '#fff'
+              }}>
+                {beat === 1 ? '●' : '○'}
+              </div>
+            ))}
+          </div>
+          
+          {/* Player Results */}
+          <div style={{width: '100%', maxWidth: 400, marginBottom: 25}}>
+            {players.map(p => {
+              const res = results.playerResults[p.name];
+              const isLoser = results.losers.includes(p.name);
+              return (
+                <div key={p.name} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '12px 15px', marginBottom: 8, borderRadius: 12,
+                  background: isLoser ? 'rgba(231,76,60,0.3)' : 'rgba(39,174,96,0.3)',
+                  border: isLoser ? '2px solid #e74c3c' : '2px solid #27ae60'
+                }}>
+                  <div>
+                    <span style={{fontWeight: 'bold', fontSize: '1.1rem'}}>{isLoser ? '🥴 ' : '✓ '}{p.name}</span>
+                    <span style={{marginLeft: 10, opacity: 0.7}}>🍺 {p.drinks}</span>
+                  </div>
+                  <div style={{textAlign: 'right', fontSize: '0.9rem'}}>
+                    <div>{res.taps}/{res.expected} Taps</div>
+                    {res.errors > 0 && <div style={{color: '#e74c3c'}}>{res.errors} Fehler</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {results.losers.length > 0 && (
+            <div style={{fontSize: '1.3rem', marginBottom: 25, color: '#e74c3c'}}>
+              {results.losers.join(' & ')} {results.losers.length > 1 ? 'trinken' : 'trinkt'}! 🍺
+            </div>
+          )}
+          
+          <div style={{display: 'flex', gap: 12}}>
+            <button onClick={nextRound} style={{padding: '15px 35px', fontSize: '1.2rem', fontWeight: 'bold', background: 'linear-gradient(135deg, #ffd700, #ff8c00)', border: 'none', borderRadius: 25, color: '#1a1a1a', cursor: 'pointer'}}>
+              🔄 Nächstes Pattern
+            </button>
+            <button onClick={onBack} style={{padding: '15px 25px', background: 'rgba(255,255,255,0.1)', border: '2px solid #fff', borderRadius: 25, color: '#fff', cursor: 'pointer', fontWeight: 'bold'}}>
+              ← Zurück
+            </button>
+          </div>
+        </div>
+      );
+
+      return null;
     };
 
 
@@ -1986,12 +1957,335 @@
       {q: "Pizza Lieferservice Durchschnitt (€)", a: 12, u: "€"},
       {q: "Friseur Herren Durchschnitt (€)", a: 25, u: "€"},
       {q: "Friseur Damen Durchschnitt (€)", a: 60, u: "€"},
+      // === NEUE FRAGEN ===
+      // SPORT STATISTIKEN
+      {q: "WM Tore von Miroslav Klose", a: 16, u: "Tore"},
+      {q: "Champions League Titel Real Madrid", a: 15, u: "Titel"},
+      {q: "Punkte Michael Jordan Karriere", a: 32292, u: "Punkte"},
+      {q: "Meter Weitsprung Weltrekord", a: 8.95, u: "m"},
+      {q: "Marathon Weltrekord (Minuten)", a: 120, u: "min"},
+      {q: "Tour de France Siege Lance Armstrong (aberkannt)", a: 7, u: "Siege"},
+      {q: "Wimbledon Titel Roger Federer", a: 8, u: "Titel"},
+      {q: "Formel 1 WM-Titel Michael Schumacher", a: 7, u: "Titel"},
+      {q: "NBA Championship Ringe Michael Jordan", a: 6, u: "Ringe"},
+      {q: "Sekunden 100m Weltrekord", a: 9.58, u: "Sek"},
+      {q: "Tore Cristiano Ronaldo Karriere (ca.)", a: 900, u: "Tore"},
+      {q: "Tore Lionel Messi Karriere (ca.)", a: 830, u: "Tore"},
+      {q: "Grand Slam Titel Novak Djokovic", a: 24, u: "Titel"},
+      {q: "Olympische Goldmedaillen Michael Phelps", a: 23, u: "Gold"},
+      {q: "Super Bowl Siege Tom Brady", a: 7, u: "Siege"},
+      // TECHNIK & INTERNET
+      {q: "Gründungsjahr Facebook", a: 2004, u: "Jahr"},
+      {q: "Gründungsjahr Google", a: 1998, u: "Jahr"},
+      {q: "Gründungsjahr Amazon", a: 1994, u: "Jahr"},
+      {q: "Erscheinungsjahr erstes iPhone", a: 2007, u: "Jahr"},
+      {q: "Nutzer Instagram weltweit (Mrd.)", a: 2, u: "Mrd."},
+      {q: "Nutzer TikTok weltweit (Mrd.)", a: 1.5, u: "Mrd."},
+      {q: "Preis erstes iPhone (Dollar)", a: 499, u: "$"},
+      {q: "YouTube Videos pro Minute hochgeladen", a: 500, u: "Std"},
+      {q: "Tweets pro Tag (Mio.)", a: 500, u: "Mio."},
+      {q: "WhatsApp Nachrichten pro Tag (Mrd.)", a: 100, u: "Mrd."},
+      {q: "Netflix Abonnenten weltweit (Mio.)", a: 260, u: "Mio."},
+      {q: "Spotify Nutzer weltweit (Mio.)", a: 550, u: "Mio."},
+      {q: "Bitcoin Allzeithoch 2021 (Dollar ca.)", a: 69000, u: "$"},
+      {q: "Gewicht MacBook Air (Gramm)", a: 1240, u: "g"},
+      // ESSEN & TRINKEN
+      {q: "Kalorien Big Mac", a: 509, u: "kcal"},
+      {q: "Kalorien Döner", a: 650, u: "kcal"},
+      {q: "Kalorien 1L Bier", a: 430, u: "kcal"},
+      {q: "Kalorien Tafel Schokolade", a: 530, u: "kcal"},
+      {q: "Koffein in Tasse Kaffee (mg)", a: 95, u: "mg"},
+      {q: "Liter Wasser pro Tag empfohlen", a: 2.5, u: "L"},
+      {q: "Prozent Wasser im menschlichen Körper", a: 60, u: "%"},
+      {q: "Kalorien 100g Nutella", a: 539, u: "kcal"},
+      {q: "Zucker in 1L Cola (Gramm)", a: 106, u: "g"},
+      {q: "Alkohol in Bier (%)", a: 5, u: "%"},
+      {q: "Alkohol in Wein (%)", a: 12, u: "%"},
+      {q: "Alkohol in Wodka (%)", a: 40, u: "%"},
+      {q: "Kalorien Pizza Margherita", a: 800, u: "kcal"},
+      {q: "Preis Starbucks Grande Latte (€)", a: 5, u: "€"},
+      // MUSIK & FILM
+      {q: "Meistverkauftes Album aller Zeiten (Thriller, Mio.)", a: 70, u: "Mio."},
+      {q: "Erscheinungsjahr Thriller (Michael Jackson)", a: 1982, u: "Jahr"},
+      {q: "Dauer längster Film (Minuten)", a: 857, u: "min"},
+      {q: "Budget Avatar 2 (Mio. Dollar)", a: 460, u: "Mio.$"},
+      {q: "Einspielergebnis Avatar (Mrd. Dollar)", a: 2.9, u: "Mrd.$"},
+      {q: "Anzahl Marvel Cinematic Universe Filme", a: 33, u: "Filme"},
+      {q: "Anzahl James Bond Filme", a: 25, u: "Filme"},
+      {q: "Anzahl Harry Potter Filme", a: 8, u: "Filme"},
+      {q: "Oscar Nominierungen Titanic", a: 14, u: "Nominierungen"},
+      {q: "Spotify Streams 'Shape of You' (Mrd.)", a: 3.5, u: "Mrd."},
+      {q: "YouTube Aufrufe 'Baby Shark' (Mrd.)", a: 14, u: "Mrd."},
+      {q: "YouTube Aufrufe 'Despacito' (Mrd.)", a: 8, u: "Mrd."},
+      {q: "Preis Konzertticket Taylor Swift (ca. €)", a: 250, u: "€"},
+      // GEOGRAFIE ERWEITERT
+      {q: "Fläche Russland (Mio. km²)", a: 17.1, u: "Mio.km²"},
+      {q: "Fläche USA (Mio. km²)", a: 9.8, u: "Mio.km²"},
+      {q: "Fläche Deutschland (km²)", a: 357588, u: "km²"},
+      {q: "Anzahl Inseln Philippinen", a: 7641, u: "Inseln"},
+      {q: "Anzahl Inseln Indonesien", a: 17508, u: "Inseln"},
+      {q: "Bevölkerungsdichte Monaco (pro km²)", a: 26337, u: "/km²"},
+      {q: "Größte Wüste der Welt - Sahara (Mio. km²)", a: 9, u: "Mio.km²"},
+      {q: "Tiefster See der Welt - Baikalsee (m)", a: 1642, u: "m"},
+      {q: "Größter See der Welt - Kaspisches Meer (km²)", a: 371000, u: "km²"},
+      {q: "Länge Amazonas (km)", a: 6992, u: "km"},
+      // WISSENSCHAFT & NATUR
+      {q: "Temperatur Sonne Oberfläche (°C)", a: 5500, u: "°C"},
+      {q: "Temperatur Erdkern (°C)", a: 6000, u: "°C"},
+      {q: "Alter der Erde (Mrd. Jahre)", a: 4.5, u: "Mrd."},
+      {q: "Alter des Universums (Mrd. Jahre)", a: 13.8, u: "Mrd."},
+      {q: "Anzahl Sterne in Milchstraße (Mrd.)", a: 200, u: "Mrd."},
+      {q: "Entfernung zur nächsten Galaxie (Mio. Lichtjahre)", a: 2.5, u: "Mio.LJ"},
+      {q: "Anzahl Knochen im menschlichen Körper", a: 206, u: "Knochen"},
+      {q: "Anzahl Muskeln im menschlichen Körper", a: 650, u: "Muskeln"},
+      {q: "Herzschläge pro Tag", a: 100000, u: "Schläge"},
+      {q: "Blutmenge im Körper (Liter)", a: 5, u: "L"},
+      {q: "Neuronen im Gehirn (Mrd.)", a: 86, u: "Mrd."},
+      {q: "DNA Länge wenn ausgestreckt (m)", a: 2, u: "m"},
+      {q: "Anzahl Haare auf dem Kopf", a: 100000, u: "Haare"},
+      {q: "Lebensdauer Eintagsfliege (Stunden)", a: 24, u: "Std"},
+      {q: "Lebensdauer Schildkröte (Jahre max.)", a: 190, u: "Jahre"},
+      // ALLTAGSWISSEN
+      {q: "Durchschnittliche Schlafdauer Deutscher (Std)", a: 7, u: "Std"},
+      {q: "Durchschnittliche Bildschirmzeit pro Tag (Std)", a: 7, u: "Std"},
+      {q: "Plastiktüten Verbrauch Deutschland pro Jahr (Mrd.)", a: 2, u: "Mrd."},
+      {q: "CO2 Ausstoß pro Flug Frankfurt-New York (kg)", a: 1200, u: "kg"},
+      {q: "Wasserverbrauch Dusche (Liter pro Minute)", a: 15, u: "L/min"},
+      {q: "Stromverbrauch Kühlschrank pro Jahr (kWh)", a: 150, u: "kWh"},
+      {q: "Durchschnittliche Pendelzeit zur Arbeit (Min)", a: 30, u: "min"},
+      {q: "Durchschnittliche Urlaubstage Deutschland", a: 30, u: "Tage"},
+      {q: "Feiertage in Deutschland (bundesweit)", a: 9, u: "Tage"},
+      {q: "Durchschnittliche Lebenserwartung Deutschland", a: 81, u: "Jahre"},
+      // WIRTSCHAFT ERWEITERT
+      {q: "Mindestlohn Deutschland 2024 (€/Std)", a: 12.41, u: "€"},
+      {q: "Durchschnittsgehalt Deutschland brutto (€)", a: 4100, u: "€"},
+      {q: "Benzinpreis Super E10 ca. (€/L)", a: 1.75, u: "€"},
+      {q: "Strompreis Deutschland (Cent/kWh)", a: 35, u: "ct"},
+      {q: "Miete München Durchschnitt (€/m²)", a: 20, u: "€"},
+      {q: "Miete Berlin Durchschnitt (€/m²)", a: 13, u: "€"},
+      {q: "Hauspreis Deutschland Durchschnitt (€)", a: 350000, u: "€"},
+      {q: "DAX Allzeithoch ca.", a: 21000, u: "Punkte"},
+      {q: "Goldpreis pro Unze ca. (€)", a: 2300, u: "€"},
+      // KURIOSES
+      {q: "Anzahl Lego-Steine pro Mensch auf Erde", a: 80, u: "Steine"},
+      {q: "Hühner weltweit (Mrd.)", a: 33, u: "Mrd."},
+      {q: "Ameisen weltweit (Billiarden)", a: 20, u: "Billiarden"},
+      {q: "Höhe höchster Baum der Welt (m)", a: 116, u: "m"},
+      {q: "Gewicht schwerster Mensch je (kg)", a: 635, u: "kg"},
+      {q: "Länge längstes Auto der Welt (m)", a: 30, u: "m"},
+      {q: "Anzahl Sprachen weltweit", a: 7000, u: "Sprachen"},
+      {q: "Anzahl Länder weltweit", a: 195, u: "Länder"},
+      {q: "Flugdauer längster Nonstop-Flug (Std)", a: 19, u: "Std"},
+      {q: "Tiefster Tauchgang Mensch (m)", a: 332, u: "m"},
+      // DEUTSCHE SPEZIFISCH
+      {q: "Einwohner Berlin (Mio.)", a: 3.6, u: "Mio."},
+      {q: "Einwohner München (Mio.)", a: 1.5, u: "Mio."},
+      {q: "Einwohner Hamburg (Mio.)", a: 1.9, u: "Mio."},
+      {q: "Anzahl Bundesländer", a: 16, u: "Länder"},
+      {q: "Gründungsjahr BRD", a: 1949, u: "Jahr"},
+      {q: "Jahr Deutsche Wiedervereinigung", a: 1990, u: "Jahr"},
+      {q: "Jahr Fall der Berliner Mauer", a: 1989, u: "Jahr"},
+      {q: "Länge deutsche Autobahnen (km)", a: 13200, u: "km"},
+      {q: "Anzahl Brauereien in Deutschland", a: 1500, u: "Brauereien"},
+      {q: "Bierkonsum Deutschland pro Kopf (Liter/Jahr)", a: 92, u: "L"},
+      {q: "Anzahl Oktoberfest Besucher (Mio.)", a: 6, u: "Mio."},
+      {q: "Maß Bier Preis Oktoberfest ca. (€)", a: 15, u: "€"},
+      {q: "Entfernung Flensburg - Garmisch (km)", a: 920, u: "km"},
+      // GAMING & POP-KULTUR
+      {q: "Meistverkauftes Videospiel aller Zeiten (Minecraft, Mio.)", a: 300, u: "Mio."},
+      {q: "GTA 5 Einnahmen (Mrd. Dollar)", a: 8, u: "Mrd.$"},
+      {q: "Fortnite Spieler weltweit (Mio.)", a: 350, u: "Mio."},
+      {q: "Erscheinungsjahr Minecraft", a: 2011, u: "Jahr"},
+      {q: "Erscheinungsjahr erstes Super Mario", a: 1985, u: "Jahr"},
+      {q: "Erscheinungsjahr Pokémon (Game Boy)", a: 1996, u: "Jahr"},
+      {q: "Anzahl Pokémon (aktuell ca.)", a: 1000, u: "Pokémon"},
+      {q: "Preis PS5 bei Launch (€)", a: 499, u: "€"},
+      {q: "Twitch Nutzer täglich (Mio.)", a: 35, u: "Mio."},
+      {q: "eSports Preisgeld Dota 2 International (Mio.$)", a: 40, u: "Mio.$"},
+      // === RAUMFAHRT ===
+      {q: "Jahr der ersten Mondlandung", a: 1969, u: "Jahr"},
+      {q: "Dauer Flug zur ISS (Stunden)", a: 6, u: "Std"},
+      {q: "Höhe der ISS über der Erde (km)", a: 408, u: "km"},
+      {q: "Geschwindigkeit der ISS (km/h)", a: 27600, u: "km/h"},
+      {q: "Länge der ISS (m)", a: 109, u: "m"},
+      {q: "Gewicht der ISS (Tonnen)", a: 420, u: "t"},
+      {q: "Kosten ISS Bau (Mrd. Dollar)", a: 150, u: "Mrd.$"},
+      {q: "Anzahl Menschen auf dem Mond gewesen", a: 12, u: "Menschen"},
+      {q: "Jahr erster Satellit Sputnik", a: 1957, u: "Jahr"},
+      {q: "Jahr erster Mensch im All (Gagarin)", a: 1961, u: "Jahr"},
+      {q: "Dauer Apollo 11 Mission (Tage)", a: 8, u: "Tage"},
+      {q: "Entfernung Mars zur Erde min. (Mio. km)", a: 55, u: "Mio.km"},
+      {q: "Flugzeit zum Mars (Monate)", a: 7, u: "Monate"},
+      {q: "Temperatur auf dem Mars (°C Durchschnitt)", a: -60, u: "°C"},
+      {q: "Durchmesser Mars (km)", a: 6779, u: "km"},
+      {q: "Anzahl Mars-Rover auf dem Mars", a: 6, u: "Rover"},
+      {q: "Jahr Voyager 1 Start", a: 1977, u: "Jahr"},
+      {q: "Entfernung Voyager 1 zur Erde (Mrd. km)", a: 24, u: "Mrd.km"},
+      {q: "Jahr Hubble Teleskop Start", a: 1990, u: "Jahr"},
+      {q: "Kosten Space Shuttle Start (Mio. Dollar)", a: 450, u: "Mio.$"},
+      {q: "Anzahl Space Shuttle Missionen", a: 135, u: "Missionen"},
+      {q: "Jahr Challenger Unglück", a: 1986, u: "Jahr"},
+      {q: "Jahr Columbia Unglück", a: 2003, u: "Jahr"},
+      {q: "Höhe geostationärer Orbit (km)", a: 35786, u: "km"},
+      {q: "Anzahl GPS Satelliten", a: 31, u: "Satelliten"},
+      {q: "Jahr erste SpaceX Falcon 9 Landung", a: 2015, u: "Jahr"},
+      {q: "Kosten Falcon 9 Start (Mio. Dollar)", a: 67, u: "Mio.$"},
+      {q: "Durchmesser Starship (m)", a: 9, u: "m"},
+      {q: "Höhe Starship mit Booster (m)", a: 120, u: "m"},
+      {q: "Schubkraft Starship (Tonnen)", a: 7590, u: "t"},
+      {q: "Anzahl Starlink Satelliten (ca.)", a: 5000, u: "Satelliten"},
+      {q: "Jahr James Webb Teleskop Start", a: 2021, u: "Jahr"},
+      {q: "Kosten James Webb Teleskop (Mrd. Dollar)", a: 10, u: "Mrd.$"},
+      {q: "Entfernung James Webb zur Erde (Mio. km)", a: 1.5, u: "Mio.km"},
+      {q: "Spiegeldurchmesser James Webb (m)", a: 6.5, u: "m"},
+      {q: "Jahr erster Weltraumspaziergang", a: 1965, u: "Jahr"},
+      {q: "Länge längster Weltraumspaziergang (Std)", a: 8.5, u: "Std"},
+      {q: "Rekord Tage im All (Waleri Poljakow)", a: 437, u: "Tage"},
+      {q: "Temperatur im Schatten Weltraum (°C)", a: -270, u: "°C"},
+      {q: "Temperatur in der Sonne Weltraum (°C)", a: 120, u: "°C"},
+      {q: "Anzahl Weltraumtouristen bisher (ca.)", a: 30, u: "Touristen"},
+      {q: "Preis Weltraumflug Blue Origin ($)", a: 450000, u: "$"},
+      {q: "Jahr Elon Musk Tesla ins All", a: 2018, u: "Jahr"},
+      // === TECHNIK ===
+      {q: "Jahr erstes Telefon (Bell)", a: 1876, u: "Jahr"},
+      {q: "Jahr erste E-Mail", a: 1971, u: "Jahr"},
+      {q: "Jahr erster Computer (ENIAC)", a: 1946, u: "Jahr"},
+      {q: "Gewicht ENIAC (Tonnen)", a: 27, u: "t"},
+      {q: "Jahr erster Transistor", a: 1947, u: "Jahr"},
+      {q: "Transistoren in M1 Chip (Mrd.)", a: 16, u: "Mrd."},
+      {q: "Transistoren in iPhone 15 (Mrd.)", a: 19, u: "Mrd."},
+      {q: "Nanometer aktueller Chip-Prozess", a: 3, u: "nm"},
+      {q: "Jahr erstes World Wide Web", a: 1991, u: "Jahr"},
+      {q: "Anzahl Websites weltweit (Mrd.)", a: 2, u: "Mrd."},
+      {q: "Datenvolumen Internet pro Tag (EB)", a: 500, u: "EB"},
+      {q: "Jahr erster USB Standard", a: 1996, u: "Jahr"},
+      {q: "USB 3.0 Geschwindigkeit (Gbit/s)", a: 5, u: "Gbit/s"},
+      {q: "Jahr Bluetooth Erfindung", a: 1994, u: "Jahr"},
+      {q: "Reichweite Bluetooth 5.0 (m)", a: 240, u: "m"},
+      {q: "Jahr erstes WLAN (802.11)", a: 1997, u: "Jahr"},
+      {q: "WiFi 6 Geschwindigkeit max (Gbit/s)", a: 9.6, u: "Gbit/s"},
+      {q: "Jahr 5G Einführung", a: 2019, u: "Jahr"},
+      {q: "5G Geschwindigkeit max (Gbit/s)", a: 20, u: "Gbit/s"},
+      {q: "Jahr erste SSD", a: 1991, u: "Jahr"},
+      {q: "Lesegeschwindigkeit NVMe SSD (MB/s)", a: 7000, u: "MB/s"},
+      {q: "Jahr erster 3D-Drucker", a: 1984, u: "Jahr"},
+      {q: "Jahr erste Drohne (DJI Phantom)", a: 2013, u: "Jahr"},
+      {q: "Akkulaufzeit DJI Mini 3 (Min)", a: 38, u: "Min"},
+      {q: "Jahr erstes E-Auto (Tesla Roadster)", a: 2008, u: "Jahr"},
+      {q: "Reichweite Tesla Model S (km)", a: 650, u: "km"},
+      {q: "0-100 km/h Tesla Model S Plaid (Sek)", a: 2.1, u: "Sek"},
+      {q: "Ladezeit Supercharger 10-80% (Min)", a: 20, u: "Min"},
+      {q: "Jahr erster QR-Code", a: 1994, u: "Jahr"},
+      {q: "Jahr NFC Erfindung", a: 2004, u: "Jahr"},
+      {q: "Jahr Touch ID (Apple)", a: 2013, u: "Jahr"},
+      {q: "Jahr Face ID (Apple)", a: 2017, u: "Jahr"},
+      {q: "Pixel iPhone 15 Pro Max Kamera (MP)", a: 48, u: "MP"},
+      {q: "Bildwiederholrate iPhone 15 Pro (Hz)", a: 120, u: "Hz"},
+      {q: "Jahr ChatGPT Release", a: 2022, u: "Jahr"},
+      {q: "Parameter GPT-4 (Billionen)", a: 1.8, u: "Billionen"},
+      {q: "Jahr DALL-E Release", a: 2021, u: "Jahr"},
+      {q: "Jahr Midjourney Release", a: 2022, u: "Jahr"},
+      {q: "Stromverbrauch Bitcoin Mining pro Jahr (TWh)", a: 150, u: "TWh"},
+      {q: "Jahr erste VR-Brille (Oculus Rift)", a: 2016, u: "Jahr"},
+      {q: "Auflösung Meta Quest 3 pro Auge", a: 2064, u: "Pixel"},
+      {q: "Preis Apple Vision Pro ($)", a: 3499, u: "$"},
+      // === RETROGAMING ===
+      {q: "Erscheinungsjahr Pong", a: 1972, u: "Jahr"},
+      {q: "Erscheinungsjahr Pac-Man", a: 1980, u: "Jahr"},
+      {q: "Erscheinungsjahr Tetris", a: 1984, u: "Jahr"},
+      {q: "Erscheinungsjahr Donkey Kong", a: 1981, u: "Jahr"},
+      {q: "Erscheinungsjahr Space Invaders", a: 1978, u: "Jahr"},
+      {q: "Erscheinungsjahr Atari 2600", a: 1977, u: "Jahr"},
+      {q: "Erscheinungsjahr NES (Japan)", a: 1983, u: "Jahr"},
+      {q: "Erscheinungsjahr Game Boy", a: 1989, u: "Jahr"},
+      {q: "Erscheinungsjahr SNES", a: 1990, u: "Jahr"},
+      {q: "Erscheinungsjahr Sega Mega Drive", a: 1988, u: "Jahr"},
+      {q: "Erscheinungsjahr PlayStation 1", a: 1994, u: "Jahr"},
+      {q: "Erscheinungsjahr Nintendo 64", a: 1996, u: "Jahr"},
+      {q: "Erscheinungsjahr Doom", a: 1993, u: "Jahr"},
+      {q: "Erscheinungsjahr Wolfenstein 3D", a: 1992, u: "Jahr"},
+      {q: "Erscheinungsjahr Street Fighter II", a: 1991, u: "Jahr"},
+      {q: "Erscheinungsjahr Mortal Kombat", a: 1992, u: "Jahr"},
+      {q: "Erscheinungsjahr Sonic the Hedgehog", a: 1991, u: "Jahr"},
+      {q: "Erscheinungsjahr The Legend of Zelda", a: 1986, u: "Jahr"},
+      {q: "Erscheinungsjahr Metroid", a: 1986, u: "Jahr"},
+      {q: "Erscheinungsjahr Final Fantasy", a: 1987, u: "Jahr"},
+      {q: "Erscheinungsjahr SimCity", a: 1989, u: "Jahr"},
+      {q: "Erscheinungsjahr Prince of Persia", a: 1989, u: "Jahr"},
+      {q: "Erscheinungsjahr Lemmings", a: 1991, u: "Jahr"},
+      {q: "Erscheinungsjahr Myst", a: 1993, u: "Jahr"},
+      {q: "Erscheinungsjahr Warcraft", a: 1994, u: "Jahr"},
+      {q: "Erscheinungsjahr Command & Conquer", a: 1995, u: "Jahr"},
+      {q: "Erscheinungsjahr Tomb Raider", a: 1996, u: "Jahr"},
+      {q: "Erscheinungsjahr Resident Evil", a: 1996, u: "Jahr"},
+      {q: "Erscheinungsjahr Diablo", a: 1996, u: "Jahr"},
+      {q: "Erscheinungsjahr GoldenEye 007", a: 1997, u: "Jahr"},
+      {q: "Erscheinungsjahr Half-Life", a: 1998, u: "Jahr"},
+      {q: "Erscheinungsjahr StarCraft", a: 1998, u: "Jahr"},
+      {q: "Erscheinungsjahr Age of Empires", a: 1997, u: "Jahr"},
+      {q: "Erscheinungsjahr Counter-Strike", a: 1999, u: "Jahr"},
+      {q: "Erscheinungsjahr Sims 1", a: 2000, u: "Jahr"},
+      {q: "Erscheinungsjahr GTA 3", a: 2001, u: "Jahr"},
+      {q: "Erscheinungsjahr World of Warcraft", a: 2004, u: "Jahr"},
+      {q: "Preis NES bei Launch (Dollar)", a: 199, u: "$"},
+      {q: "Preis Game Boy bei Launch (Dollar)", a: 89, u: "$"},
+      {q: "Preis N64 bei Launch (Dollar)", a: 199, u: "$"},
+      {q: "Verkaufte NES Konsolen (Mio.)", a: 62, u: "Mio."},
+      {q: "Verkaufte Game Boy Konsolen (Mio.)", a: 118, u: "Mio."},
+      {q: "Verkaufte PS1 Konsolen (Mio.)", a: 102, u: "Mio."},
+      {q: "Verkaufte PS2 Konsolen (Mio.)", a: 155, u: "Mio."},
+      {q: "Highscore Pac-Man Maximum", a: 3333360, u: "Punkte"},
+      {q: "Levels in Donkey Kong", a: 4, u: "Levels"},
+      {q: "Anzahl Tetris-Formen (Tetrominos)", a: 7, u: "Formen"},
+      // === LKT KOSTÜME ===
+      {q: "LKT Kostüm Scheich - welches Jahr?", a: 1987, u: "Jahr"},
+      {q: "LKT Kostüm Footballspieler - welches Jahr?", a: 1988, u: "Jahr"},
+      {q: "LKT Kostüm Zylinder und Frack - welches Jahr?", a: 1989, u: "Jahr"},
+      {q: "LKT Kostüm Rosa Anzug - welches Jahr?", a: 1990, u: "Jahr"},
+      {q: "LKT Kostüm Kuwait - welches Jahr?", a: 1991, u: "Jahr"},
+      {q: "LKT Kostüm Aloysius - welches Jahr?", a: 1992, u: "Jahr"},
+      {q: "LKT Kostüm Seemann - welches Jahr?", a: 1993, u: "Jahr"},
+      {q: "LKT Kostüm Hippie - welches Jahr?", a: 1994, u: "Jahr"},
+      {q: "LKT Kostüm Kuhhose - welches Jahr?", a: 1995, u: "Jahr"},
+      {q: "LKT Kostüm Highlander - welches Jahr?", a: 1996, u: "Jahr"},
+      {q: "LKT Kostüm Römer - welches Jahr?", a: 1997, u: "Jahr"},
+      {q: "LKT Kostüm Hunnen - welches Jahr?", a: 1998, u: "Jahr"},
+      {q: "LKT Kostüm Ritter - welches Jahr?", a: 1999, u: "Jahr"},
+      {q: "LKT Kostüm Putzfrau - welches Jahr?", a: 2000, u: "Jahr"},
+      {q: "LKT Kostüm AC/DC - welches Jahr?", a: 2001, u: "Jahr"},
+      {q: "LKT Kostüm Ostblocksportler - welches Jahr?", a: 2002, u: "Jahr"},
+      {q: "LKT Kostüm Super-T - welches Jahr?", a: 2003, u: "Jahr"},
+      {q: "LKT Kostüm Synchronschwimmer - welches Jahr?", a: 2004, u: "Jahr"},
+      {q: "LKT Kostüm Bienen - welches Jahr?", a: 2005, u: "Jahr"},
+      {q: "LKT Kostüm Doc Snyder - welches Jahr?", a: 2006, u: "Jahr"},
+      {q: "LKT Kostüm Horror-Punks - welches Jahr?", a: 2007, u: "Jahr"},
+      {q: "LKT Kostüm Helden in Strumpfhosen - welches Jahr?", a: 2008, u: "Jahr"},
+      {q: "LKT Kostüm Rocker (Bloodriders) - welches Jahr?", a: 2009, u: "Jahr"},
+      {q: "LKT Kostüm Schwarzwälderin - welches Jahr?", a: 2010, u: "Jahr"},
+      {q: "LKT Kostüm Hare Krishna - welches Jahr?", a: 2011, u: "Jahr"},
+      {q: "LKT Kostüm Wo ist Walter? - welches Jahr?", a: 2012, u: "Jahr"},
+      {q: "LKT Kostüm Metzger - welches Jahr?", a: 2013, u: "Jahr"},
+      {q: "LKT Kostüm Sonnenblume - welches Jahr?", a: 2014, u: "Jahr"},
+      {q: "LKT Kostüm Tennisspieler - welches Jahr?", a: 2015, u: "Jahr"},
+      {q: "LKT Kostüm Marge Simpson - welches Jahr?", a: 2016, u: "Jahr"},
+      {q: "LKT Kostüm B-Men - welches Jahr?", a: 2017, u: "Jahr"},
+      {q: "LKT Kostüm Radfahrer - welches Jahr?", a: 2018, u: "Jahr"},
+      {q: "LKT Kostüm Lufttransa - welches Jahr?", a: 2019, u: "Jahr"},
+      {q: "LKT Kostüm Spaceballs - welches Jahr?", a: 2020, u: "Jahr"},
+      {q: "LKT Kostüm Prinz Eisenherz - welches Jahr?", a: 2023, u: "Jahr"},
+      {q: "LKT Kostüm Maradonna - welches Jahr?", a: 2024, u: "Jahr"},
+      {q: "LKT Kostüm Zauberer - welches Jahr?", a: 2025, u: "Jahr"},
+      {q: "Seit wann trägt LKT wechselnde Kostüme?", a: 1987, u: "Jahr"},
+      {q: "Bis wann trug LKT das traditionelle Kundehääs?", a: 1986, u: "Jahr"},
+      {q: "Wie viele Jahre Corona-Pause bei LKT?", a: 2, u: "Jahre"},
     ];
 
     const SchaetzDuell = ({onBack}) => {
       const [phase, setPhase] = useState('setup');
       const [players, setPlayers] = useState([]);
       const [mode, setMode] = useState('loser'); // 'loser' = nur Schlechtester, 'allButWinner' = alle außer Gewinner
+      const [timerSetting, setTimerSetting] = useState(0); // 0 = kein Timer, 10, 15, 20 Sekunden
+      const [timeLeft, setTimeLeft] = useState(0);
       const [question, setQuestion] = useState(null);
       const [guesses, setGuesses] = useState({});
       const [curGuesser, setCurGuesser] = useState(0);
@@ -2000,6 +2294,7 @@
       const [shuffledQuestions, setShuffledQuestions] = useState([]);
       const [questionIdx, setQuestionIdx] = useState(0);
       const inputRef = useRef(null);
+      const timerRef = useRef(null);
 
       // Fisher-Yates Shuffle beim ersten Laden
       useEffect(() => {
@@ -2012,6 +2307,9 @@
       }, []);
 
       const nextQuestion = () => {
+        // Timer stoppen falls aktiv
+        if (timerRef.current) clearInterval(timerRef.current);
+        
         let nextIdx = questionIdx;
         if (nextIdx >= shuffledQuestions.length) {
           // Neu shufflen wenn durch
@@ -2030,8 +2328,42 @@
         setInput('');
         setResult(null);
         setPhase('guessing');
+        
+        // Timer starten wenn aktiviert
+        if (timerSetting > 0) {
+          setTimeLeft(timerSetting);
+          timerRef.current = setInterval(() => {
+            setTimeLeft(t => {
+              if (t <= 1) {
+                clearInterval(timerRef.current);
+                return 0;
+              }
+              return t - 1;
+            });
+          }, 1000);
+        }
+        
         setTimeout(() => inputRef.current?.focus(), 100);
       };
+      
+      // Timer abgelaufen = automatisch 0 eingeben
+      useEffect(() => {
+        if (timeLeft === 0 && timerSetting > 0 && phase === 'guessing' && question) {
+          // Automatisch absenden mit aktuellem Wert oder 0
+          const val = parseFloat(input.replace(',', '.')) || 0;
+          const newGuesses = {...guesses, [players[curGuesser].name]: val};
+          setGuesses(newGuesses);
+          setInput('');
+          
+          if (curGuesser + 1 < players.length) {
+            setCurGuesser(curGuesser + 1);
+            setTimeLeft(timerSetting);
+            setTimeout(() => inputRef.current?.focus(), 100);
+          } else {
+            calculateResult(newGuesses);
+          }
+        }
+      }, [timeLeft]);
 
       const submitGuess = () => {
         const val = parseFloat(input.replace(',', '.'));
@@ -2043,9 +2375,12 @@
         
         if (curGuesser + 1 < players.length) {
           setCurGuesser(curGuesser + 1);
+          // Timer neu starten für nächsten Spieler
+          if (timerSetting > 0) setTimeLeft(timerSetting);
           setTimeout(() => inputRef.current?.focus(), 100);
         } else {
-          // Alle haben geschätzt - Ergebnis berechnen
+          // Alle haben geschätzt - Timer stoppen
+          if (timerRef.current) clearInterval(timerRef.current);
           calculateResult(newGuesses);
         }
       };
@@ -2082,7 +2417,7 @@
               <li>Eine Schätzfrage wird gestellt</li>
               <li>Jeder gibt seine Schätzung ab</li>
               <li>Wer am nächsten dran ist, gewinnt!</li>
-              <li>500+ verschiedene Fragen!</li>
+              <li>1000+ verschiedene Fragen!</li>
             </ul>
           </div>
           
@@ -2100,6 +2435,18 @@
             </div>
           </div>
           
+          <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 15, padding: 15, marginBottom: 20, maxWidth: 400, margin: '0 auto 20px'}}>
+            <h3 style={{color: '#ffd700', marginTop: 0, marginBottom: 15, textAlign: 'center'}}>⏱️ Timer pro Spieler</h3>
+            <div style={{display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center'}}>
+              {[{v: 0, l: 'Aus'}, {v: 10, l: '10s'}, {v: 15, l: '15s'}, {v: 20, l: '20s'}, {v: 30, l: '30s'}].map(t => (
+                <button key={t.v} onClick={() => setTimerSetting(t.v)} style={{padding: '12px 20px', background: timerSetting === t.v ? 'linear-gradient(135deg, #e74c3c, #c0392b)' : 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: '1rem'}}>
+                  {t.l}
+                </button>
+              ))}
+            </div>
+            {timerSetting > 0 && <p style={{fontSize: '0.85rem', opacity: 0.7, marginTop: 10, textAlign: 'center'}}>Bei Zeitablauf wird 0 gewertet!</p>}
+          </div>
+          
           <PlayerSetup players={players} setPlayers={setPlayers} onStart={nextQuestion} />
         </div>
       );
@@ -2111,6 +2458,22 @@
           
           <div style={{background: 'rgba(0,0,0,0.4)', borderRadius: 20, padding: 25, textAlign: 'center', maxWidth: 450, margin: '0 auto'}}>
             {phase === 'guessing' && question && <>
+              {/* Timer Anzeige */}
+              {timerSetting > 0 && (
+                <div style={{marginBottom: 15}}>
+                  <div style={{
+                    width: 80, height: 80, borderRadius: '50%', margin: '0 auto',
+                    background: timeLeft <= 3 ? 'linear-gradient(135deg, #e74c3c, #c0392b)' : 'linear-gradient(135deg, #27ae60, #2ecc71)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '2rem', fontWeight: 'bold', color: '#fff',
+                    animation: timeLeft <= 3 ? 'pulse 0.5s infinite' : 'none',
+                    boxShadow: timeLeft <= 3 ? '0 0 20px rgba(231,76,60,0.6)' : '0 0 15px rgba(39,174,96,0.4)'
+                  }}>
+                    {timeLeft}
+                  </div>
+                </div>
+              )}
+              
               <h2 style={{color: '#ffd700', marginBottom: 20, fontSize: '1.3rem', lineHeight: 1.4}}>{question.q}</h2>
               {question.u && <div style={{fontSize: '1rem', opacity: 0.7, marginBottom: 20}}>Antwort in: <strong>{question.u}</strong></div>}
               
@@ -2195,7 +2558,6 @@
       {id: 'kings', name: 'Kings Cup', icon: '👑', desc: 'Karten mit Regeln', color: '#9b59b6'},
       {id: 'bus', name: 'Busfahrer', icon: '🚌', desc: 'Karten raten', color: '#3498db'},
       {id: 'reaktion', name: 'Reaktions-Duell', icon: '⚡', desc: 'Wer ist am langsamsten?', color: '#f39c12'},
-      {id: 'farben', name: 'Farben-Reaktion', icon: '🎨', desc: 'Tippe deine Farbe!', color: '#8e44ad'},
       {id: 'rhythmus', name: 'Rhythmus-Spiel', icon: '🥁', desc: 'Bleib im Takt!', color: '#16a085'},
       {id: 'schaetzen', name: 'Schätz-Duell', icon: '🎯', desc: 'Wer liegt näher dran?', color: '#c0392b'},
     ];
@@ -2208,7 +2570,6 @@
       if (game === 'kings') return <KingsCup onBack={back} />;
       if (game === 'bus') return <Busfahrer onBack={back} />;
       if (game === 'reaktion') return <Reaktion onBack={back} />;
-      if (game === 'farben') return <FarbenReaktion onBack={back} />;
       if (game === 'rhythmus') return <RhythmusSpiel onBack={back} />;
       if (game === 'schaetzen') return <SchaetzDuell onBack={back} />;
 
@@ -2243,5 +2604,6 @@
 
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
+
 </body>
 </html>
