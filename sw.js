@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lkt-tracker-v13';
+const CACHE_NAME = 'lkt-tracker-v15';
 const urlsToCache = [
     './',
     './app.html',

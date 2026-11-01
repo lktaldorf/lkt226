@@ -1,0 +1,39 @@
+LKT TRACKER v15 – SAISONWECHSEL + PROBEN: SO WIRD INSTALLIERT
+=====================================================
+
+Alle Dateien sind komplett. Du ersetzt sie einfach – nichts suchen, nichts flicken.
+Ein extra Passwort oder Secret in Cloudflare ist NICHT nötig.
+
+1) WORKER ERSETZEN (Cloudflare)
+   - dash.cloudflare.com → Workers & Pages → patient-wind-88af
+   - "Edit code" → links worker.js öffnen
+   - Strg+A (alles markieren) → Entf → Inhalt von worker.js aus dem ZIP einfügen
+   - "Deploy" klicken
+
+2) APP ERSETZEN (GitHub, Repo lktaldorf/demo)
+   - "Add file" → "Upload files"
+   - app.html, sw.js, index.html, manifest.json hineinziehen (überschreibt die alten)
+   - "Commit changes"
+   - 1–2 Minuten warten, dann App neu öffnen. Die Handys holen sich v15 automatisch.
+
+3) NEUE SAISON STARTEN (in der App)
+   - Als Hohes Gericht anmelden → ⚙️ Einstellungen → "🎺 Neue Saison starten"
+   - Saison 2027 + Admin-Passwort (dasselbe wie beim Gericht-Login)
+   - Sicherung herunterladen (Pflicht) → "NEUE SAISON" eintippen → starten
+
+WAS PASSIERT
+   Geleert:  Auftritte, Anwesenheiten, Zusagen, Strafanzeigen, Strafen
+   Bleibt:   Mitglieder + PINs, Rollen, Busse, Register, Brett (Bereiche,
+             Beiträge, Kommentare), Anfragen, Einstellungen, Push
+   Archiv:   Oben auf "📅 Saison 2027 ▾" tippen → "Saison 2026" = alles von
+             2026 zum Anschauen (nur lesen). "Zur Saison 2027" führt zurück.
+
+PROBEN
+   Anlegen:   ⚙️ Einstellungen → "📅 Auftritte & Proben" → Art "🎼 Probe"
+              → Datum, Uhrzeit, Ort → optional "Jede Woche wiederholen bis …"
+              (legt alle Proben auf einmal an, gruppiert als "Proben <Monat>")
+   Ändern:    In der Terminliste auf ✏️ – dort kann man die Art auch umstellen.
+   Statistik: Oben in Übersicht, Ranglisten und "Deine Statistik" gibt es die
+              Auswahl 🎺 Auftritte / 🎼 Proben / 📊 Kombiniert. Die Wahl gilt
+              für alle drei Ansichten und für die PDFs (Report, Bus, Register).
+   Alte Termine ohne Art zählen automatisch als Auftritte.

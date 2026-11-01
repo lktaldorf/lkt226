@@ -1,5 +1,5 @@
 {
-    "name": "LKT Tracker 2026",
+    "name": "LKT Tracker",
     "short_name": "LKT Tracker",
     "description": "Anwesenheits-Tracker für die Lumpenkapelle Taldorf",
     "start_url": "./app.html",

@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#1a1a2e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="app-version" content="v13">
+    <meta name="app-version" content="v15">
     <title>LKT Tracker 2026</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -219,7 +219,7 @@
     <script>
         // Cache-Buster v11: Automatisches Update bei neuer Version
         (function() {
-            var APP_VERSION = 'v13';
+            var APP_VERSION = 'v15';
             var stored = localStorage.getItem('lkt-app-version');
             if (stored && stored !== APP_VERSION) {
                 if ('caches' in window) {
@@ -498,6 +498,7 @@
             <!-- Stats Tab -->
             <div id="stats-tab" class="screen">
                 <div class="section-header"><h2>📊 Deine Statistik</h2></div>
+                <div class="stat-typ-wrap"><select class="stat-typ-select" onchange="setStatTyp(this.value)" aria-label="Statistik für"><option value="auftritt">🎺 Auftritte</option><option value="probe">🎼 Proben</option><option value="alle">📊 Kombiniert</option></select></div>
                 <div class="stats-grid">
                     <div class="stat-card"><div class="number" id="my-attended">0</div><div class="label">Teilgenommen</div></div>
                     <div class="stat-card"><div class="number" id="my-missed">0</div><div class="label">Verpasst</div></div>
@@ -553,9 +554,10 @@
             <!-- Overview Tab -->
             <div id="overview-tab" class="screen active">
                 <div class="section-header"><h2>📊 Übersicht</h2></div>
+                <div class="stat-typ-wrap"><select class="stat-typ-select" onchange="setStatTyp(this.value)" aria-label="Statistik für"><option value="auftritt">🎺 Auftritte</option><option value="probe">🎼 Proben</option><option value="alle">📊 Kombiniert</option></select></div>
                 <div class="stats-grid">
                     <div class="stat-card"><div class="number" id="total-members">0</div><div class="label">Mitglieder</div></div>
-                    <div class="stat-card"><div class="number" id="total-events">0</div><div class="label">Auftritte</div></div>
+                    <div class="stat-card"><div class="number" id="total-events">0</div><div class="label" id="total-events-label">Auftritte</div></div>
                     <div class="stat-card"><div class="number" id="total-checkins">0</div><div class="label">Check-ins</div></div>
                     <div class="stat-card"><div class="number" id="total-anzeigen">0</div><div class="label">Anzeigen</div></div>
                 </div>
@@ -682,6 +684,8 @@
             
             <!-- Rankings Tab -->
             <div id="rankings-tab" class="screen">
+                <div class="section-header"><h2>🏆 Ranglisten</h2></div>
+                <div class="stat-typ-wrap"><select class="stat-typ-select" onchange="setStatTyp(this.value)" aria-label="Statistik für"><option value="auftritt">🎺 Auftritte</option><option value="probe">🎼 Proben</option><option value="alle">📊 Kombiniert</option></select></div>
                 <div class="section-header"><h2>🏆 Top 10 Fleißigste</h2></div>
                 <div id="top-attenders"></div>
                 <div class="section-header"><h2>😴 Top 10 Faulste</h2></div>
@@ -777,17 +781,25 @@
                 <!-- Accordion: Events verwalten -->
                 <div class="settings-accordion">
                     <button class="accordion-header" onclick="toggleAccordion(this)">
-                        <span>📅 Veranstaltungen</span>
+                        <span>📅 Auftritte &amp; Proben</span>
                         <span class="accordion-icon">▼</span>
                     </button>
                     <div class="accordion-content">
                         <div style="margin-bottom: 1rem;">
-                            <h4>Bestehende Events</h4>
+                            <h4>Bestehende Termine</h4>
                             <div id="events-manage-list" style="max-height: 250px; overflow-y: auto; margin: 0.5rem 0;"></div>
                             <button class="btn btn-secondary btn-block" onclick="exportEventsPDF()">📄 Events als PDF</button>
                         </div>
                         <hr style="border-color: var(--border-color); margin: 1rem 0;">
-                        <h4>Neues Event erstellen</h4>
+                        <h4>Neuen Termin anlegen</h4>
+                        <div class="input-group">
+                            <label>Art</label>
+                            <div class="typ-toggle" id="new-event-typ-toggle">
+                                <button type="button" class="active" data-typ="auftritt" onclick="setNewEventTyp('auftritt')">🎺 Auftritt</button>
+                                <button type="button" data-typ="probe" onclick="setNewEventTyp('probe')">🎼 Probe</button>
+                            </div>
+                            <input type="hidden" id="new-event-typ" value="auftritt">
+                        </div>
                         <div class="input-group"><label>Name *</label><input type="text" id="new-event-name" placeholder="z.B. Zirkusball"></div>
                         <div class="input-group">
                             <label>Wochenende</label>
@@ -802,7 +814,11 @@
                         <div class="input-group"><label>Datum</label><input type="date" id="new-event-date"></div>
                         <div class="input-group"><label>Ort</label><input type="text" id="new-event-location" placeholder="z.B. Vereinsheim"></div>
                         <div class="input-group"><label>Uhrzeit</label><input type="time" id="new-event-time" value="20:00"></div>
-                        <button class="btn btn-primary btn-block" onclick="addNewEvent()">+ Event hinzufügen</button>
+                        <div id="new-event-repeat-group" class="hidden">
+                            <label class="repeat-check"><input type="checkbox" id="new-event-repeat" onchange="document.getElementById('new-event-repeat-until-group').classList.toggle('hidden', !this.checked)"> Jede Woche wiederholen</label>
+                            <div class="input-group hidden" id="new-event-repeat-until-group"><label>Wiederholen bis</label><input type="date" id="new-event-repeat-until"></div>
+                        </div>
+                        <button class="btn btn-primary btn-block" id="new-event-btn" onclick="addNewEvent()">+ Auftritt hinzufügen</button>
                     </div>
                 </div>
                 
@@ -875,8 +891,9 @@
             <!-- Event bearbeiten Modal -->
             <div class="modal-overlay" id="event-edit-modal">
                 <div class="modal">
-                    <h3>Event bearbeiten</h3>
+                    <h3>Termin bearbeiten</h3>
                     <input type="hidden" id="edit-event-id">
+                    <div class="input-group"><label>Art</label><select id="edit-event-typ"><option value="auftritt">🎺 Auftritt</option><option value="probe">🎼 Probe</option></select></div>
                     <div class="input-group"><label>Name *</label><input type="text" id="edit-event-name"></div>
                     <div class="input-group">
                         <label>Wochenende</label>
@@ -1561,7 +1578,7 @@
                     apiGet('getEvents').catch(e => null),
                     apiGet('getMemberAttendance', { name: currentUser.name }).catch(e => null),
                     apiGet('getZusagen').catch(e => null),
-                    isGericht ? apiGet('getStats').catch(e => null) : Promise.resolve(null)
+                    isGericht ? apiGet('getStats', statTypParams()).catch(e => null) : Promise.resolve(null)
                 ];
                 
                 const [settingsResult, busseResult, registerResult, eventsResult, attResult, zusagenResult, statsResult] = await Promise.all(promises);
@@ -1930,7 +1947,7 @@
                     
                     html += '<div class="' + cardClass + '">';
                     html += '<div class="date">' + (event.date || '') + ' • ' + (event.time || '') + '</div>';
-                    html += '<div class="title">' + event.name + '</div>';
+                    html += '<div class="title">' + typBadge(event) + event.name + '</div>';
                     html += '<div class="location">📍 ' + (event.location || 'TBA') + '</div>';
                     
                     // Zeige Zusagen-Anzahl - klickbar um Teilnehmer zu sehen
@@ -2012,7 +2029,7 @@
             const today = new Date();
             today.setHours(23, 59, 59, 999);
             
-            const pastEvents = eventsData.filter(event => {
+            const pastEvents = filterByStatTyp(eventsData).filter(event => {
                 if (!event.date) return false;
                 // Datum parsen (dd.MM.yyyy)
                 const parts = event.date.split('.');
@@ -2060,7 +2077,7 @@
                 registerNameEl.textContent = register ? '🎵 ' + register.name : 'Mein Register';
                 
                 try {
-                    const result = await apiGet('getRegisterStats');
+                    const result = await apiGet('getRegisterStats', statTypParams());
                     allRegisterStats = result.registerStats || [];
                     const regStats = allRegisterStats.find(r => r.id === currentUser.registerId);
                     if (regStats) {
@@ -2092,7 +2109,7 @@
                 busNameEl.textContent = bus ? '🚌 ' + bus.name : 'Mein Bus';
                 
                 try {
-                    const result = await apiGet('getBusStats');
+                    const result = await apiGet('getBusStats', statTypParams());
                     allBusStats = result.busStats || [];
                     const busStats = allBusStats.find(b => b.id === currentUser.busId);
                     if (busStats) {
@@ -3335,8 +3352,8 @@
                 const promises = [
                     apiGet('getMembers').catch(e => ({ members: [] })),
                     permissions.canManageAnzeigen && appSettings.strafenEnabled ? apiGet('getAnzeigen').catch(e => ({ anzeigen: [] })) : Promise.resolve(null),
-                    apiGet('getBusStats').catch(e => ({ busStats: [] })),
-                    apiGet('getRegisterStats').catch(e => ({ registerStats: [] })),
+                    apiGet('getBusStats', statTypParams()).catch(e => ({ busStats: [] })),
+                    apiGet('getRegisterStats', statTypParams()).catch(e => ({ registerStats: [] })),
                     apiGet('getZusagen').catch(e => ({ zusagen: {} }))
                 ];
                 
@@ -3414,7 +3431,7 @@
                     currentWeek = event.week;
                     html += '<optgroup label="' + currentWeek + '">';
                 }
-                html += '<option value="' + event.id + '">' + (event.date || '') + ' - ' + event.name + '</option>';
+                html += '<option value="' + event.id + '">' + (event.date || '') + ' - ' + (isProbe(event) ? '🎼 ' : '') + event.name + '</option>';
             });
             if (currentWeek !== '') html += '</optgroup>';
             select.innerHTML = html;
@@ -3423,7 +3440,7 @@
         function populateQREventSelect() {
             const select = document.getElementById('qr-event-select');
             let html = '<option value="">-- Event wählen --</option>';
-            eventsData.forEach(e => { html += '<option value="' + e.id + '">' + (e.date || '') + ' - ' + e.name + '</option>'; });
+            eventsData.forEach(e => { html += '<option value="' + e.id + '">' + (e.date || '') + ' - ' + (isProbe(e) ? '🎼 ' : '') + e.name + '</option>'; });
             select.innerHTML = html;
         }
         
@@ -3899,48 +3916,72 @@
         }
         
         async function addNewEvent() {
+            const typ = document.getElementById('new-event-typ').value === 'probe' ? 'probe' : 'auftritt';
             const name = document.getElementById('new-event-name').value.trim();
-            if (!name) { showToast('Event-Name erforderlich', true); return; }
+            if (!name) { showToast('Name erforderlich', true); return; }
             
-            // Woche bestimmen
+            // Woche/Gruppe bestimmen
             let week = document.getElementById('new-event-week').value;
             if (week === '__NEW__') {
                 week = document.getElementById('new-week-name').value.trim();
                 if (!week) { showToast('Name für neue Woche erforderlich', true); return; }
             }
             
-            // Datum konvertieren
             const dateInput = document.getElementById('new-event-date').value;
-            const dateGerman = dateInputToGerman(dateInput);
+            const repeat = typ === 'probe' && document.getElementById('new-event-repeat').checked;
+            const until = document.getElementById('new-event-repeat-until').value;
             
-            const eventData = {
-                name: name,
-                week: week,
-                date: dateGerman,
-                location: document.getElementById('new-event-location').value.trim(),
-                time: document.getElementById('new-event-time').value.trim()
-            };
+            // Termine (bei Wiederholung: jede Woche bis zum Enddatum)
+            let dates = [dateInput];
+            if (repeat) {
+                if (!dateInput || !until) { showToast('Für die Wiederholung Datum und "bis" angeben', true); return; }
+                const d = new Date(dateInput + 'T12:00:00');
+                const end = new Date(until + 'T12:00:00');
+                dates = [];
+                while (d <= end && dates.length < 60) {
+                    dates.push(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'));
+                    d.setDate(d.getDate() + 7);
+                }
+                if (dates.length === 0) { showToast('"Bis"-Datum liegt vor dem ersten Termin', true); return; }
+            }
             
             showLoading();
+            let ok = 0, err = '';
             try {
-                const result = await apiPost({ action: 'addEvent', event: eventData });
-                if (result.error) showToast(result.error, true);
-                else {
-                    showToast('Event hinzugefügt!');
+                for (const di of dates) {
+                    const eventData = {
+                        name: name,
+                        typ: typ,
+                        // Proben ohne gewählte Gruppe werden nach Monat gruppiert
+                        week: week || (typ === 'probe' ? probenGruppe(di) : ''),
+                        date: dateInputToGerman(di),
+                        location: document.getElementById('new-event-location').value.trim(),
+                        time: document.getElementById('new-event-time').value.trim()
+                    };
+                    const result = await apiPost({ action: 'addEvent', event: eventData });
+                    if (result.error) { err = result.error; break; }
+                    ok++;
+                }
+                if (err) showToast(err, true);
+                if (ok > 0) {
+                    showToast(ok === 1 ? (typ === 'probe' ? 'Probe' : 'Auftritt') + ' hinzugefügt!' : ok + ' Proben hinzugefügt!');
                     document.getElementById('new-event-name').value = '';
                     document.getElementById('new-event-week').value = '';
                     document.getElementById('new-week-name').value = '';
                     document.getElementById('new-week-input-group').classList.add('hidden');
                     document.getElementById('new-event-date').value = '';
                     document.getElementById('new-event-location').value = '';
-                    document.getElementById('new-event-time').value = '20:00';
+                    document.getElementById('new-event-repeat').checked = false;
+                    document.getElementById('new-event-repeat-until').value = '';
+                    document.getElementById('new-event-repeat-until-group').classList.add('hidden');
+                    setNewEventTyp(typ);
                     await refreshData();
                     populateWeekSelects();
                 }
             } catch (e) { showToast('Fehler: ' + e.message, true); }
             hideLoading();
         }
-        
+
         // ============================================================
         // STATISTICS DISPLAY
         // ============================================================
@@ -4353,7 +4394,7 @@
             
             content += '<div class="header">';
             content += '<h1>🎺 LUMPENKAPELLE TALDORF</h1>';
-            content += '<p>Saison-Report 2026</p>';
+            content += '<p>Saison-Report 2026' + statTypSuffix() + '</p>';
             content += '</div>';
             
             // Übersicht
@@ -4497,7 +4538,7 @@
             
             content += '<div class="header">';
             content += '<h1>🚌 LUMPENKAPELLE TALDORF</h1>';
-            content += '<p>Bus-Statistik 2026</p>';
+            content += '<p>Bus-Statistik 2026' + statTypSuffix() + '</p>';
             content += '</div>';
             
             // Übersichtstabelle
@@ -4605,7 +4646,7 @@
             
             content += '<div class="header">';
             content += '<h1>🎵 LUMPENKAPELLE TALDORF</h1>';
-            content += '<p>Register-Statistik 2026</p>';
+            content += '<p>Register-Statistik 2026' + statTypSuffix() + '</p>';
             content += '</div>';
             
             // Übersichtstabelle
@@ -4873,7 +4914,7 @@
             
             doc.setFontSize(10);
             doc.setFont(undefined, 'normal');
-            doc.text('Veranstaltungskalender Saison 2025', pageWidth / 2, 20, { align: 'center' });
+            doc.text('Veranstaltungskalender Saison 2026', pageWidth / 2, 20, { align: 'center' });
             
             // Stand rechts
             doc.setFontSize(8);
@@ -4972,7 +5013,7 @@
             doc.setFontSize(7);
             doc.text('Seite 1 | ' + eventsData.length + ' Veranstaltungen | Lumpenkapelle Taldorf', pageWidth / 2, pageHeight - 3, { align: 'center' });
             
-            doc.save('LKT-Veranstaltungen-2025.pdf');
+            doc.save('LKT-Veranstaltungen-2026.pdf');
             showToast('Events-PDF erstellt!');
         }
         
@@ -5022,37 +5063,8 @@
         }
         
         function getOfflineEvents() {
-            return [
-                { id: 'WE1-1', week: 'WE 1', date: '09.01.2026', name: 'Narrenbaumstellen Taldorf', location: 'LK Taldorf', time: '' },
-                { id: 'WE1-2', week: 'WE 1', date: '10.01.2026', name: 'Narrenbaumstellen Taldorf', location: 'LK Taldorf', time: '' },
-                { id: 'WE1-3', week: 'WE 1', date: '11.01.2026', name: 'Narrenbaumstellen Taldorf', location: 'LK Taldorf', time: '' },
-                { id: 'WE2-1', week: 'WE 2', date: '16.01.2026', name: 'Jugendball Bitzenhofen', location: 'NZ Bitzenhofen', time: '21:00' },
-                { id: 'WE2-2', week: 'WE 2', date: '16.01.2026', name: 'Elchball', location: 'MV Ettenkirch', time: '00:30' },
-                { id: 'WE2-3', week: 'WE 2', date: '17.01.2026', name: 'Umzug Neuravensburg', location: 'NZ Neuravensburg Bären', time: '13:30' },
-                { id: 'WE2-4', week: 'WE 2', date: '17.01.2026', name: 'Butzlumpa-Ball', location: 'LaJu KO/LK Butzlumpa', time: '21:00' },
-                { id: 'WE2-5', week: 'WE 2', date: '17.01.2026', name: 'Mädla-Ball', location: 'LK Leupolz', time: '23:00' },
-                { id: 'WE2-6', week: 'WE 2', date: '18.01.2026', name: 'Umzug Langenargen', location: 'NZ Dammglonker', time: '13:00' },
-                { id: 'WE3-1', week: 'WE 3', date: '23.01.2026', name: 'Urknall-Ball', location: 'LK Allgaier Urband', time: '20:00' },
-                { id: 'WE3-2', week: 'WE 3', date: '23.01.2026', name: 'Interne Veranstaltung', location: 'LK Fötzlesbrass', time: '00:00' },
-                { id: 'WE3-3', week: 'WE 3', date: '24.01.2026', name: 'Jubiläumsumzug Erbisreute', location: 'Erbisreuter Dorfnarren', time: '13:00' },
-                { id: 'WE3-4', week: 'WE 3', date: '25.01.2026', name: 'Narrensprung Kluftern', location: 'NZ Kluftern', time: '13:30' },
-                { id: 'WE4-1', week: 'WE 4', date: '30.01.2026', name: 'Zirkusball', location: 'LK Mecka', time: '23:30' },
-                { id: 'WE4-2', week: 'WE 4', date: '31.01.2026', name: 'Narrenbaumstellen Bitzenhofen', location: 'NZ Bitzenhofen', time: '13:00' },
-                { id: 'WE5-1', week: 'WE 5', date: '07.02.2026', name: 'Dämmerumzug Hergensweiler', location: 'NZ Federfuxer', time: '16:00' },
-                { id: 'WE5-2', week: 'WE 5', date: '07.02.2026', name: 'Aprés-Ski Ball', location: 'NZ Ettenkirch', time: '23:30' },
-                { id: 'WE5-3', week: 'WE 5', date: '08.02.2026', name: 'Umzug Meersburg', location: 'NZ Meersburg', time: '13:00' },
-                { id: 'HF-1', week: 'Hauptfasnet', date: '11.02.2026', name: 'Weiberball', location: 'Löwen Urnau', time: '22:00' },
-                { id: 'HF-2', week: 'Hauptfasnet', date: '12.02.2026', name: 'Golm', location: 'Berggasthof Golm', time: '11:00' },
-                { id: 'HF-3', week: 'Hauptfasnet', date: '13.02.2026', name: 'Kindergartenbefreiung', location: 'Taldorf', time: '09:00' },
-                { id: 'HF-4', week: 'Hauptfasnet', date: '13.02.2026', name: 'Schülerbefreiung', location: 'Wilhelmsschule RV', time: '10:00' },
-                { id: 'HF-5', week: 'Hauptfasnet', date: '13.02.2026', name: 'OWB', location: 'OWB Ravensburg', time: '11:30' },
-                { id: 'HF-6', week: 'Hauptfasnet', date: '13.02.2026', name: 'Narrenbaumstellen Bavendorf', location: 'NV Bavendorf', time: '14:00' },
-                { id: 'HF-7', week: 'Hauptfasnet', date: '14.02.2026', name: 'Narrensprung Aitrach', location: 'NZ Aitrach', time: '13:30' },
-                { id: 'HF-8', week: 'Hauptfasnet', date: '14.02.2026', name: 'Ball Aitrach', location: 'NZ Aitrach', time: '23:30' },
-                { id: 'HF-9', week: 'Hauptfasnet', date: '15.02.2026', name: 'Narrensprung Brochenzell', location: 'NZ Brochenzell', time: '14:00' },
-                { id: 'HF-10', week: 'Hauptfasnet', date: '16.02.2026', name: 'Rosenmontagssprung Fulda', location: 'Wolkenkratzer Fulda', time: '13:30' },
-                { id: 'HF-11', week: 'Hauptfasnet', date: '17.02.2026', name: 'Heimfahrt Fulda', location: '', time: '' },
-            ];
+            // Keine fest eingebauten Termine mehr – Termine kommen aus der Saison im Worker
+            return [];
         }
         
         // ============================================================
@@ -5741,7 +5753,7 @@
             let html = '';
             sortedEvents.forEach(event => {
                 html += '<div class="event-manage-item" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid var(--border-color);">';
-                html += '<div><strong>' + event.name + '</strong><br><span style="font-size: 0.8rem; color: var(--text-secondary);">' + (event.date || '') + ' | ' + (event.week || '') + '</span></div>';
+                html += '<div><strong>' + typBadge(event) + event.name + '</strong><br><span style="font-size: 0.8rem; color: var(--text-secondary);">' + (event.date || '') + ' | ' + (event.week || '') + '</span></div>';
                 html += '<button class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" onclick="openEventEditModal(\'' + event.id + '\')">✏️</button>';
                 html += '</div>';
             });
@@ -5761,6 +5773,7 @@
             document.getElementById('edit-event-date').value = germanToDateInput(event.date) || '';
             document.getElementById('edit-event-location').value = event.location || '';
             document.getElementById('edit-event-time').value = event.time || '';
+            document.getElementById('edit-event-typ').value = isProbe(event) ? 'probe' : 'auftritt';
             
             document.getElementById('event-edit-modal').classList.add('active');
         }
@@ -5781,7 +5794,8 @@
                 week: document.getElementById('edit-event-week').value.trim(),
                 date: dateGerman,
                 location: document.getElementById('edit-event-location').value.trim(),
-                time: document.getElementById('edit-event-time').value.trim()
+                time: document.getElementById('edit-event-time').value.trim(),
+                typ: document.getElementById('edit-event-typ').value
             };
             
             if (!eventData.name) { showToast('Name erforderlich', true); return; }
@@ -6233,5 +6247,491 @@
             hideLoading();
         }
     </script>
+<!-- ============================================================
+     LKT TRACKER – SAISON-MODUL
+     Diesen kompletten Block in app.html direkt VOR </body> einfügen.
+     Benötigt die Worker-Ergänzung worker-saison.js.
+
+     Funktionen:
+     • Einstellungen → "🗓️ Saison": neue Saison starten (Sicherung, Vorschau, Bestätigung)
+     • Kopfzeile: Saison-Auswahl, alte Saisons nur zum Anschauen (z.B. Saison 2026)
+     • Jahreszahl in Kopfzeile, Titel und PDFs kommt aus der aktuellen Saison
+     • Handys löschen beim Saisonwechsel automatisch alte lokale Daten
+     ============================================================ -->
+<!-- ============================================================
+     PROBEN: Termin-Art (Auftritt/Probe) + Statistik-Auswahl
+     ============================================================ -->
+<style>
+  .stat-typ-wrap { margin: 0 0 1rem; }
+  .stat-typ-wrap select { width: 100%; padding: .7rem .9rem; border-radius: 10px; border: 1px solid var(--accent-yellow, #f5c518); background: var(--bg-card, #16213e); color: var(--text-primary, #fff); font-size: 1rem; font-weight: 700; font-family: inherit; }
+  .typ-toggle { display: flex; gap: .5rem; }
+  .typ-toggle button { flex: 1; padding: .65rem; border-radius: 10px; border: 1px solid var(--border-color, #334155); background: transparent; color: var(--text-secondary, #94a3b8); font-weight: 700; font-size: .95rem; font-family: inherit; cursor: pointer; }
+  .typ-toggle button.active { border-color: var(--accent-yellow, #f5c518); background: rgba(245,197,24,.15); color: var(--accent-yellow, #f5c518); }
+  .typ-badge { display: inline-block; font-size: .72rem; font-weight: 700; padding: .1rem .45rem; border-radius: 6px; background: rgba(96,165,250,.18); color: #93c5fd; vertical-align: middle; margin-right: .3rem; }
+  .repeat-check { display: flex; align-items: center; gap: .5rem; margin: .25rem 0 .75rem; font-weight: 600; cursor: pointer; }
+  .repeat-check input { width: 1.2rem; height: 1.2rem; }
+</style>
+<script>
+  // Termin-Art: alte Termine ohne "typ" sind Auftritte
+  function isProbe(e) { return !!e && e.typ === 'probe'; }
+  function typBadge(e) { return isProbe(e) ? '<span class="typ-badge">🎼 Probe</span>' : ''; }
+
+  // Auswahl für alle Statistiken: 'auftritt' | 'probe' | 'alle'
+  var statTyp = (function () { try { return localStorage.getItem('lkt-stat-typ') || 'auftritt'; } catch (e) { return 'auftritt'; } })();
+  function statTypParams() { return { typ: statTyp }; }
+  function filterByStatTyp(list) {
+    if (statTyp === 'probe') return list.filter(isProbe);
+    if (statTyp === 'auftritt') return list.filter(e => !isProbe(e));
+    return list;
+  }
+  function statTypSuffix() { return statTyp === 'probe' ? ' – Proben' : statTyp === 'alle' ? ' – Auftritte + Proben' : ' – Auftritte'; }
+
+  function syncStatTypUI() {
+    document.querySelectorAll('.stat-typ-select').forEach(s => { s.value = statTyp; });
+    const l = document.getElementById('total-events-label');
+    if (l) l.textContent = statTyp === 'probe' ? 'Proben' : statTyp === 'alle' ? 'Termine' : 'Auftritte';
+  }
+
+  async function setStatTyp(v) {
+    statTyp = (v === 'probe' || v === 'alle') ? v : 'auftritt';
+    try { localStorage.setItem('lkt-stat-typ', statTyp); } catch (e) {}
+    syncStatTypUI();
+    if (typeof currentUser === 'undefined' || !currentUser) return;
+    if (currentUser.role === 'member') { updateMemberStats(); return; }
+    // Hohes Gericht: Statistik neu vom Server holen
+    if (typeof showLoading === 'function') showLoading();
+    try {
+      const p = statTypParams();
+      const [s, b, r] = await Promise.all([
+        apiGet('getStats', p).catch(() => null),
+        apiGet('getBusStats', p).catch(() => null),
+        apiGet('getRegisterStats', p).catch(() => null)
+      ]);
+      if (s && !s.error) {
+        statsData = s;
+        saveToCache('stats', statsData);
+        document.getElementById('total-events').textContent = s.totalEvents || 0;
+        document.getElementById('total-checkins').textContent = s.totalAttended || 0;
+        document.getElementById('overall-rate').textContent = (s.attendanceRate || 0) + '%';
+        allMemberStats = s.memberStats || {};
+        allMembersData.forEach(m => { if (!allMemberStats[m.name]) allMemberStats[m.name] = { attended: 0, absent: 0 }; });
+        if (allMembersData.length) renderMembersList(allMembersData);
+        renderRankings(s.topAttenders || [], s.topAbsent || []);
+      }
+      if (b && b.busStats) renderBusStats(b.busStats);
+      if (r && r.registerStats) renderRegisterStats(r.registerStats);
+    } catch (e) { showToast('Statistik konnte nicht geladen werden', true); }
+    if (typeof hideLoading === 'function') hideLoading();
+  }
+
+  // Proben ohne gewählte Gruppe: nach Monat gruppieren ("Proben November")
+  function probenGruppe(dateInput) {
+    const M = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    if (!dateInput) return 'Proben';
+    const m = parseInt(String(dateInput).split('-')[1], 10);
+    return m ? 'Proben ' + M[m - 1] : 'Proben';
+  }
+
+  // Formular "Neuen Termin anlegen": Auftritt / Probe umschalten
+  function setNewEventTyp(t) {
+    const probe = t === 'probe';
+    document.getElementById('new-event-typ').value = probe ? 'probe' : 'auftritt';
+    document.querySelectorAll('#new-event-typ-toggle button').forEach(b => b.classList.toggle('active', b.dataset.typ === (probe ? 'probe' : 'auftritt')));
+    document.getElementById('new-event-repeat-group').classList.toggle('hidden', !probe);
+    document.getElementById('new-event-btn').textContent = probe ? '+ Probe hinzufügen' : '+ Auftritt hinzufügen';
+    const n = document.getElementById('new-event-name');
+    n.placeholder = probe ? 'z.B. Probe' : 'z.B. Zirkusball';
+    if (probe && !n.value) n.value = 'Probe';
+    if (!probe && n.value === 'Probe') n.value = '';
+    const wl = document.querySelector('#new-event-week')?.closest('.input-group')?.querySelector('label');
+    if (wl) wl.textContent = probe ? 'Gruppe (leer = automatisch "Proben <Monat>")' : 'Wochenende';
+  }
+
+  document.addEventListener('DOMContentLoaded', syncStatTypUI);
+  if (document.readyState !== 'loading') syncStatTypUI();
+</script>
+
+<style>
+  .lkts-pill { display:inline-flex; align-items:center; gap:.3rem; margin:.5rem 0 0 .4rem; padding:.25rem .7rem; border-radius:20px; border:1px solid var(--accent-yellow,#f5c518); color:var(--accent-yellow,#f5c518); background:transparent; font-size:.8rem; font-weight:700; font-family:inherit; cursor:pointer; }
+  .lkts-banner { margin:.6rem -1rem -1rem; background:var(--accent-yellow,#f5c518); color:#1a1a2e; padding:.6rem 1rem; font-weight:700; font-size:.88rem; display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+  .lkts-banner button { background:#1a1a2e; color:#fff; border:none; border-radius:8px; padding:.4rem .7rem; font-weight:700; font-size:.8rem; cursor:pointer; white-space:nowrap; }
+  .lkts-card { background:var(--bg-card,#16213e); border-radius:12px; padding:1rem; margin-bottom:.8rem; border:1px solid var(--border-color,#334155); }
+  .lkts-card h3 { margin:0 0 .6rem; font-size:1.05rem; }
+  .lkts-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--border-color,#334155); font-size:.92rem; }
+  .lkts-row:last-child { border-bottom:none; }
+  .lkts-muted { color:var(--text-secondary,#94a3b8); font-size:.85rem; }
+  .lkts-btn { width:100%; padding:.8rem; border:none; border-radius:8px; font-weight:700; font-size:.95rem; cursor:pointer; margin-top:.6rem; font-family:inherit; }
+  .lkts-btn.gold { background:var(--accent-yellow,#f5c518); color:#1a1a2e; }
+  .lkts-btn.red { background:var(--accent-red,#ef4444); color:#fff; }
+  .lkts-btn.ghost { background:transparent; color:#fff; border:1px solid var(--border-color,#334155); }
+  .lkts-btn.small { width:auto; margin:0; padding:.4rem .8rem; font-size:.82rem; }
+  .lkts-btn:disabled { opacity:.4; cursor:not-allowed; }
+  .lkts-overlay { position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:600; display:flex; align-items:center; justify-content:center; padding:1rem; }
+  .lkts-modal { background:var(--bg-card,#16213e); border-radius:16px; padding:1.3rem; width:100%; max-width:440px; max-height:90vh; overflow-y:auto; color:#fff; }
+  .lkts-modal h3 { color:var(--accent-yellow,#f5c518); margin:0 0 .8rem; }
+  .lkts-modal label { display:block; font-weight:600; font-size:.88rem; margin:.7rem 0 .3rem; }
+  .lkts-modal input { width:100%; padding:.75rem; border-radius:8px; border:1px solid var(--border-color,#334155); background:var(--bg-dark,#1a1a2e); color:#fff; font-size:1rem; font-family:inherit; }
+  .lkts-steps { display:flex; gap:.4rem; margin-bottom:1rem; }
+  .lkts-steps span { flex:1; height:4px; border-radius:2px; background:var(--border-color,#334155); }
+  .lkts-steps span.on { background:var(--accent-yellow,#f5c518); }
+  .lkts-cols { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; margin-top:.4rem; }
+  .lkts-cols .lkts-row { font-size:.84rem; padding:.35rem 0; }
+  .lkts-del b { color:var(--accent-red,#ef4444); }
+  .lkts-keep b { color:var(--accent-green,#4ade80); }
+  .lkts-warn { background:rgba(239,68,68,.12); border:1px solid var(--accent-red,#ef4444); border-radius:8px; padding:.7rem; font-size:.86rem; margin-top:.8rem; }
+  .lkts-err { color:var(--accent-red,#ef4444); font-size:.88rem; margin-top:.6rem; min-height:1.1em; }
+  .lkts-ok { color:var(--accent-green,#4ade80); font-size:.88rem; margin-top:.6rem; }
+</style>
+<script>
+(function () {
+  'use strict';
+
+  const DEFAULT_URL = 'https://patient-wind-88af.christoph-hoher.workers.dev/';
+  const VIEW_KEY = 'lkt-view-saison';       // sessionStorage: angesehene Archiv-Saison
+  const SAISON_KEY = 'lkt-saison';          // localStorage: zuletzt bekannte aktuelle Saison
+  const KEEP_LOCAL = ['lkt-user', 'lkt-api-url', 'lkt-notifications-enabled', 'lkt-notification-settings', SAISON_KEY];
+  const LABELS = {
+    events:'Auftritte', attendance:'Anwesenheiten', zusagen:'Zusagen', anzeigen:'Strafanzeigen', strafen:'Strafen',
+    brettPosts:'Brett-Beiträge', kommentare:'Kommentare', registerAnfragen:'Register-Anfragen', pinResetRequests:'PIN-Anfragen',
+    members:'Mitglieder', rollen:'Rollen', busse:'Busse', register:'Register', forumBereiche:'Brett-Bereiche',
+    settings:'Einstellungen', pushSubscriptions:'Push-Abos', pushSettings:'Push-Einstellungen'
+  };
+
+  const state = {
+    current: localStorage.getItem(SAISON_KEY) || '2026',
+    archiv: [],
+    view: sessionStorage.getItem(VIEW_KEY) || null,
+    base: null
+  };
+  const shown = () => state.view || state.current;
+  const isArchive = () => !!state.view && state.view !== state.current;
+
+  // ---------- API-Adresse ----------
+  function apiBase() {
+    if (state.base) return state.base;
+    try { if (typeof API_URL !== 'undefined' && API_URL) return API_URL; } catch (e) {}
+    return localStorage.getItem('lkt-api-url') || DEFAULT_URL;
+  }
+  const origFetch = window.fetch.bind(window);
+
+  function isApiUrl(url) {
+    return typeof url === 'string' && url.indexOf(apiBase().split('?')[0]) === 0;
+  }
+
+  // ---------- Alle API-Aufrufe der App abfangen ----------
+  window.fetch = function (input, init) {
+    let url = typeof input === 'string' ? input : (input && input.url) || '';
+    const method = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+    if (isArchive() && isApiUrl(url)) {
+      if (method === 'GET') {
+        if (/[?&]action=/.test(url) && !/[?&]saison=/.test(url)) {
+          url += (url.includes('?') ? '&' : '?') + 'saison=' + encodeURIComponent(state.view);
+          return origFetch(url, init);
+        }
+      } else {
+        toast('Saison ' + state.view + ' ist nur zum Anschauen', true);
+        const body = JSON.stringify({ error: 'Saison ' + state.view + ' ist nur zum Anschauen' });
+        return Promise.resolve(new Response(body, { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      }
+    }
+    return origFetch(input, init);
+  };
+
+  async function api(action, data) {
+    const res = await origFetch(apiBase(), {
+      method: 'POST', headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(Object.assign({ action }, data || {}))
+    });
+    let json;
+    try { json = await res.json(); } catch (e) { throw new Error('Server-Antwort nicht lesbar (HTTP ' + res.status + ')'); }
+    if (json.error) {
+      if (String(json.error).startsWith('Unknown action')) throw new Error('Der Worker kennt den Saisonwechsel noch nicht (worker-saison.js einbauen).');
+      throw new Error(json.error);
+    }
+    return json;
+  }
+
+  function toast(msg, isError) {
+    try { if (typeof showToast === 'function') return showToast(msg, isError); } catch (e) {}
+    alert(msg);
+  }
+
+  // ---------- Lokale Daten leeren ----------
+  function clearLocalData() {
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('lkt-') && !KEEP_LOCAL.includes(k)) localStorage.removeItem(k);
+    });
+    try { if (typeof offlineQueue !== 'undefined') offlineQueue = []; } catch (e) {}
+  }
+
+  // Im Archiv-Modus nichts in den App-Cache schreiben/lesen
+  if (isArchive()) {
+    try { if (typeof saveToCache === 'function') saveToCache = function () {}; } catch (e) {}
+    try { if (typeof getFromCache === 'function') getFromCache = function () { return null; }; } catch (e) {}
+  }
+  // Keine fest einprogrammierten 2026er Auftritte mehr als Ersatz anzeigen
+  try { if (typeof getOfflineEvents === 'function') getOfflineEvents = function () { return []; }; } catch (e) {}
+
+  // ---------- Jahreszahl ----------
+  const YEAR_RE = /(Saison|Übersicht|Report|Statistik|Strafanzeigen|Tracker|TRACKER|Mitglieder|Veranstaltungen|Wochenend-Übersicht)([ _-])20\d\d\b/g;
+  const fixYear = s => (typeof s === 'string') ? s.replace(YEAR_RE, '$1$2' + shown()) : s;
+
+  function applyYear() {
+    const t = fixYear(document.title);
+    if (t !== document.title) document.title = t;
+    document.querySelectorAll('h1, .subtitle, .header p').forEach(el => {
+      el.childNodes.forEach(n => {
+        if (n.nodeType !== 3) return;
+        const v = fixYear(n.nodeValue);
+        if (v !== n.nodeValue) n.nodeValue = v;
+      });
+    });
+  }
+
+  // HTML-Reports (window.open + document.write)
+  const origOpen = window.open;
+  window.open = function () {
+    const w = origOpen.apply(window, arguments);
+    if (w && arguments[0] === '' ) {
+      try {
+        const dw = w.document.write.bind(w.document);
+        w.document.write = (html) => dw(fixYear(isArchive() ? html.replace('</body>', '<p style="text-align:center;color:#b45309;font-weight:700">Archiv – Saison ' + state.view + '</p></body>') : html));
+      } catch (e) {}
+    }
+    return w;
+  };
+  // jsPDF-Reports
+  function patchJsPDF() {
+    const J = window.jspdf && window.jspdf.jsPDF;
+    if (!J || J.__lkts) return;
+    const t = J.API.text, s = J.API.save;
+    J.API.text = function (txt) { const a = Array.from(arguments); a[0] = Array.isArray(txt) ? txt.map(fixYear) : fixYear(txt); return t.apply(this, a); };
+    J.API.save = function (name) { const a = Array.from(arguments); a[0] = fixYear(name); return s.apply(this, a); };
+    J.__lkts = true;
+  }
+
+  // ---------- Kopfzeile: Saison-Auswahl + Archiv-Banner ----------
+  function renderHeader() {
+    applyYear();
+    const header = document.querySelector('#main-app .header') || document.querySelector('.header');
+    if (!header) return;
+
+    let pill = document.getElementById('lkts-pill');
+    if (state.archiv.length && !pill) {
+      pill = document.createElement('button');
+      pill.id = 'lkts-pill';
+      pill.className = 'lkts-pill';
+      pill.onclick = openSaisonPicker;
+      header.appendChild(pill);
+    }
+    if (pill) pill.textContent = '📅 Saison ' + shown() + ' ▾';
+
+    let banner = document.getElementById('lkts-banner');
+    if (isArchive()) {
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'lkts-banner';
+        banner.className = 'lkts-banner';
+        header.appendChild(banner);
+      }
+      banner.innerHTML = '<span>📂 Archiv Saison ' + state.view + ' – nur Ansicht</span><button id="lkts-back">Zur Saison ' + state.current + '</button>';
+      document.getElementById('lkts-back').onclick = () => switchView(null);
+      header.appendChild(banner); // Banner immer ganz unten in der Kopfzeile
+    } else if (banner) banner.remove();
+  }
+
+  function switchView(saison) {
+    if (saison && saison !== state.current) sessionStorage.setItem(VIEW_KEY, saison);
+    else sessionStorage.removeItem(VIEW_KEY);
+    // Zwischengespeicherte Ansicht verwerfen, damit Saisons nicht vermischt werden
+    Object.keys(localStorage).forEach(k => {
+      if (k === 'lkt-data-cache' || k.startsWith('lkt-attendance-') || k.startsWith('lkt-comments-')) localStorage.removeItem(k);
+    });
+    location.reload();
+  }
+
+  function openSaisonPicker() {
+    const items = [{ saison: state.current, label: 'Saison ' + state.current + ' (aktuell)' }]
+      .concat(state.archiv.slice().sort((a, b) => b.saison.localeCompare(a.saison))
+        .map(a => ({ saison: a.saison, label: 'Saison ' + a.saison + ' (Archiv)' })));
+    const ov = modal(
+      '<h3>📅 Saison anzeigen</h3>' +
+      items.map(i => '<button class="lkts-btn ' + (i.saison === shown() ? 'gold' : 'ghost') + '" data-s="' + i.saison + '">' + i.label + '</button>').join('') +
+      '<p class="lkts-muted" style="margin-top:.8rem">Archivierte Saisons kann man anschauen, aber nicht mehr ändern.</p>' +
+      '<button class="lkts-btn ghost" data-close>Schließen</button>');
+    ov.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { ov.remove(); if (b.dataset.s !== shown()) switchView(b.dataset.s); });
+  }
+
+  // ---------- Einstellungen: Saison-Karte ----------
+  function findSettings() {
+    return document.getElementById('settings-tab') ||
+      Array.from(document.querySelectorAll('h2')).find(h => /Vereinseinstellungen/.test(h.textContent))?.parentElement?.parentElement;
+  }
+
+  function renderSettingsCard() {
+    const tab = findSettings();
+    if (!tab) return;
+    let card = document.getElementById('lkts-card');
+    if (!card) {
+      card = document.createElement('div');
+      card.id = 'lkts-card';
+      card.className = 'lkts-card';
+      const head = tab.querySelector('.section-header') || tab.firstElementChild;
+      head ? head.insertAdjacentElement('afterend', card) : tab.prepend(card);
+    }
+    const archivRows = state.archiv.length
+      ? state.archiv.slice().sort((a, b) => b.saison.localeCompare(a.saison)).map(a =>
+          '<div class="lkts-row"><span>📂 Saison ' + a.saison + '<br><span class="lkts-muted">archiviert ' + new Date(a.archivedAt).toLocaleDateString('de-DE') + '</span></span>' +
+          '<button class="lkts-btn ghost small" data-view="' + a.saison + '">Anschauen</button></div>').join('')
+      : '<p class="lkts-muted">Noch keine archivierten Saisons.</p>';
+    card.innerHTML =
+      '<h3>🗓️ Saison</h3>' +
+      '<div class="lkts-row"><span>Aktuelle Saison</span><b style="color:var(--accent-yellow,#f5c518)">' + state.current + '</b></div>' +
+      archivRows +
+      (isArchive()
+        ? '<p class="lkts-muted" style="margin-top:.6rem">Du siehst gerade das Archiv. Für den Saisonwechsel zur aktuellen Saison wechseln.</p>'
+        : '<button class="lkts-btn gold" id="lkts-start">🎺 Neue Saison starten</button>' +
+          '<p class="lkts-muted" style="margin-top:.4rem">Leert nur Auftritte, Anwesenheiten, Zusagen und Strafen. Mitglieder mit PINs, Rollen, Busse, Register und das Brett bleiben.</p>');
+    card.querySelectorAll('[data-view]').forEach(b => b.onclick = () => switchView(b.dataset.view));
+    const start = document.getElementById('lkts-start');
+    if (start) start.onclick = openResetWizard;
+  }
+
+  // ---------- Modal-Helfer ----------
+  function modal(html) {
+    const ov = document.createElement('div');
+    ov.className = 'lkts-overlay';
+    ov.innerHTML = '<div class="lkts-modal">' + html + '</div>';
+    ov.addEventListener('click', e => { if (e.target === ov || e.target.hasAttribute('data-close')) ov.remove(); });
+    document.body.appendChild(ov);
+    return ov;
+  }
+
+  // ---------- Assistent: neue Saison ----------
+  function openResetWizard() {
+    const next = String(Math.max(Number(state.current) + 1, new Date().getFullYear()));
+    const w = { key: '', season: next, backup: false, preview: null };
+    const ov = modal('<div id="lkts-w"></div>');
+    const box = ov.querySelector('#lkts-w');
+
+    const steps = n => '<div class="lkts-steps">' + [1, 2, 3].map(i => '<span class="' + (i <= n ? 'on' : '') + '"></span>').join('') + '</div>';
+
+    function step1() {
+      box.innerHTML = steps(1) +
+        '<h3>Neue Saison starten</h3>' +
+        '<label>Neue Saison</label><input id="lkts-season" inputmode="numeric" maxlength="4" value="' + w.season + '">' +
+        '<p class="lkts-muted" style="margin-top:.3rem">Die jetzige Saison ' + state.current + ' bleibt im Archiv anschaubar.</p>' +
+        '<label>Admin-Passwort</label><input id="lkts-key" type="password" autocomplete="off">' +
+        '<div class="lkts-err" id="lkts-e"></div>' +
+        '<button class="lkts-btn gold" id="lkts-n">Weiter</button><button class="lkts-btn ghost" data-close>Abbrechen</button>';
+      box.querySelector('#lkts-n').onclick = async () => {
+        w.season = box.querySelector('#lkts-season').value.trim();
+        w.key = box.querySelector('#lkts-key').value;
+        const e = box.querySelector('#lkts-e');
+        if (!/^\d{4}$/.test(w.season)) return e.textContent = 'Bitte eine Jahreszahl eingeben, z.B. ' + next;
+        if (!w.key) return e.textContent = 'Bitte das Admin-Passwort eingeben';
+        e.textContent = 'Prüfe…';
+        try {
+          const r = await api('resetSeason', { resetKey: w.key, newSeason: w.season, dryRun: true });
+          w.preview = r.preview; step2();
+        } catch (err) { e.textContent = err.message; }
+      };
+    }
+
+    function step2() {
+      box.innerHTML = steps(2) +
+        '<h3>Sicherung herunterladen</h3>' +
+        '<p class="lkts-muted">Zur Sicherheit vorher alle Daten als Datei speichern (z.B. in OneDrive ablegen).</p>' +
+        '<div class="lkts-err" id="lkts-e"></div>' +
+        '<button class="lkts-btn gold" id="lkts-b">💾 Sicherung herunterladen</button>' +
+        '<button class="lkts-btn ghost" id="lkts-n" disabled>Weiter</button>';
+      box.querySelector('#lkts-b').onclick = async () => {
+        const e = box.querySelector('#lkts-e');
+        try {
+          const r = await api('exportAll', { resetKey: w.key });
+          const name = 'LKT_Sicherung_Saison_' + r.saison + '_' + new Date().toISOString().slice(0, 10) + '.json';
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(new Blob([JSON.stringify(r, null, 2)], { type: 'application/json' }));
+          a.download = name; document.body.appendChild(a); a.click(); a.remove();
+          w.backup = true;
+          e.className = 'lkts-ok'; e.textContent = '✓ ' + name;
+          box.querySelector('#lkts-n').disabled = false;
+          box.querySelector('#lkts-n').className = 'lkts-btn gold';
+        } catch (err) { e.className = 'lkts-err'; e.textContent = err.message; }
+      };
+      box.querySelector('#lkts-n').onclick = step3;
+    }
+
+    function step3() {
+      const rows = (o, filter) => Object.entries(o).filter(([k, n]) => filter || n > 0)
+        .map(([k, n]) => '<div class="lkts-row"><span>' + (LABELS[k] || k) + '</span><b>' + n + '</b></div>').join('') || '<p class="lkts-muted">–</p>';
+      box.innerHTML = steps(3) +
+        '<h3>Saison ' + state.current + ' → ' + w.season + '</h3>' +
+        '<div class="lkts-cols"><div class="lkts-del"><b style="color:#fff">🗑️ Wird geleert</b>' + rows(w.preview.reset, true) + '</div>' +
+        '<div class="lkts-keep"><b style="color:#fff">✅ Bleibt</b>' + rows(w.preview.keep) + '</div></div>' +
+        '<div class="lkts-warn">Alle Daten der Saison ' + state.current + ' kommen ins Archiv und sind dort weiter anschaubar.</div>' +
+        '<label>Zum Bestätigen <b>NEUE SAISON</b> eintippen</label><input id="lkts-c" autocomplete="off">' +
+        '<div class="lkts-err" id="lkts-e"></div>' +
+        '<button class="lkts-btn red" id="lkts-go" disabled>Saison ' + w.season + ' starten</button><button class="lkts-btn ghost" data-close>Abbrechen</button>';
+      const go = box.querySelector('#lkts-go');
+      box.querySelector('#lkts-c').oninput = ev => go.disabled = ev.target.value.trim().toUpperCase() !== 'NEUE SAISON';
+      go.onclick = async () => {
+        go.disabled = true; go.textContent = 'Läuft…';
+        try {
+          await api('resetSeason', { resetKey: w.key, newSeason: w.season });
+          clearLocalData();
+          localStorage.setItem(SAISON_KEY, w.season);
+          sessionStorage.removeItem(VIEW_KEY);
+          box.innerHTML = '<h3>🎉 Saison ' + w.season + ' gestartet</h3><p>Die Saison ' + state.current + ' ist im Archiv. Auf den Handys der Mitglieder wird beim nächsten Öffnen automatisch umgestellt.</p><button class="lkts-btn gold" id="lkts-r">App neu laden</button>';
+          box.querySelector('#lkts-r').onclick = () => location.reload();
+        } catch (err) { box.querySelector('#lkts-e').textContent = err.message; go.disabled = false; go.textContent = 'Saison ' + w.season + ' starten'; }
+      };
+    }
+    step1();
+  }
+
+  // ---------- Start ----------
+  async function loadSaisons() {
+    try {
+      const r = await api('getSaisons');
+      state.archiv = r.archiv || [];
+      const known = localStorage.getItem(SAISON_KEY);
+      state.current = String(r.current);
+      localStorage.setItem(SAISON_KEY, state.current);
+      if (known && known !== state.current) {
+        // Saison wurde gewechselt → alte Daten auf diesem Handy entfernen
+        clearLocalData();
+        localStorage.setItem(SAISON_KEY, state.current);
+        sessionStorage.removeItem(VIEW_KEY);
+        location.reload();
+        return;
+      }
+      if (state.view && !state.archiv.some(a => a.saison === state.view)) { sessionStorage.removeItem(VIEW_KEY); state.view = null; }
+    } catch (e) {
+      console.log('Saison-Modul:', e.message);
+    }
+    renderAll();
+  }
+
+  function renderAll() { renderHeader(); renderSettingsCard(); patchJsPDF(); }
+
+  // Für Apps, die Bereiche dynamisch aufbauen
+  let pending = false;
+  new MutationObserver(() => {
+    if (pending) return; pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      if (!document.getElementById('lkts-card') && findSettings()) renderSettingsCard();
+      const h = document.querySelector('#main-app .header') || document.querySelector('.header');
+      if (h && state.archiv.length && !document.getElementById('lkts-pill')) renderHeader();
+      applyYear();
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true });
+
+  renderAll();
+  loadSaisons();
+})();
+</script>
+
 </body>
 </html>
