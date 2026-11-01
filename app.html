@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#1a1a2e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="app-version" content="v15">
+    <meta name="app-version" content="v17">
     <title>LKT Tracker 2026</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -219,7 +219,7 @@
     <script>
         // Cache-Buster v11: Automatisches Update bei neuer Version
         (function() {
-            var APP_VERSION = 'v15';
+            var APP_VERSION = 'v17';
             var stored = localStorage.getItem('lkt-app-version');
             if (stored && stored !== APP_VERSION) {
                 if ('caches' in window) {
@@ -543,8 +543,9 @@
             
             <!-- Trinkspiele Tab -->
             <div id="trinkspiele-tab" class="screen">
-                <div class="section-header"><h2>🍺 Trinkspiele</h2></div>
-                <button class="btn btn-primary btn-block" onclick="openTrinkspieleFullscreen()" style="margin-bottom: 1rem;">🎮 Vollbild öffnen</button>
+                <div class="section-header"><h2>🍺 Spiele</h2></div>
+                <button class="btn btn-primary btn-block" onclick="openNotenQuiz()" style="margin-bottom: 0.5rem;">🎼 Noten-Quiz – welches Stück ist das?</button>
+                <button class="btn btn-secondary btn-block" onclick="openTrinkspieleFullscreen()" style="margin-bottom: 1rem;">🎮 Trinkspiele im Vollbild</button>
                 <iframe id="trinkspiele-iframe" src="trinkspiele.html" style="width: 100%; height: calc(100vh - 250px); border: none; border-radius: 12px; background: #1a1a2e;"></iframe>
             </div>
         </div>
@@ -707,8 +708,9 @@
             
             <!-- Trinkspiele Tab für Gericht -->
             <div id="trinkspiele-gericht-tab" class="screen">
-                <div class="section-header"><h2>🍺 Trinkspiele</h2></div>
-                <button class="btn btn-primary btn-block" onclick="openTrinkspieleFullscreen()" style="margin-bottom: 1rem;">🎮 Vollbild öffnen</button>
+                <div class="section-header"><h2>🍺 Spiele</h2></div>
+                <button class="btn btn-primary btn-block" onclick="openNotenQuiz()" style="margin-bottom: 0.5rem;">🎼 Noten-Quiz – welches Stück ist das?</button>
+                <button class="btn btn-secondary btn-block" onclick="openTrinkspieleFullscreen()" style="margin-bottom: 1rem;">🎮 Trinkspiele im Vollbild</button>
                 <iframe id="trinkspiele-iframe-gericht" src="trinkspiele.html" style="width: 100%; height: calc(100vh - 250px); border: none; border-radius: 12px; background: #1a1a2e;"></iframe>
             </div>
             
@@ -3280,14 +3282,17 @@
         }
         
         // Trinkspiele Vollbild öffnen
-        function openTrinkspieleFullscreen() {
+        function openNotenQuiz() { openTrinkspieleFullscreen('notenquiz.html', '🎼 Noten-Quiz'); }
+        function openTrinkspieleFullscreen(src, title) {
+            src = src || 'trinkspiele.html';
+            title = title || '🍺 Trinkspiele';
             const overlay = document.createElement('div');
             overlay.id = 'trinkspiele-fullscreen';
             overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#1a1a2e;z-index:10000;display:flex;flex-direction:column;';
             
             const header = document.createElement('div');
             header.style.cssText = 'padding:10px 15px;background:#16213e;display:flex;justify-content:space-between;align-items:center;';
-            header.innerHTML = '<span style="color:#ffd700;font-weight:bold;font-size:1.2rem;">🍺 Trinkspiele</span>';
+            header.innerHTML = '<span style="color:#ffd700;font-weight:bold;font-size:1.2rem;">' + title + '</span>';
             
             const closeBtn = document.createElement('button');
             closeBtn.innerHTML = '✕ Zurück zur App';
@@ -3296,7 +3301,7 @@
             header.appendChild(closeBtn);
             
             const iframe = document.createElement('iframe');
-            iframe.src = 'trinkspiele.html';
+            iframe.src = src;
             iframe.style.cssText = 'flex:1;border:none;width:100%;';
             
             overlay.appendChild(header);

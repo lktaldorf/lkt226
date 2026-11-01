@@ -1,9 +1,10 @@
-const CACHE_NAME = 'lkt-tracker-v15';
+const CACHE_NAME = 'lkt-tracker-v17';
 const urlsToCache = [
     './',
     './app.html',
     './index.html',
     './trinkspiele.html',
+    './notenquiz.html',
     './manifest.json',
     './icon-192.png',
     './icon-512.png'

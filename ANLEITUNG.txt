@@ -1,4 +1,4 @@
-LKT TRACKER v15 – SAISONWECHSEL + PROBEN: SO WIRD INSTALLIERT
+LKT TRACKER v17 – SAISONWECHSEL, PROBEN, NOTEN-QUIZ: SO WIRD INSTALLIERT
 =====================================================
 
 Alle Dateien sind komplett. Du ersetzt sie einfach – nichts suchen, nichts flicken.
@@ -12,9 +12,9 @@ Ein extra Passwort oder Secret in Cloudflare ist NICHT nötig.
 
 2) APP ERSETZEN (GitHub, Repo lktaldorf/demo)
    - "Add file" → "Upload files"
-   - app.html, sw.js, index.html, manifest.json hineinziehen (überschreibt die alten)
+   - app.html, sw.js, index.html, manifest.json UND notenquiz.html hineinziehen
    - "Commit changes"
-   - 1–2 Minuten warten, dann App neu öffnen. Die Handys holen sich v15 automatisch.
+   - 1–2 Minuten warten, dann App neu öffnen. Die Handys holen sich v17 automatisch.
 
 3) NEUE SAISON STARTEN (in der App)
    - Als Hohes Gericht anmelden → ⚙️ Einstellungen → "🎺 Neue Saison starten"
@@ -37,3 +37,11 @@ PROBEN
               Auswahl 🎺 Auftritte / 🎼 Proben / 📊 Kombiniert. Die Wahl gilt
               für alle drei Ansichten und für die PDFs (Report, Bus, Register).
    Alte Termine ohne Art zählen automatisch als Auftritte.
+
+NOTEN-QUIZ
+   Öffnen:    Reiter "🍺 Spiele" → "🎼 Noten-Quiz – welches Stück ist das?"
+   Spiel:     Eine Notenzeile, 4 Antworten. Stimme wählbar: Alle, Trompete,
+              Tenorhorn, Posaune, Tuba/Bass. 10, 20 oder alle
+              Fragen. Modus "🍺 Trinkspiel": Handy reihum, falsch = Schluck.
+   Inhalt:    14 Stücke, 453 Notenzeilen (ohne Titelzeilen). Die Datei
+              notenquiz.html ist eigenständig – nicht vergessen hochzuladen.
