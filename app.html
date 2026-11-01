@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#1a1a2e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="app-version" content="v17">
+    <meta name="app-version" content="v19">
     <title>LKT Tracker 2026</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -219,7 +219,7 @@
     <script>
         // Cache-Buster v11: Automatisches Update bei neuer Version
         (function() {
-            var APP_VERSION = 'v17';
+            var APP_VERSION = 'v19';
             var stored = localStorage.getItem('lkt-app-version');
             if (stored && stored !== APP_VERSION) {
                 if ('caches' in window) {
@@ -389,10 +389,18 @@
             <!-- Scanner Tab -->
             <div id="scanner-tab" class="screen">
                 <div class="section-header"><h2>📷 QR-Code Scannen</h2></div>
-                <div class="info-box"><p>📱 Scanne den QR-Code beim Auftritt!</p></div>
+                <div class="info-box"><p>📱 Scanne den QR-Code beim Auftritt! Für Proben brauchst du keinen Code – dort einfach „Ich bin dabei“ drücken.</p></div>
                 <div id="qr-reader" style="width: 100%; max-width: 400px; margin: 1rem auto;"></div>
                 <button class="btn btn-primary btn-block" id="start-scan-btn" onclick="startScanner()">📷 Scanner starten</button>
                 <button class="btn btn-secondary btn-block hidden" id="stop-scan-btn" onclick="stopScanner()">⏹ Scanner stoppen</button>
+                <div class="card" style="margin-top: 1rem;">
+                    <div style="font-weight: 700; margin-bottom: 0.5rem;">⌨️ Kamera geht nicht? Code eintippen</div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="text" id="manual-code-input" maxlength="6" placeholder="z.B. K7QM2X" autocomplete="off" autocapitalize="characters" style="flex: 1; text-transform: uppercase; letter-spacing: 3px; font-weight: 700; font-size: 1.1rem; text-align: center;" onkeydown="if(event.key==='Enter')submitManualCode()">
+                        <button class="btn btn-primary" onclick="submitManualCode()">✓</button>
+                    </div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.4rem;">Der Code steht unter dem QR-Code beim Gericht.</div>
+                </div>
                 <div id="scan-success" class="hidden" style="text-align: center; padding: 2rem;">
                     <div style="font-size: 4rem;">✅</div>
                     <p style="font-size: 1.2rem; font-weight: 700; margin-top: 1rem;" id="success-text">Eingecheckt!</p>
@@ -586,7 +594,7 @@
             <div id="qr-codes-tab" class="screen">
                 <div class="section-header"><h2>📱 Auftritts-QR-Codes</h2></div>
                 <div class="info-box" style="background: rgba(234,179,8,0.1); border-color: var(--accent-yellow);">
-                    <p>Zeige den QR-Code beim Auftritt - Mitglieder können ihn scannen um einzuchecken.</p>
+                    <p>Zeige den QR-Code beim Auftritt – Mitglieder scannen ihn zum Einchecken. Jeder Auftritt hat einen eigenen Zufallscode. Für Proben gibt es keinen QR-Code, dort meldet sich jeder selbst an.</p>
                 </div>
                 <div class="input-group">
                     <label>Auftritt auswählen</label>
@@ -596,6 +604,9 @@
                     <div id="event-qr-canvas" style="display: inline-block; background: white; padding: 1rem; border-radius: 12px;"></div>
                     <p style="margin-top: 1rem; font-weight: 700; font-size: 1.2rem;" id="event-qr-label"></p>
                     <p style="font-size: 0.9rem; color: var(--text-secondary);" id="event-qr-sublabel"></p>
+                    <p style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">Code zum Eintippen</p>
+                    <p id="event-qr-code" style="font-size: 2rem; font-weight: 800; letter-spacing: 6px; color: var(--accent-yellow);"></p>
+                    <button class="btn btn-secondary btn-block" style="margin-top: 0.5rem;" id="renew-code-btn" onclick="renewEventCode()">🔄 Neuen Code erzeugen</button>
                     <button class="btn btn-primary btn-block" style="margin-top: 1rem;" onclick="downloadEventQRPDF()">📄 QR-Code als PDF</button>
                     <button class="btn btn-secondary btn-block" style="margin-top: 0.5rem;" onclick="downloadEventQR()">📥 QR als Bild</button>
                 </div>
@@ -1258,10 +1269,9 @@
             for (const item of queue) {
                 try {
                     const result = await apiPost(item.data);
-                    if (!result.error) {
-                        offlineQueue = offlineQueue.filter(q => q.id !== item.id);
-                        successCount++;
-                    }
+                    offlineQueue = offlineQueue.filter(q => q.id !== item.id);
+                    if (!result.error) successCount++;
+                    else showToast('❌ Nicht übernommen: ' + result.error, true);
                 } catch (e) { console.error('Sync error:', e); }
             }
             localStorage.setItem('lkt-offline-queue', JSON.stringify(offlineQueue));
@@ -1363,7 +1373,7 @@
             
             if (pin === '8356') {
                 currentUser = { 
-                    role: 'gericht', name: 'Admin', 
+                    role: 'gericht', name: 'Admin', adminPin: pin,
                     rollenId: 'ROLE-ADMIN', 
                     permissions: {
                         isAdmin: true, canViewAllMembers: true, canViewAllAttendance: true,
@@ -1963,8 +1973,8 @@
                     
                     html += '<div class="actions">';
                     if (!isAttended && !isAbsent) {
-                        // Wenn Scanner deaktiviert: "Ich bin dabei" Button zeigen
-                        if (!appSettings.qrScannerEnabled) {
+                        // Proben immer selbst anmelden; Auftritte nur ohne QR-System
+                        if (!appSettings.qrScannerEnabled || isProbe(event)) {
                             html += '<button class="btn btn-primary" onclick="directCheckIn(\'' + event.id + '\')">✓ Ich bin dabei</button>';
                         } else {
                             // Zusagen-Button nur wenn QR aktiv
@@ -2233,7 +2243,7 @@
                 
                 html += '<div class="' + cardClass + '">';
                 html += '<div class="date">' + (event.date || '') + ' • ' + (event.time || '') + '</div>';
-                html += '<div class="title">' + event.name + '</div>';
+                html += '<div class="title">' + typBadge(event) + event.name + '</div>';
                 html += '<div class="location">📍 ' + (event.location || 'TBA') + '</div>';
                 
                 if (isAttended) html += '<span class="status present">✓ Teilgenommen</span>';
@@ -2258,7 +2268,7 @@
         async function directCheckInGericht(eventId) {
             showLoading();
             try {
-                const result = await apiPost({ action: 'checkIn', name: currentUser.name, eventId: eventId, busId: currentUser.busId || '' });
+                const result = await apiPost({ action: 'checkIn', name: currentUser.name, eventId: eventId, busId: currentUser.busId || '', ...authParams() });
                 if (result.error) { showToast(result.error, true); }
                 else {
                     attendanceData[eventId] = true;
@@ -2556,12 +2566,27 @@
             
             if (!zusagenData[eventId]) zusagenData[eventId] = {};
             zusagenData[eventId][currentUser.name] = newValue;
-            renderEventsList();
+            // Beide Ansichten neu zeichnen (Mitglied: Auftritte, Gericht: Meine Auftritte)
+            const redraw = () => {
+                if (currentUser.role === 'member') renderEventsList();
+                else renderMyEventsForGericht();
+            };
+            redraw();
             
             if (navigator.onLine && !isOfflineMode) {
                 try {
-                    await apiPost({ action: 'setZusage', name: currentUser.name, eventId: eventId, zugesagt: newValue });
-                } catch (e) { console.error('Zusage error:', e); }
+                    const r = await apiPost({ action: 'setZusage', name: currentUser.name, eventId: eventId, zugesagt: newValue });
+                    if (r && r.error) throw new Error(r.error);
+                    showToast(newValue ? '✓ Zugesagt' : 'Zusage zurückgenommen');
+                } catch (e) {
+                    zusagenData[eventId][currentUser.name] = current;
+                    redraw();
+                    showToast('Zusage konnte nicht gespeichert werden', true);
+                }
+            } else {
+                showToast('📴 Zusage geht nur mit Netz', true);
+                zusagenData[eventId][currentUser.name] = current;
+                redraw();
             }
         }
         
@@ -3134,37 +3159,77 @@
             }
         }
         
+        // QR-Inhalt: LKT-EVENT:<Termin-ID>:<Code>
         async function onScanSuccess(decodedText) {
-            if (decodedText.startsWith('LKT-EVENT:')) {
-                const eventId = decodedText.replace('LKT-EVENT:', '');
-                const event = eventsData.find(e => e.id === eventId);
-                
-                if (event) {
-                    if (attendanceData[eventId] === true) {
-                        showToast('Bereits eingecheckt!', true);
-                        return;
-                    }
-                    
-                    pauseScanner();
-                    
-                    // Check if member has fixed bus
-                    if (currentUser.busId) {
-                        await checkInEvent(eventId, currentUser.busId);
-                        showScanSuccess(event.name);
-                    } else {
-                        pendingScanEventId = eventId;
-                        document.getElementById('checkin-bus-select').value = '';
-                        document.getElementById('bus-select-modal').classList.add('active');
-                    }
-                } else {
-                    showToast('Unbekannter Auftritt', true);
-                }
+            if (!decodedText.startsWith('LKT-EVENT:')) return;
+            const parts = decodedText.slice('LKT-EVENT:'.length).split(':');
+            const eventId = parts[0];
+            const code = parts[1] || '';
+            if (!code) { showToast('Alter QR-Code – bitte den neuen Code vom Gericht scannen', true); return; }
+            const event = eventsData.find(e => e.id === eventId);
+            if (!event) { showToast('Unbekannter Auftritt – bitte Daten aktualisieren', true); return; }
+            if (attendanceData[eventId] === true) { showToast('Bereits eingecheckt!', true); return; }
+            pauseScanner();
+            startCodeCheckIn(eventId, code);
+        }
+
+        // Code von Hand eintippen (falls die Kamera nicht geht)
+        function submitManualCode() {
+            const input = document.getElementById('manual-code-input');
+            const code = (input.value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (code.length < 6) { showToast('Bitte den 6-stelligen Code eingeben', true); return; }
+            input.value = '';
+            startCodeCheckIn(null, code);
+        }
+
+        let pendingScanCode = '';
+        function startCodeCheckIn(eventId, code) {
+            pendingScanCode = code;
+            if (currentUser.busId) {
+                finishCodeCheckIn(eventId, currentUser.busId, code);
+            } else {
+                pendingScanEventId = eventId || '__CODE__';
+                document.getElementById('checkin-bus-select').value = '';
+                document.getElementById('bus-select-modal').classList.add('active');
+            }
+        }
+
+        async function finishCodeCheckIn(eventId, busId, code) {
+            if (!navigator.onLine || isOfflineMode) {
+                if (!eventId) { showToast('Offline: Code eintippen geht nur mit Netz – bitte QR scannen', true); resumeScanner(); return; }
+                await checkInEvent(eventId, busId, code);
+                const ev = eventsData.find(e => e.id === eventId);
+                showScanSuccess(ev ? ev.name : 'Auftritt');
+                return;
+            }
+            showLoading();
+            try {
+                const params = { action: 'checkIn', name: currentUser.name, busId: busId || '', code: code };
+                if (eventId) params.eventId = eventId;
+                const result = await apiPost(params);
+                hideLoading();
+                if (result.error) { showToast('❌ ' + result.error, true); resumeScanner(); return; }
+                const id = result.eventId || eventId;
+                attendanceData[id] = true;
+                delete commentsData[id];
+                saveLocalAttendance();
+                renderMemberView();
+                showToast('✓ Eingecheckt!');
+                showScanSuccess(result.eventName || 'Auftritt');
+            } catch (e) {
+                hideLoading();
+                if (eventId) {
+                    await checkInEvent(eventId, busId, code);
+                    const ev = eventsData.find(x => x.id === eventId);
+                    showScanSuccess(ev ? ev.name : 'Auftritt');
+                } else { showToast('Keine Verbindung – bitte QR scannen', true); }
             }
         }
         
         function cancelBusSelect() {
             document.getElementById('bus-select-modal').classList.remove('active');
             pendingScanEventId = null;
+            pendingScanCode = '';
             resumeScanner();
         }
         
@@ -3173,36 +3238,49 @@
             const eventId = pendingScanEventId;
             document.getElementById('bus-select-modal').classList.remove('active');
             
-            if (eventId) {
+            if (eventId && pendingScanCode) {
+                // Auftritt per QR-Code / eingetipptem Code
+                await finishCodeCheckIn(eventId === '__CODE__' ? null : eventId, busId, pendingScanCode);
+                pendingScanCode = '';
+            } else if (eventId) {
+                // Probe oder Check-in ohne QR-System
                 const event = eventsData.find(e => e.id === eventId);
                 await checkInEvent(eventId, busId);
-                showScanSuccess(event ? event.name : 'Auftritt');
+                showToast('✓ ' + (event ? event.name : 'Termin') + ' – du bist dabei');
             }
             pendingScanEventId = null;
         }
         
-        async function checkInEvent(eventId, busId) {
+        async function checkInEvent(eventId, busId, code) {
+            const prev = attendanceData[eventId];
             attendanceData[eventId] = true;
             delete commentsData[eventId];
             saveLocalAttendance();
             renderMemberView();
+            const data = { action: 'checkIn', name: currentUser.name, eventId: eventId, busId: busId || '' };
+            if (code) data.code = code;
             
             if (navigator.onLine && !isOfflineMode) {
                 try {
-                    const result = await apiPost({ action: 'checkIn', name: currentUser.name, eventId: eventId, busId: busId || '' });
+                    const result = await apiPost(data);
                     if (result.error) {
+                        // Server hat abgelehnt (z.B. Auftritt nur per QR) -> lokal zurücknehmen
+                        if (prev === undefined) delete attendanceData[eventId]; else attendanceData[eventId] = prev;
+                        saveLocalAttendance();
+                        renderMemberView();
                         showToast('❌ ' + result.error, true);
-                        return;
+                        return false;
                     }
                     showToast('✓ Eingecheckt!');
                 } catch (e) {
-                    addToOfflineQueue({ action: 'checkIn', name: currentUser.name, eventId: eventId, busId: busId || '' });
+                    addToOfflineQueue(data);
                     showToast('📴 Offline gespeichert - wird später synchronisiert');
                 }
             } else {
-                addToOfflineQueue({ action: 'checkIn', name: currentUser.name, eventId: eventId, busId: busId || '' });
+                addToOfflineQueue(data);
                 showToast('📴 Offline gespeichert - wird später synchronisiert');
             }
+            return true;
         }
         
         function showScanSuccess(eventName) {
@@ -3444,8 +3522,8 @@
         
         function populateQREventSelect() {
             const select = document.getElementById('qr-event-select');
-            let html = '<option value="">-- Event wählen --</option>';
-            eventsData.forEach(e => { html += '<option value="' + e.id + '">' + (e.date || '') + ' - ' + (isProbe(e) ? '🎼 ' : '') + e.name + '</option>'; });
+            let html = '<option value="">-- Auftritt wählen --</option>';
+            eventsData.filter(e => !isProbe(e)).forEach(e => { html += '<option value="' + e.id + '">' + (e.date || '') + ' - ' + e.name + '</option>'; });
             select.innerHTML = html;
         }
         
@@ -3545,7 +3623,7 @@
             if (!currentAttendanceEventId) { showToast('Kein Auftritt ausgewählt', true); return; }
             showLoading();
             try {
-                const result = await apiPost({ action: 'saveEventAttendance', eventId: currentAttendanceEventId, attendance: attendanceByMember });
+                const result = await apiPost({ action: 'saveEventAttendance', eventId: currentAttendanceEventId, attendance: attendanceByMember, ...authParams() });
                 if (result.error) showToast(result.error, true);
                 else showToast('✓ Anwesenheit gespeichert!');
             } catch (e) { showToast('Fehler: ' + e.message, true); }
@@ -4063,14 +4141,28 @@
         // ============================================================
         // QR CODE GENERATION
         // ============================================================
-        function showEventQR() {
+        // Geheime Auftritts-Codes (nur Gericht/Admin)
+        let eventCodes = {};
+        async function loadEventCodes() {
+            try {
+                const r = await apiGet('getEventCodes', authParams());
+                if (r && r.codes) { eventCodes = r.codes; return true; }
+                if (r && r.error) showToast(r.error, true);
+            } catch (e) { showToast('Codes konnten nicht geladen werden', true); }
+            return false;
+        }
+
+        async function showEventQR() {
             const eventId = document.getElementById('qr-event-select').value;
             if (!eventId) { document.getElementById('event-qr-display').classList.add('hidden'); return; }
             
             const event = eventsData.find(e => e.id === eventId);
             if (!event) return;
+            if (!eventCodes[eventId]) await loadEventCodes();
+            const code = eventCodes[eventId];
+            if (!code) { showToast('Kein Code für diesen Auftritt', true); return; }
             
-            const qrData = 'LKT-EVENT:' + eventId;
+            const qrData = 'LKT-EVENT:' + eventId + ':' + code;
             const container = document.getElementById('event-qr-canvas');
             
             try {
@@ -4082,7 +4174,50 @@
                 document.getElementById('event-qr-display').classList.remove('hidden');
                 document.getElementById('event-qr-label').textContent = event.name;
                 document.getElementById('event-qr-sublabel').textContent = (event.date || '') + ' • ' + (event.time || '') + ' • ' + (event.location || '');
+                document.getElementById('event-qr-code').textContent = code;
+                resetRenewButton();
             } catch (e) { showToast('QR-Fehler', true); }
+        }
+
+        let renewArmed = false;
+        function resetRenewButton() {
+            renewArmed = false;
+            const b = document.getElementById('renew-code-btn');
+            if (b) { b.textContent = '🔄 Neuen Code erzeugen'; b.classList.remove('btn-danger'); b.classList.add('btn-secondary'); }
+        }
+        async function renewEventCode() {
+            const eventId = document.getElementById('qr-event-select').value;
+            if (!eventId) return;
+            const b = document.getElementById('renew-code-btn');
+            if (!renewArmed) {
+                renewArmed = true;
+                b.textContent = '⚠️ Nochmal tippen – alter QR-Code wird ungültig';
+                b.classList.remove('btn-secondary'); b.classList.add('btn-danger');
+                setTimeout(() => { if (renewArmed) resetRenewButton(); }, 5000);
+                return;
+            }
+            showLoading();
+            try {
+                const r = await apiPost({ action: 'renewEventCode', eventId: eventId, ...authParams() });
+                if (r.error) showToast(r.error, true);
+                else { eventCodes[eventId] = r.code; showToast('Neuer Code erzeugt'); await showEventQR(); }
+            } catch (e) { showToast('Fehler: ' + e.message, true); }
+            hideLoading();
+            resetRenewButton();
+        }
+
+        function downloadEventQRPDF() {
+            const img = document.querySelector('#event-qr-canvas img');
+            if (!img) return;
+            const name = document.getElementById('event-qr-label').textContent;
+            const sub = document.getElementById('event-qr-sublabel').textContent;
+            const code = document.getElementById('event-qr-code').textContent;
+            const w = window.open('', '_blank');
+            if (!w) { showToast('Pop-up blockiert – bitte erlauben', true); return; }
+            w.document.write('<html><head><meta charset="UTF-8"><title>QR ' + name + '</title><style>body{font-family:Arial,sans-serif;text-align:center;padding:40px}img{width:320px;height:320px;image-rendering:pixelated}h1{margin:20px 0 6px}p{color:#555}.c{font-size:40px;font-weight:800;letter-spacing:10px;margin-top:24px}</style></head><body>' +
+                '<h2>🎺 LKT – Einchecken</h2><img src="' + img.src + '"><h1>' + name + '</h1><p>' + sub + '</p><p>Oder Code in der App eintippen:</p><div class="c">' + code + '</div>' +
+                '<script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script></body></html>');
+            w.document.close();
         }
         
         function downloadEventQR() {
@@ -6277,6 +6412,14 @@
   .repeat-check input { width: 1.2rem; height: 1.2rem; }
 </style>
 <script>
+  // Berechtigung für Gericht-Aktionen am Server (Gericht-Passwort oder eigene PIN mit Admin-Rolle)
+  function authParams() {
+    if (typeof currentUser === 'undefined' || !currentUser) return {};
+    if (currentUser.adminPin) return { adminPin: currentUser.adminPin };
+    if (currentUser.name === 'Admin' && currentUser.rollenId === 'ROLE-ADMIN') return { adminPin: '8356' };
+    return { authName: currentUser.name, authPin: currentUser.pin || '' };
+  }
+
   // Termin-Art: alte Termine ohne "typ" sind Auftritte
   function isProbe(e) { return !!e && e.typ === 'probe'; }
   function typBadge(e) { return isProbe(e) ? '<span class="typ-badge">🎼 Probe</span>' : ''; }

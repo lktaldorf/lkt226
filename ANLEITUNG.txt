@@ -1,4 +1,4 @@
-LKT TRACKER v17 – SAISONWECHSEL, PROBEN, NOTEN-QUIZ: SO WIRD INSTALLIERT
+LKT TRACKER v19 – SAISONWECHSEL, PROBEN, QR-CODES, NOTEN-QUIZ: SO WIRD INSTALLIERT
 =====================================================
 
 Alle Dateien sind komplett. Du ersetzt sie einfach – nichts suchen, nichts flicken.
@@ -14,7 +14,7 @@ Ein extra Passwort oder Secret in Cloudflare ist NICHT nötig.
    - "Add file" → "Upload files"
    - app.html, sw.js, index.html, manifest.json UND notenquiz.html hineinziehen
    - "Commit changes"
-   - 1–2 Minuten warten, dann App neu öffnen. Die Handys holen sich v17 automatisch.
+   - 1–2 Minuten warten, dann App neu öffnen. Die Handys holen sich v19 automatisch.
 
 3) NEUE SAISON STARTEN (in der App)
    - Als Hohes Gericht anmelden → ⚙️ Einstellungen → "🎺 Neue Saison starten"
@@ -45,3 +45,17 @@ NOTEN-QUIZ
               Fragen. Modus "🍺 Trinkspiel": Handy reihum, falsch = Schluck.
    Inhalt:    14 Stücke, 453 Notenzeilen (ohne Titelzeilen). Die Datei
               notenquiz.html ist eigenständig – nicht vergessen hochzuladen.
+
+QR-CODES (nur Auftritte)
+   - Jeder Auftritt bekommt beim Anlegen einen eigenen 6-stelligen Zufallscode.
+     Alte Auftritte bekommen ihn automatisch, sobald das Gericht den
+     Reiter "📱 QR-Codes" öffnet. Alte QR-Ausdrucke gelten nicht mehr.
+   - Gericht: Reiter "📱 QR-Codes" → Auftritt wählen → QR + Code groß.
+     "📄 QR-Code als PDF" zum Ausdrucken, "🔄 Neuen Code erzeugen" falls der
+     Code die Runde gemacht hat (2× tippen, alter Code wird ungültig).
+   - Mitglieder: "📷 Scannen" → QR scannen. Geht die Kamera nicht, den Code
+     unter dem QR-Code eintippen.
+   - Der Server prüft den Code. Ohne richtigen Code kein Check-in bei
+     Auftritten (solange das QR-System in den Einstellungen an ist).
+   - Proben: immer "✓ Ich bin dabei" – ohne QR-Code.
+   - Gericht/Admin kann sich selbst und andere weiterhin ohne Code eintragen.
