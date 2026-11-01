@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#1a1a2e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="app-version" content="v19">
+    <meta name="app-version" content="v20">
     <title>LKT Tracker 2026</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -219,7 +219,7 @@
     <script>
         // Cache-Buster v11: Automatisches Update bei neuer Version
         (function() {
-            var APP_VERSION = 'v19';
+            var APP_VERSION = 'v20';
             var stored = localStorage.getItem('lkt-app-version');
             if (stored && stored !== APP_VERSION) {
                 if ('caches' in window) {
@@ -389,7 +389,7 @@
             <!-- Scanner Tab -->
             <div id="scanner-tab" class="screen">
                 <div class="section-header"><h2>📷 QR-Code Scannen</h2></div>
-                <div class="info-box"><p>📱 Scanne den QR-Code beim Auftritt! Für Proben brauchst du keinen Code – dort einfach „Ich bin dabei“ drücken.</p></div>
+                <div class="info-box"><p>📱 Scanne den QR-Code beim Auftritt! Bei Proben geht das auch – musst du aber nicht, dort reicht „Ich bin dabei“.</p></div>
                 <div id="qr-reader" style="width: 100%; max-width: 400px; margin: 1rem auto;"></div>
                 <button class="btn btn-primary btn-block" id="start-scan-btn" onclick="startScanner()">📷 Scanner starten</button>
                 <button class="btn btn-secondary btn-block hidden" id="stop-scan-btn" onclick="stopScanner()">⏹ Scanner stoppen</button>
@@ -594,7 +594,7 @@
             <div id="qr-codes-tab" class="screen">
                 <div class="section-header"><h2>📱 Auftritts-QR-Codes</h2></div>
                 <div class="info-box" style="background: rgba(234,179,8,0.1); border-color: var(--accent-yellow);">
-                    <p>Zeige den QR-Code beim Auftritt – Mitglieder scannen ihn zum Einchecken. Jeder Auftritt hat einen eigenen Zufallscode. Für Proben gibt es keinen QR-Code, dort meldet sich jeder selbst an.</p>
+                    <p>Zeige den QR-Code beim Auftritt – Mitglieder scannen ihn zum Einchecken. Jeder Termin hat einen eigenen Zufallscode. Bei Auftritten ist der Code Pflicht, bei Proben freiwillig – dort geht auch „Ich bin dabei“.</p>
                 </div>
                 <div class="input-group">
                     <label>Auftritt auswählen</label>
@@ -3522,8 +3522,8 @@
         
         function populateQREventSelect() {
             const select = document.getElementById('qr-event-select');
-            let html = '<option value="">-- Auftritt wählen --</option>';
-            eventsData.filter(e => !isProbe(e)).forEach(e => { html += '<option value="' + e.id + '">' + (e.date || '') + ' - ' + e.name + '</option>'; });
+            let html = '<option value="">-- Auftritt oder Probe wählen --</option>';
+            eventsData.forEach(e => { html += '<option value="' + e.id + '">' + (e.date || '') + ' - ' + (isProbe(e) ? '🎼 ' : '') + e.name + (isProbe(e) ? ' (optional)' : '') + '</option>'; });
             select.innerHTML = html;
         }
         
