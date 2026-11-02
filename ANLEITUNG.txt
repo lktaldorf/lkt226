@@ -1,62 +1,178 @@
-LKT TRACKER v20 – SAISONWECHSEL, PROBEN, QR-CODES, NOTEN-QUIZ: SO WIRD INSTALLIERT
-=====================================================
+LKT TRACKER v26 – PUSH-NACHRICHTEN, GOOGLE KALENDER, SICHERER LOGIN, NOTENMAPPE: SO WIRD INSTALLIERT
+===================================================================
 
-Alle Dateien sind komplett. Du ersetzt sie einfach – nichts suchen, nichts flicken.
-Ein extra Passwort oder Secret in Cloudflare ist NICHT nötig.
+Alle Dateien sind komplett. Einfach ersetzen – nichts suchen, nichts flicken.
+
+VORHER PRÜFEN (wichtig!)
+   Den Login "Hohes Gericht" mit festem Passwort gibt es nicht mehr.
+   Admin ist, wer als Mitglied die Rolle "Admin" hat. Prüfe also vorher,
+   dass mindestens du (bzw. ein Mitglied) die Rolle Admin hat.
 
 1) WORKER ERSETZEN (Cloudflare)
    - dash.cloudflare.com → Workers & Pages → patient-wind-88af
-   - "Edit code" → links worker.js öffnen
-   - Strg+A (alles markieren) → Entf → Inhalt von worker.js aus dem ZIP einfügen
-   - "Deploy" klicken
+   - "Edit code" → worker.js öffnen → Strg+A → Entf → neue worker.js einfügen
+   - "Deploy"
 
 2) APP ERSETZEN (GitHub, Repo lktaldorf/demo)
    - "Add file" → "Upload files"
-   - app.html, sw.js, index.html, manifest.json UND notenquiz.html hineinziehen
-   - "Commit changes"
-   - 1–2 Minuten warten, dann App neu öffnen. Die Handys holen sich v20 automatisch.
+   - app.html, sw.js, notenquiz.html, index.html, manifest.json hineinziehen
+   - "Commit changes", 1–2 Minuten warten. Die Handys holen sich v25 automatisch.
 
-3) NEUE SAISON STARTEN (in der App)
-   - Als Hohes Gericht anmelden → ⚙️ Einstellungen → "🎺 Neue Saison starten"
-   - Saison 2027 + Admin-Passwort (dasselbe wie beim Gericht-Login)
-   - Sicherung herunterladen (Pflicht) → "NEUE SAISON" eintippen → starten
+3) EINMAL NEU ANMELDEN (alle)
+   - Beim nächsten Öffnen kommt "Sicherheits-Update: Bitte melde dich einmal
+     neu an". Name + gewohnte PIN eingeben – die PINs bleiben gleich.
+   - Beim ersten Login wird die PIN automatisch verschlüsselt gespeichert.
 
-WAS PASSIERT
-   Geleert:  Auftritte, Anwesenheiten, Zusagen, Strafanzeigen, Strafen
-   Bleibt:   Mitglieder + PINs, Rollen, Busse, Register, Brett (Bereiche,
-             Beiträge, Kommentare), Anfragen, Einstellungen, Push
-   Archiv:   Oben auf "📅 Saison 2027 ▾" tippen → "Saison 2026" = alles von
-             2026 zum Anschauen (nur lesen). "Zur Saison 2027" führt zurück.
+WAS SICHERER IST
+   - Login wird am Server geprüft, nicht mehr auf dem Handy.
+   - PINs werden verschlüsselt gespeichert und nirgends mehr herausgegeben.
+   - Nach 5 falschen PINs ist der Name 15 Minuten gesperrt (gegen Raten).
+   - Jede Aktion braucht eine gültige Anmeldung. Mitglieder können nur für
+     sich selbst einchecken, zusagen, absagen, posten.
+   - Verwaltung nur mit passender Rolle:
+       Termine/QR-Codes/Noten: Admin oder "Events verwalten"
+       Mitglieder, Busse, Register, PIN-Reset: Admin oder "Mitglieder verwalten"
+       Rollen: Admin oder "Rollen verwalten"; Anzeigen: "Anzeigen verwalten"
+       Einstellungen + Saisonwechsel: nur Admin
+   - Saisonwechsel bestätigst du jetzt mit DEINER PIN.
+   - "Ausloggen" beendet die Anmeldung auch am Server.
+
+NOTENMAPPE
+   Mitglieder: Reiter "🎼 Noten"
+   - "Meine Stimme" zeigt nur die Stimme deines Registers (im Profil
+     einstellen), "Alle Stimmen" zeigt alles. Suche nach Stückname.
+   - Deine Stimmen werden automatisch fürs Offline-Spielen gespeichert
+     (Anzeige "x/y Seiten offline", ✓ an jeder Stimme).
+   - Antippen = Vollbild. − / + zum Zoomen, ◀ ▶ blättert zum vorigen/nächsten
+     Stück in derselben Stimme. Der Bildschirm bleibt dabei an.
+   Admins (oder "Events verwalten"): "➕ Noten hochladen"
+   - Am besten am Computer (Chrome/Edge): "📁 Ordner wählen" → euren Ordner
+     "noten lk" auswählen. Jeder Unterordner wird ein Stück, die App erkennt
+     Stimme und Instrument aus dem Dateinamen. Liste kurz prüfen (Haken weg =
+     nicht hochladen), dann "hochladen". mp3/midi usw. werden übersprungen.
+   - Einzelne PDFs gehen auch (Stückname dann eintragen).
+   - Gleiche Stimme nochmal hochladen = ersetzt die alte.
+   - ⋯ am Stück: umbenennen oder löschen; 🗑 im Vollbild: Stimme löschen.
+   - Die Noten liegen geschützt bei Cloudflare, nur angemeldete Mitglieder
+     sehen sie (nicht öffentlich auf GitHub).
+   - Hinweis: Cloudflare erlaubt kostenlos 1000 Schreibvorgänge pro Tag. Eure
+     ganze Mappe einmal hochladen braucht etwa 400 – also nicht mehrmals am
+     selben Tag komplett neu hochladen.
+
+SAISONWECHSEL
+   Admin → ⚙️ Einstellungen → "🎺 Neue Saison starten" → Saison + deine PIN →
+   Sicherung herunterladen → "NEUE SAISON" eintippen.
+   Geleert: Auftritte, Proben, Anwesenheiten, Zusagen, Strafanzeigen, Strafen.
+   Bleibt: Mitglieder + PINs, Rollen, Busse, Register, Brett, Noten, Einstellungen.
+   Archiv: oben "📅 Saison ▾" → alte Saison anschauen (nur lesen).
 
 PROBEN
-   Anlegen:   ⚙️ Einstellungen → "📅 Auftritte & Proben" → Art "🎼 Probe"
-              → Datum, Uhrzeit, Ort → optional "Jede Woche wiederholen bis …"
-              (legt alle Proben auf einmal an, gruppiert als "Proben <Monat>")
-   Ändern:    In der Terminliste auf ✏️ – dort kann man die Art auch umstellen.
-   Statistik: Oben in Übersicht, Ranglisten und "Deine Statistik" gibt es die
-              Auswahl 🎺 Auftritte / 🎼 Proben / 📊 Kombiniert. Die Wahl gilt
-              für alle drei Ansichten und für die PDFs (Report, Bus, Register).
-   Alte Termine ohne Art zählen automatisch als Auftritte.
-
-NOTEN-QUIZ
-   Öffnen:    Reiter "🍺 Spiele" → "🎼 Noten-Quiz – welches Stück ist das?"
-   Spiel:     Eine Notenzeile, 4 Antworten. Stimme wählbar: Alle, Trompete,
-              Tenorhorn, Posaune, Tuba/Bass. 10, 20 oder alle
-              Fragen. Modus "🍺 Trinkspiel": Handy reihum, falsch = Schluck.
-   Inhalt:    14 Stücke, 453 Notenzeilen (ohne Titelzeilen). Die Datei
-              notenquiz.html ist eigenständig – nicht vergessen hochzuladen.
+   ⚙️ Einstellungen → "📅 Auftritte & Proben" → Art "🎼 Probe", optional
+   "Jede Woche wiederholen bis …". Statistik-Auswahl Auftritte/Proben/
+   Kombiniert in Übersicht, Ranglisten und "Deine Statistik".
 
 QR-CODES (Pflicht bei Auftritten, freiwillig bei Proben)
-   - Jeder Termin bekommt beim Anlegen einen eigenen 6-stelligen Zufallscode.
-     Alte Termine bekommen ihn automatisch, sobald das Gericht den
-     Reiter "📱 QR-Codes" öffnet. Alte QR-Ausdrucke gelten nicht mehr.
-   - Gericht: Reiter "📱 QR-Codes" → Auftritt wählen → QR + Code groß.
-     "📄 QR-Code als PDF" zum Ausdrucken, "🔄 Neuen Code erzeugen" falls der
-     Code die Runde gemacht hat (2× tippen, alter Code wird ungültig).
-   - Mitglieder: "📷 Scannen" → QR scannen. Geht die Kamera nicht, den Code
-     unter dem QR-Code eintippen.
-   - Der Server prüft den Code. Ohne richtigen Code kein Check-in bei
-     Auftritten (solange das QR-System in den Einstellungen an ist).
-   - Proben: immer "✓ Ich bin dabei" – QR-Code scannen geht auch, ist aber
-     freiwillig (im QR-Reiter mit "🎼 … (optional)" markiert).
-   - Gericht/Admin kann sich selbst und andere weiterhin ohne Code eintragen.
+   - Jeder Termin hat einen eigenen 6-stelligen Zufallscode.
+   - Reiter "📱 QR-Codes": QR + Code groß, PDF zum Drucken, neuen Code erzeugen.
+   - Mitglieder: "📷 Scannen" oder Code eintippen. Proben: auch "Ich bin dabei".
+
+KOSTENLOSE CLOUDFLARE-GRENZEN (v26 darauf abgestimmt)
+   Anfragen 100.000/Tag · Lesen 100.000/Tag · Schreiben 1.000/Tag ·
+   Speicher 1 GB · 10 ms Rechenzeit pro Aufruf.
+   Normaler Fasnet-Tag mit ~60 Mitgliedern: ca. 3–5 % der Anfragen, 15–25 %
+   vom Lesen, 20–30 % vom Schreiben. Notenmappe komplett: ca. 75 MB.
+   Einzig knapp: Notenmappe komplett hochladen (~400 Schreibvorgänge) –
+   nicht mehrmals am selben Tag.
+
+PUSH-NACHRICHTEN (neu in v25)
+   WICHTIG – einmal einrichten, damit die Erinnerungen pünktlich kommen:
+     Cloudflare → Worker → Settings → Triggers → "Cron Triggers" → "Add"
+     → "* * * * *" (jede Minute) → Speichern.
+     (Ohne das kommen Erinnerungen erst, wenn abends jemand die App öffnet.)
+   Sonst nichts einrichten: Der Worker erzeugt die Push-Schlüssel selbst.
+
+   Für Mitglieder:
+   - Oben bei den Terminen erscheint einmal "🔔 Benachrichtigungen
+     einschalten?" → "Einschalten" → Handy fragt → "Erlauben". Danach sind
+     alle Nachrichten an (Standard).
+   - iPhone: geht nur, wenn die App auf dem Home-Bildschirm ist (Safari →
+     Teilen → "Zum Home-Bildschirm") und von dort geöffnet wird (ab iOS 16.4).
+   - Profil → "🔔 Benachrichtigungen": alles oder einzeln abschalten:
+       ⏰ Erinnerung am Vorabend   (ab 18 Uhr, z.B. "Morgen: Probe –
+                                    19:30 Uhr, Musikheim · 🚌 Bus fährt …")
+       📢 Termin-Änderungen        (neue Zeit/Abfahrt/Ort, im Kalender gelöscht)
+       📋 Brett: Allgemein         (neue Beiträge)
+       🎵 Brett: mein Register     (nur Beiträge im eigenen Register-Bereich)
+       📣 Nachrichten vom Vorstand
+     "📨 Test-Nachricht an mich" prüft, ob es klappt.
+   - Wer für einen Termin abgesagt hat, bekommt dafür keine Erinnerung.
+
+   Für Admins / "Events verwalten":
+   - ⚙️ Einstellungen → "📣 Push-Nachricht an alle" (2× tippen zum Senden).
+   - Termin bearbeiten → Änderung an Datum, Uhrzeit, Abfahrt, Ort oder
+     Treffpunkt wird automatisch an alle gemeldet (Haken abschaltbar).
+     Gilt auch für Änderungen aus dem Google Kalender.
+   - Neu bei Terminen: "🚌 Abfahrt" und "Treffpunkt". Im Google Kalender
+     einfach in die Beschreibung schreiben: "Abfahrt 12:30" und
+     "Treffpunkt: Dorfplatz" – wird übernommen.
+   - Kostenloses Cloudflare (10 ms Rechenzeit pro Aufruf): pro Minute gehen
+     6 Nachrichten raus, dazu 6 bei jedem App-Aufruf. 60 Handys = ca. 10 Min.
+
+GOOGLE KALENDER -> TERMINE (neu in v24)
+   Einrichten (einmal, als Admin oder "Events verwalten"):
+   1. Google Kalender am Computer öffnen → beim Vereinskalender ⋮ →
+      "Einstellungen und Freigabe" → ganz unten "Kalender integrieren" →
+      "Privatadresse im iCal-Format" kopieren.
+   2. App → ⚙️ Einstellungen → "📅 Auftritte & Proben" → "🔗 Termine aus
+      Google Kalender" → Adresse einfügen → "Speichern & jetzt abgleichen".
+   3. Fertig. Ab jetzt nur noch im Google Kalender pflegen.
+   Regeln:
+   - Titel enthält "Probe" -> Probe, sonst Auftritt (Stichwort änderbar).
+     Wiederkehrende Termine (z.B. jeden Dienstag) werden einzeln übernommen,
+     Ausnahmen und verschobene Einzeltermine inklusive.
+   - "Nicht übernehmen"-Stichwörter, z.B. "Vorstand" für interne Termine.
+   - Abgesagte Termine im Kalender werden nicht übernommen.
+   - Gruppen: Auftritte nach Wochenende ("WE 21.11."), Proben nach Monat.
+   - Geändert im Kalender -> wird angepasst (QR-Code + Anwesenheiten bleiben).
+   - Gelöscht im Kalender -> künftiger Termin verschwindet; hat schon jemand
+     zugesagt/eingecheckt, bleibt er mit "⚠️ im Kalender gelöscht" stehen.
+   - Von Hand angelegte Termine bleiben unberührt. Kalender-Termine haben 🔗
+     in der Terminliste – bitte im Google Kalender ändern, nicht in der App.
+   - Abgleich automatisch, wenn jemand die App öffnet (höchstens alle 30 Min.),
+     oder per "🔄 Jetzt abgleichen".
+   - Der Cron Trigger (siehe Push-Nachrichten) gleicht auch den Kalender ab.
+   - Die Adresse ist geheim und nur für Admins sichtbar. Sie bleibt auch nach
+     dem Saisonwechsel gespeichert.
+
+BEDIENUNG (neu in v23)
+   - Unten nur noch 5 Reiter + "☰ Mehr" (Symbol oben, Text darunter):
+       Mitglieder: Termine, Noten, Brett, Scannen, Profil | Mehr: Register,
+                   Anzeige, Stats, Spiele
+       Verwaltung: Übersicht, Termine, Anwesend, Brett, Noten | Mehr: QR-Codes,
+                   Mitglieder, Anzeige(n), Ranglisten, Einstellungen, Spiele
+     Neue Anzeigen o.ä. zählen am "☰ Mehr"-Knopf mit.
+   - Knöpfe an den Terminen sind jetzt eindeutig:
+       künftiger Termin  -> "+ Zusagen" / "✗ Absagen"
+       am Termintag      -> Probe: "✓ Ich bin dabei" | Auftritt: "📷 QR scannen"
+                            (ohne QR-System: "✓ Ich bin dabei")
+       Verwaltung        -> am Termintag "✓ Ich bin dabei" (ohne Code)
+   - Absagegrund und Noten umbenennen/löschen: eigenes Fenster statt grauem
+     Systemdialog. "Abbrechen" bricht jetzt wirklich ab (vorher wurde trotzdem
+     abgesagt).
+   - 🔄 Aktualisieren sitzt oben neben deinem Namen und verdeckt nichts mehr.
+   - Grüne/rote Meldungen unten blockieren keine Knöpfe mehr.
+   - Uhrzeiten ohne Sekunden (23:30 statt 23:30:00).
+
+DRUCKEN & SPEICHERN (alle PDFs und Dateien)
+   Jeder Export macht jetzt ein echtes PDF (bzw. die Datei) und zeigt dann:
+     📤 Teilen / Speichern / Drucken  (Handy: System-Menü – "In Dateien
+                                       sichern", "Drucken", WhatsApp …)
+     ⬇️ Herunterladen
+     🖨️ Öffnen & Drucken
+   Gilt für: Saison-Report, Bus-, Register-Statistik, Anzeigen, Wochenend-
+   Übersicht, Alle Mitglieder, Mitglied-Report, Termine, QR-Code (PDF + Bild),
+   Saison-Sicherung und NEU die Notenmappe (📤 im Vollbild = Stimme als PDF).
+   Ohne Internet: Berichte erscheinen als Vorschau mit "Drucken"-Knopf.
+
+NOTEN-QUIZ
+   Reiter "🍺 Spiele" → "🎼 Noten-Quiz". Stimme wählbar, 453 Notenzeilen.

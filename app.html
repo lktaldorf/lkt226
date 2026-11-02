@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#1a1a2e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="app-version" content="v20">
+    <meta name="app-version" content="v25">
     <title>LKT Tracker 2026</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -219,12 +219,13 @@
     <script>
         // Cache-Buster v11: Automatisches Update bei neuer Version
         (function() {
-            var APP_VERSION = 'v20';
+            var APP_VERSION = 'v25';
             var stored = localStorage.getItem('lkt-app-version');
             if (stored && stored !== APP_VERSION) {
                 if ('caches' in window) {
                     caches.keys().then(function(names) {
-                        names.forEach(function(name) { caches.delete(name); });
+                        // nur App-Dateien – gespeicherte Noten (lkt-noten-*) bleiben
+                        names.forEach(function(name) { if (name.indexOf('lkt-tracker-') === 0) caches.delete(name); });
                     });
                 }
                 localStorage.setItem('lkt-app-version', APP_VERSION);
@@ -245,23 +246,10 @@
         <p class="subtitle">Saison 2026</p>
         <div class="setup-box">
             <div id="setup-step-1" class="hidden"></div>
-            <div id="setup-step-2" class="hidden">
-                <h3 style="margin-bottom: 1rem;">Wer bist du?</h3>
-                <div class="role-buttons">
-                    <button class="role-btn" onclick="selectRole('member')">
-                        <div class="icon">🎺</div>
-                        <div class="title">Mitglied</div>
-                        <div class="desc">Anwesenheit tracken & Strafanzeigen erstellen</div>
-                    </button>
-                    <button class="role-btn" onclick="selectRole('gericht')">
-                        <div class="icon">⚖️</div>
-                        <div class="title">Admin</div>
-                        <div class="desc">Admin-Zugang mit speziellem PIN</div>
-                    </button>
-                </div>
-            </div>
+            <div id="setup-step-2" class="hidden"></div>
             <div id="setup-step-3" class="hidden">
-                <h3 style="margin-bottom: 1rem;">🎺 Mitglied Login</h3>
+                <h3 style="margin-bottom: 1rem;">🎺 Anmelden</h3>
+                <div id="login-update-note" class="hidden" style="background: rgba(245,197,24,0.12); border: 1px solid var(--accent-yellow); border-radius: 10px; padding: 0.6rem 0.8rem; font-size: 0.85rem; margin-bottom: 1rem;">🔒 Sicherheits-Update: Bitte melde dich einmal neu mit deinem Namen und deiner PIN an.</div>
                 <div class="input-group"><label>Dein Name</label><input type="text" id="member-name-input" placeholder="Max Mustermann"></div>
                 <div class="input-group"><label>Deine PIN (4 Ziffern)</label><input type="number" id="member-pin-input" placeholder="1234" maxlength="4"></div>
                 <button class="btn btn-primary btn-block" onclick="loginMember()">Einloggen</button>
@@ -281,13 +269,7 @@
                     Bereits registriert? <a href="#" onclick="showStep(3); return false;" style="color: var(--accent-yellow);">Zum Login</a>
                 </p>
             </div>
-            <div id="setup-step-5" class="hidden">
-                <h3 style="margin-bottom: 1rem;">⚖️ Admin Login</h3>
-                <div class="input-group"><label>Gericht-PIN</label><input type="password" id="gericht-pin-input" placeholder="****"></div>
-                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">Nur für das Hohe Gericht</p>
-                <button class="btn btn-primary btn-block" onclick="loginGericht()">Einloggen</button>
-                <button class="btn btn-secondary btn-block" style="margin-top: 0.5rem;" onclick="showStep(2)">Zurück</button>
-            </div>
+            <div id="setup-step-5" class="hidden"></div>
         </div>
     </div>
     
@@ -300,7 +282,8 @@
         
         <!-- Member Navigation -->
         <nav class="nav-tabs" id="member-nav">
-            <button class="nav-tab active" data-tab="events">📅 Auftritte</button>
+            <button class="nav-tab active" data-tab="events">📅 Termine</button>
+            <button class="nav-tab" data-tab="noten">🎼 Noten</button>
             <button class="nav-tab" data-tab="brett">📋 Brett <span class="badge hidden" id="brett-badge-member">0</span></button>
             <button class="nav-tab" data-tab="register-view">🎵 Register</button>
             <button class="nav-tab hidden" data-tab="scanner" id="nav-scanner">📷 Scannen</button>
@@ -313,14 +296,15 @@
         <!-- Gericht Navigation -->
         <nav class="nav-tabs hidden" id="gericht-nav">
             <button class="nav-tab active" data-tab="overview">📊 Übersicht</button>
-            <button class="nav-tab" data-tab="my-events">📅 Meine Auftritte</button>
-            <button class="nav-tab" data-tab="attendance">✅ Anwesenheit</button>
+            <button class="nav-tab" data-tab="my-events">📅 Termine</button>
+            <button class="nav-tab" data-tab="attendance">✅ Anwesend</button>
             <button class="nav-tab" data-tab="qr-codes" id="nav-qr-codes">📱 QR-Codes</button>
             <button class="nav-tab" data-tab="brett-gericht">📋 Brett <span class="badge hidden" id="brett-badge-gericht">0</span></button>
             <button class="nav-tab" data-tab="members">👥 Mitglieder</button>
             <button class="nav-tab hidden" data-tab="anzeige-gericht" id="nav-anzeige-gericht">⚖️ Anzeige</button>
             <button class="nav-tab" data-tab="anzeigen">⚖️ Anzeigen</button>
             <button class="nav-tab" data-tab="rankings">🏆 Ranglisten</button>
+            <button class="nav-tab" data-tab="noten-gericht">🎼 Noten</button>
             <button class="nav-tab" data-tab="settings">⚙️ Einstellungen</button>
             <button class="nav-tab" data-tab="trinkspiele-gericht">🍺 Spiele</button>
         </nav>
@@ -329,9 +313,13 @@
         <div id="member-screens">
             <!-- Events Tab -->
             <div id="events-tab" class="screen active">
-                <div class="section-header"><h2>Deine Auftritte</h2></div>
+                <div class="section-header"><h2>📅 Deine Termine</h2></div>
+                <div class="pu-banner-slot"></div>
                 <div id="events-list"></div>
             </div>
+            
+            <!-- Notenmappe -->
+            <div id="noten-tab" class="screen"><div class="noten-root"></div></div>
             
             <!-- Schwarzes Brett Tab -->
             <div id="brett-tab" class="screen">
@@ -446,46 +434,7 @@
                 </div>
                 
                 <!-- Push-Benachrichtigungen -->
-                <div class="card" style="margin-top: 1rem;">
-                    <h3 style="color: var(--accent-purple); margin-bottom: 1rem;">🔔 Benachrichtigungen</h3>
-                    <div id="push-not-supported" class="hidden">
-                        <p style="color: var(--accent-red);">Push-Benachrichtigungen werden in diesem Browser nicht unterstützt.</p>
-                    </div>
-                    <div id="push-settings-container">
-                        <button class="btn btn-secondary btn-block" id="push-enable-btn" onclick="enablePushNotifications()">🔔 Benachrichtigungen aktivieren</button>
-                        <div id="push-settings" class="hidden" style="margin-top: 1rem;">
-                            <div class="setting-item">
-                                <label class="toggle-label">
-                                    <span>📅 Event-Erinnerungen</span>
-                                    <input type="checkbox" id="push-event-reminder" onchange="savePushSettingsLocal()">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div class="input-group" id="reminder-time-group">
-                                <label>Erinnerungszeit vor Event</label>
-                                <select id="push-reminder-time" onchange="savePushSettingsLocal()">
-                                    <option value="30">30 Minuten vorher</option>
-                                    <option value="60">1 Stunde vorher</option>
-                                    <option value="120">2 Stunden vorher</option>
-                                </select>
-                            </div>
-                            <div class="setting-item">
-                                <label class="toggle-label">
-                                    <span>💬 Neue Forum-Beiträge</span>
-                                    <input type="checkbox" id="push-forum-posts" onchange="savePushSettingsLocal()">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div class="setting-item">
-                                <label class="toggle-label">
-                                    <span>🎵 Beiträge in meinem Register</span>
-                                    <input type="checkbox" id="push-register-posts" onchange="savePushSettingsLocal()">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div class="pu-card-slot" style="margin-top: 1rem;"></div>
                 
                 <button class="btn btn-danger btn-block" style="margin-top: 1rem;" onclick="logout()">🚪 Ausloggen</button>
             </div>
@@ -583,10 +532,14 @@
                 <button class="btn btn-secondary btn-block" onclick="exportRegisterStatsPDF()">📄 Register-Statistik PDF</button>
             </div>
             
+            <!-- Notenmappe (Verwaltung) -->
+            <div id="noten-gericht-tab" class="screen"><div class="noten-root"></div></div>
+            
             <!-- Meine Auftritte Tab (für Admin/Chef zum selbst anmelden) -->
             <div id="my-events-tab" class="screen">
-                <div class="section-header"><h2>📅 Meine Auftritte</h2></div>
-                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Hier kannst du dich selbst zu Auftritten anmelden.</p>
+                <div class="section-header"><h2>📅 Meine Termine</h2></div>
+                <div class="pu-banner-slot"></div>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Künftige Termine: zusagen. Am Termintag: „Ich bin dabei“.</p>
                 <div id="my-events-list"></div>
             </div>
             
@@ -728,6 +681,8 @@
             <!-- Settings Tab (NEW) -->
             <div id="settings-tab" class="screen">
                 <div class="section-header"><h2>⚙️ Vereinseinstellungen</h2></div>
+                <div id="pu-admin" style="margin-bottom: 1rem;"></div>
+                <div class="pu-card-slot" style="margin-bottom: 1rem;"></div>
                 
                 <!-- Accordion: API-Verbindung -->
                 <div class="settings-accordion">
@@ -798,6 +753,7 @@
                         <span class="accordion-icon">▼</span>
                     </button>
                     <div class="accordion-content">
+                        <div class="kal-card" id="kal-card"></div>
                         <div style="margin-bottom: 1rem;">
                             <h4>Bestehende Termine</h4>
                             <div id="events-manage-list" style="max-height: 250px; overflow-y: auto; margin: 0.5rem 0;"></div>
@@ -827,6 +783,7 @@
                         <div class="input-group"><label>Datum</label><input type="date" id="new-event-date"></div>
                         <div class="input-group"><label>Ort</label><input type="text" id="new-event-location" placeholder="z.B. Vereinsheim"></div>
                         <div class="input-group"><label>Uhrzeit</label><input type="time" id="new-event-time" value="20:00"></div>
+                        <div class="nm-two" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem"><div class="input-group"><label>🚌 Abfahrt (optional)</label><input type="time" id="new-event-abfahrt"></div><div class="input-group"><label>Treffpunkt</label><input type="text" id="new-event-treffpunkt" placeholder="z.B. Dorfplatz"></div></div>
                         <div id="new-event-repeat-group" class="hidden">
                             <label class="repeat-check"><input type="checkbox" id="new-event-repeat" onchange="document.getElementById('new-event-repeat-until-group').classList.toggle('hidden', !this.checked)"> Jede Woche wiederholen</label>
                             <div class="input-group hidden" id="new-event-repeat-until-group"><label>Wiederholen bis</label><input type="date" id="new-event-repeat-until"></div>
@@ -917,6 +874,8 @@
                     <div class="input-group"><label>Datum</label><input type="date" id="edit-event-date"></div>
                     <div class="input-group"><label>Ort</label><input type="text" id="edit-event-location"></div>
                     <div class="input-group"><label>Uhrzeit</label><input type="time" id="edit-event-time"></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem"><div class="input-group"><label>🚌 Abfahrt</label><input type="time" id="edit-event-abfahrt"></div><div class="input-group"><label>Treffpunkt</label><input type="text" id="edit-event-treffpunkt" placeholder="z.B. Dorfplatz"></div></div>
+                    <label style="display:flex;gap:.5rem;align-items:center;font-size:.88rem;margin:.2rem 0 .8rem"><input type="checkbox" id="edit-event-notify" checked> 📢 Bei Änderung von Datum/Zeit/Abfahrt/Ort alle per Push benachrichtigen</label>
                     <div class="modal-actions">
                         <button class="btn btn-secondary" onclick="closeEventEditModal()">Abbrechen</button>
                         <button class="btn btn-danger" onclick="deleteEventFromModal()">🗑️ Löschen</button>
@@ -1214,11 +1173,22 @@
             window.addEventListener('online', onOnline);
             window.addEventListener('offline', updateOnlineStatus);
             
+            if (currentUser && !currentUser.token) {
+                // Sicherheits-Update: alte Anmeldungen (ohne Sitzungsschlüssel) einmal neu anmelden
+                const oldName = currentUser.name && currentUser.name !== 'Admin' ? currentUser.name : '';
+                localStorage.removeItem('lkt-user');
+                currentUser = null;
+                hideLoading();
+                showStep(3);
+                if (oldName) document.getElementById('member-name-input').value = oldName;
+                const n = document.getElementById('login-update-note'); if (n) n.classList.remove('hidden');
+                return;
+            }
             if (currentUser) {
                 showMainApp();
             } else {
                 hideLoading();
-                showStep(2);
+                showStep(3);
             }
         }
         
@@ -1282,22 +1252,37 @@
         // ============================================================
         // API FUNCTIONS
         // ============================================================
+        function sessionToken() { return (currentUser && currentUser.token) || ''; }
+        function handleAuthError(result) {
+            if (result && result.authError && currentUser) {
+                // Sitzung abgelaufen oder ungültig -> neu anmelden
+                localStorage.removeItem('lkt-user');
+                currentUser = null;
+                showToast('Bitte neu anmelden', true);
+                setTimeout(() => location.reload(), 1200);
+            }
+            return result;
+        }
         async function apiGet(action, params = {}) {
             let url = API_URL + '?action=' + action;
-            for (const [key, value] of Object.entries(params)) {
+            const p = Object.assign({}, params);
+            if (sessionToken() && !p.token) p.token = sessionToken();
+            for (const [key, value] of Object.entries(p)) {
                 url += '&' + key + '=' + encodeURIComponent(value);
             }
             const response = await fetch(url);
-            return await response.json();
+            return handleAuthError(await response.json());
         }
         
         async function apiPost(data) {
+            const body = Object.assign({}, data);
+            if (sessionToken() && !body.token) body.token = sessionToken();
             const response = await fetch(API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify(data)
+                body: JSON.stringify(body)
             });
-            return await response.json();
+            return handleAuthError(await response.json());
         }
         
         // ============================================================
@@ -1318,79 +1303,45 @@
             try {
                 const result = await apiPost({ action: 'registerMember', name: name, pin: pin });
                 if (result.error) { showToast(result.error, true); hideLoading(); return; }
-                currentUser = { role: 'member', name: name, pin: pin };
+                currentUser = userFromLogin(result);
                 localStorage.setItem('lkt-user', JSON.stringify(currentUser));
                 showToast('Erfolgreich registriert!');
                 showMainApp();
             } catch (e) { showToast('Fehler: ' + e.message, true); hideLoading(); }
         }
         
+        // Aus der Login-Antwort des Servers den Benutzer bauen (ohne PIN!)
+        function userFromLogin(r) {
+            const p = r.permissions || {};
+            const isVerwaltung = p.isAdmin || p.canManageMembers || p.canManageEvents;
+            return {
+                role: isVerwaltung ? 'gericht' : 'member',
+                name: r.name, token: r.token,
+                rollenId: r.rollenId || 'ROLE-MITGLIED', permissions: p,
+                busId: r.busId, registerId: r.registerId, memberId: r.memberId,
+                mustChangePin: r.mustChangePin || false
+            };
+        }
+
         async function loginMember() {
             const name = document.getElementById('member-name-input').value.trim();
             const pin = document.getElementById('member-pin-input').value.trim();
-            if (!name || !pin || pin.length < 4) { showToast('Name und PIN (mind. 4 Zeichen) erforderlich', true); return; }
+            if (!name || !pin) { showToast('Name und PIN eingeben', true); return; }
             showLoading();
             try {
-                const result = await apiGet('getMemberAttendance', { name: name });
-                if (result.error) { showToast('Name nicht gefunden', true); hideLoading(); return; }
-                if (String(result.pin) !== String(pin)) { showToast('Falscher PIN', true); hideLoading(); return; }
-                
-                // Berechtigungen laden
-                const permResult = await apiGet('getMemberPermissions', { name: name });
-                const permissions = permResult.permissions || {};
-                const rollenId = result.rollenId || permResult.rollenId || 'ROLE-MITGLIED';
-                
-                // Admin-Rollen bekommen gericht-View, andere member-View
-                if (permissions.isAdmin || permissions.canManageMembers || permissions.canManageEvents) {
-                    currentUser = { 
-                        role: 'gericht', name: result.name, pin: pin, 
-                        rollenId: rollenId, permissions: permissions,
-                        busId: result.busId, registerId: result.registerId, memberId: result.memberId,
-                        mustChangePin: result.mustChangePin || false
-                    };
-                } else {
-                    currentUser = { 
-                        role: 'member', name: result.name, pin: pin, 
-                        rollenId: rollenId, permissions: permissions,
-                        busId: result.busId, registerId: result.registerId, memberId: result.memberId,
-                        mustChangePin: result.mustChangePin || false
-                    };
-                }
-                
+                const result = await apiPost({ action: 'login', name: name, pin: pin });
+                if (result.error) { showToast(result.error, true); hideLoading(); return; }
+                currentUser = userFromLogin(result);
                 localStorage.setItem('lkt-user', JSON.stringify(currentUser));
                 showToast('Willkommen, ' + result.name + '!');
                 showMainApp();
-                
-                // Prüfe ob PIN geändert werden muss
-                if (currentUser.mustChangePin) {
-                    setTimeout(() => checkMustChangePin(), 500);
-                }
+                if (currentUser.mustChangePin) setTimeout(() => checkMustChangePin(), 500);
             } catch (e) { showToast('Fehler: ' + e.message, true); hideLoading(); }
-        }
-        
-        function loginGericht() {
-            const pin = document.getElementById('gericht-pin-input').value.trim();
-            
-            if (pin === '8356') {
-                currentUser = { 
-                    role: 'gericht', name: 'Admin', adminPin: pin,
-                    rollenId: 'ROLE-ADMIN', 
-                    permissions: {
-                        isAdmin: true, canViewAllMembers: true, canViewAllAttendance: true,
-                        canViewOwnRegister: true, canManageEvents: true, canManageMembers: true,
-                        canManageRoles: true, canManageAnzeigen: true, canCreateForumCategories: true
-                    }
-                };
-            } else {
-                showToast('Falscher PIN', true); return;
-            }
-            localStorage.setItem('lkt-user', JSON.stringify(currentUser));
-            showToast('Willkommen, Admin!');
-            showMainApp();
         }
         
         function logout() {
             if (!confirm('Wirklich ausloggen?')) return;
+            try { apiPost({ action: 'logout' }); } catch (e) {}
             localStorage.removeItem('lkt-user');
             currentUser = null;
             location.reload();
@@ -1448,10 +1399,13 @@
             const tabs = document.querySelectorAll('#member-nav .nav-tab');
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
+                    if (!tab.dataset.tab) return;   // z.B. "☰ Mehr" hat keine eigene Seite
                     tabs.forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
                     document.querySelectorAll('#member-screens .screen').forEach(s => s.classList.remove('active'));
                     document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+                    if (tab.dataset.tab === 'noten' && window.Noten) Noten.open(document.querySelector('#noten-tab .noten-root'));
+                    if (tab.dataset.tab === 'profile' && window.Push) Push.render();
                     
                     // Scanner-Handling bei Tab-Wechsel
                     if (tab.dataset.tab === 'scanner') {
@@ -1539,10 +1493,14 @@
             const tabs = document.querySelectorAll('#gericht-nav .nav-tab');
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
+                    if (!tab.dataset.tab) return;   // z.B. "☰ Mehr" hat keine eigene Seite
                     tabs.forEach(t => t.classList.remove('active'));
                     tab.classList.add('active');
                     document.querySelectorAll('#gericht-screens .screen').forEach(s => s.classList.remove('active'));
                     document.getElementById(tab.dataset.tab + '-tab').classList.add('active');
+                    if (tab.dataset.tab === 'noten-gericht' && window.Noten) Noten.open(document.querySelector('#noten-gericht-tab .noten-root'));
+                    if (tab.dataset.tab === 'settings' && window.Kalender) Kalender.render();
+                    if (tab.dataset.tab === 'settings' && window.Push) { Push.render(); Push.renderAdmin(); }
                 });
             });
         }
@@ -1663,6 +1621,7 @@
                     loadBrettPosts('member');
                     initPushNotifications();
                 } else {
+                    if (window.Push) Push.init();
                     // Gericht: UI updaten und zusätzliche Daten laden
                     populateAttendanceEventSelect();
                     populateQREventSelect();
@@ -1958,9 +1917,9 @@
                     else if (hasZugesagt) cardClass += ' planned';
                     
                     html += '<div class="' + cardClass + '">';
-                    html += '<div class="date">' + (event.date || '') + ' • ' + (event.time || '') + '</div>';
+                    html += '<div class="date">' + (event.date || '') + ' • ' + fmtTime(event.time) + '</div>';
                     html += '<div class="title">' + typBadge(event) + event.name + '</div>';
-                    html += '<div class="location">📍 ' + (event.location || 'TBA') + '</div>';
+                    html += '<div class="location">📍 ' + (event.location || 'TBA') + '</div>' + (event.abfahrt || event.treffpunkt ? '<div class="ev-bus">🚌 ' + (event.abfahrt ? 'Abfahrt ' + fmtTime(event.abfahrt) : '') + (event.abfahrt && event.treffpunkt ? ' · ' : '') + (event.treffpunkt || '') + '</div>' : '');
                     
                     // Zeige Zusagen-Anzahl - klickbar um Teilnehmer zu sehen
                     if (zusagenCount > 0) {
@@ -1973,12 +1932,13 @@
                     
                     html += '<div class="actions">';
                     if (!isAttended && !isAbsent) {
-                        // Proben immer selbst anmelden; Auftritte nur ohne QR-System
-                        if (!appSettings.qrScannerEnabled || isProbe(event)) {
+                        // Zukunft: zusagen. Am Termintag/danach: Probe oder ohne QR "Ich bin dabei", Auftritt mit QR scannen.
+                        if (isFutureEvent(event)) {
+                            html += '<button class="btn zusage-btn ' + (hasZugesagt ? 'active' : '') + '" onclick="toggleZusage(\'' + event.id + '\')">' + (hasZugesagt ? '✓ Zugesagt' : '+ Zusagen') + '</button>';
+                        } else if (!appSettings.qrScannerEnabled || isProbe(event)) {
                             html += '<button class="btn btn-primary" onclick="directCheckIn(\'' + event.id + '\')">✓ Ich bin dabei</button>';
                         } else {
-                            // Zusagen-Button nur wenn QR aktiv
-                            html += '<button class="btn zusage-btn ' + (hasZugesagt ? 'active' : '') + '" onclick="toggleZusage(\'' + event.id + '\')">' + (hasZugesagt ? '✓ Zugesagt' : '+ Zusagen') + '</button>';
+                            html += '<button class="btn btn-primary" onclick="openScannerTab()">📷 QR scannen</button>';
                         }
                         html += '<button class="btn btn-danger" onclick="markAbsentEvent(\'' + event.id + '\')">✗ Absagen</button>';
                     } else {
@@ -1991,7 +1951,7 @@
                 if (allPast) html += '</div>'; // week-collapsible
             });
             
-            container.innerHTML = html || '<div class="empty-state">Keine Auftritte</div>';
+            container.innerHTML = html || '<div class="empty-state">Keine Termine</div>';
         }
         
         function toggleWeek(weekId) {
@@ -2242,9 +2202,9 @@
                 else if (hasZugesagt) cardClass += ' planned';
                 
                 html += '<div class="' + cardClass + '">';
-                html += '<div class="date">' + (event.date || '') + ' • ' + (event.time || '') + '</div>';
+                html += '<div class="date">' + (event.date || '') + ' • ' + fmtTime(event.time) + '</div>';
                 html += '<div class="title">' + typBadge(event) + event.name + '</div>';
-                html += '<div class="location">📍 ' + (event.location || 'TBA') + '</div>';
+                html += '<div class="location">📍 ' + (event.location || 'TBA') + '</div>' + (event.abfahrt || event.treffpunkt ? '<div class="ev-bus">🚌 ' + (event.abfahrt ? 'Abfahrt ' + fmtTime(event.abfahrt) : '') + (event.abfahrt && event.treffpunkt ? ' · ' : '') + (event.treffpunkt || '') + '</div>' : '');
                 
                 if (isAttended) html += '<span class="status present">✓ Teilgenommen</span>';
                 if (isAbsent) html += '<span class="status absent">✗ Nicht dabei</span>';
@@ -2252,9 +2212,12 @@
                 
                 html += '<div class="actions">';
                 if (!isAttended && !isAbsent) {
-                    // Für Admin/Chef: immer "Ich bin dabei" Button, da sie selbst einchecken können
-                    html += '<button class="btn btn-primary" onclick="directCheckInGericht(\'' + event.id + '\')">✓ Ich bin dabei</button>';
-                    html += '<button class="btn zusage-btn ' + (hasZugesagt ? 'active' : '') + '" onclick="toggleZusage(\'' + event.id + '\')">' + (hasZugesagt ? '✓ Zugesagt' : '+ Zusagen') + '</button>';
+                    // Zukunft: zusagen. Am Termintag/danach: selbst einchecken (Verwaltung braucht keinen QR-Code)
+                    if (isFutureEvent(event)) {
+                        html += '<button class="btn zusage-btn ' + (hasZugesagt ? 'active' : '') + '" onclick="toggleZusage(\'' + event.id + '\')">' + (hasZugesagt ? '✓ Zugesagt' : '+ Zusagen') + '</button>';
+                    } else {
+                        html += '<button class="btn btn-primary" onclick="directCheckInGericht(\'' + event.id + '\')">✓ Ich bin dabei</button>';
+                    }
                     html += '<button class="btn btn-danger" onclick="markAbsentEventGericht(\'' + event.id + '\')">✗ Absagen</button>';
                 } else {
                     html += '<button class="btn btn-secondary" onclick="resetEventGericht(\'' + event.id + '\')">↩ Zurücksetzen</button>';
@@ -2262,7 +2225,7 @@
                 html += '</div></div>';
             });
             
-            container.innerHTML = html || '<div class="empty-state">Keine Auftritte</div>';
+            container.innerHTML = html || '<div class="empty-state">Keine Termine</div>';
         }
         
         async function directCheckInGericht(eventId) {
@@ -2280,7 +2243,8 @@
         }
         
         async function markAbsentEventGericht(eventId) {
-            const comment = prompt('Grund für Abwesenheit (optional):');
+            const comment = await askText({ title: '✗ Absagen', label: 'Grund (optional)', placeholder: 'z.B. krank, Arbeit …', ok: 'Absagen', multiline: true });
+            if (comment === null) return;
             showLoading();
             try {
                 const result = await apiPost({ action: 'markAbsent', name: currentUser.name, eventId: eventId, comment: comment || '' });
@@ -2681,7 +2645,7 @@
                     
                     html += '<div style="background: var(--bg-input); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem;">';
                     html += '<div style="font-weight: bold; color: var(--text-primary);">' + event.name + '</div>';
-                    html += '<div style="font-size: 0.8rem; color: var(--text-secondary);">' + (event.date || '') + ' • ' + (event.time || '') + '</div>';
+                    html += '<div style="font-size: 0.8rem; color: var(--text-secondary);">' + (event.date || '') + ' • ' + fmtTime(event.time) + '</div>';
                     html += '<div style="margin-top: 0.5rem;">';
                     html += '<span style="color: var(--accent-green);">✓ ' + zugesagt + '</span>';
                     html += ' / <span>' + total + '</span>';
@@ -2830,8 +2794,6 @@
             try {
                 const result = await apiPost({ 
                     action: 'updateOwnCredentials', 
-                    currentName: currentUser.name,
-                    currentPin: currentUser.pin,
                     newName: newUsername || null,
                     newPin: newPin || null
                 });
@@ -2843,9 +2805,6 @@
                     if (result.newName) {
                         currentUser.name = result.newName;
                         document.getElementById('profile-name').textContent = result.newName;
-                    }
-                    if (newPin) {
-                        currentUser.pin = newPin;
                     }
                     localStorage.setItem('lkt-user', JSON.stringify(currentUser));
                     
@@ -2996,15 +2955,12 @@
             try {
                 const result = await apiPost({
                     action: 'updateOwnCredentials',
-                    currentName: currentUser.name,
-                    currentPin: currentUser.pin,
                     newPin: newPin
                 });
                 
                 if (result.error) {
                     showToast(result.error, true);
                 } else {
-                    currentUser.pin = newPin;
                     currentUser.mustChangePin = false;
                     localStorage.setItem('lkt-user', JSON.stringify(currentUser));
                     
@@ -4039,6 +3995,8 @@
                         week: week || (typ === 'probe' ? probenGruppe(di) : ''),
                         date: dateInputToGerman(di),
                         location: document.getElementById('new-event-location').value.trim(),
+                        abfahrt: document.getElementById('new-event-abfahrt').value.trim(),
+                        treffpunkt: document.getElementById('new-event-treffpunkt').value.trim(),
                         time: document.getElementById('new-event-time').value.trim()
                     };
                     const result = await apiPost({ action: 'addEvent', event: eventData });
@@ -4173,7 +4131,7 @@
                 
                 document.getElementById('event-qr-display').classList.remove('hidden');
                 document.getElementById('event-qr-label').textContent = event.name;
-                document.getElementById('event-qr-sublabel').textContent = (event.date || '') + ' • ' + (event.time || '') + ' • ' + (event.location || '');
+                document.getElementById('event-qr-sublabel').textContent = (event.date || '') + ' • ' + fmtTime(event.time) + ' • ' + (event.location || '');
                 document.getElementById('event-qr-code').textContent = code;
                 resetRenewButton();
             } catch (e) { showToast('QR-Fehler', true); }
@@ -4223,10 +4181,8 @@
         function downloadEventQR() {
             const img = document.querySelector('#event-qr-canvas img');
             if (!img) return;
-            const link = document.createElement('a');
-            link.download = 'LKT_QR_' + document.getElementById('qr-event-select').value + '.png';
-            link.href = img.src;
-            link.click();
+            const name = 'LKT_QR_' + lktExport.safeName(document.getElementById('event-qr-label').textContent || 'Auftritt') + '.png';
+            lktExport.deliverDataUrl(img.src, name, 'QR-Code als Bild');
         }
         
         // ============================================================
@@ -5713,7 +5669,7 @@
                 
                 html += '<div class="weekend-event-card" onclick="showWeekendEventDetail(\'' + event.id + '\')">';
                 html += '<div class="event-name">' + event.name + '</div>';
-                html += '<div class="event-info">📍 ' + (event.location || '-') + ' | 🕐 ' + (event.time || '-') + ' | ' + (event.date || '') + '</div>';
+                html += '<div class="event-info">📍 ' + (event.location || '-') + ' | 🕐 ' + (fmtTime(event.time) || '-') + ' | ' + (event.date || '') + '</div>';
                 html += '<div style="display: flex; gap: 1rem; margin-bottom: 0.5rem;">';
                 html += '<span style="color: var(--accent-green);">✓ ' + present.length + '</span>';
                 html += '<span style="color: var(--accent-blue);">📅 ' + zugesagt.length + '</span>';
@@ -5893,7 +5849,7 @@
             let html = '';
             sortedEvents.forEach(event => {
                 html += '<div class="event-manage-item" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px solid var(--border-color);">';
-                html += '<div><strong>' + typBadge(event) + event.name + '</strong><br><span style="font-size: 0.8rem; color: var(--text-secondary);">' + (event.date || '') + ' | ' + (event.week || '') + '</span></div>';
+                html += '<div><strong>' + (event.source === 'gcal' ? '<span class="kal-badge" title="aus Google Kalender">🔗</span>' : '') + typBadge(event) + event.name + '</strong><br><span style="font-size: 0.8rem; color: var(--text-secondary);">' + (event.date || '') + ' | ' + (event.week || '') + '</span></div>';
                 html += '<button class="btn btn-secondary" style="padding: 0.25rem 0.5rem;" onclick="openEventEditModal(\'' + event.id + '\')">✏️</button>';
                 html += '</div>';
             });
@@ -5912,8 +5868,15 @@
             document.getElementById('edit-event-week').value = event.week || '';
             document.getElementById('edit-event-date').value = germanToDateInput(event.date) || '';
             document.getElementById('edit-event-location').value = event.location || '';
+            document.getElementById('edit-event-abfahrt').value = fmtTime(event.abfahrt || '');
+            document.getElementById('edit-event-treffpunkt').value = event.treffpunkt || '';
+            document.getElementById('edit-event-notify').checked = true;
             document.getElementById('edit-event-time').value = event.time || '';
             document.getElementById('edit-event-typ').value = isProbe(event) ? 'probe' : 'auftritt';
+            let kh = document.getElementById('edit-event-gcal-hint');
+            if (!kh) { kh = document.createElement('p'); kh.id = 'edit-event-gcal-hint'; kh.style.cssText = 'font-size:.8rem;color:#93c5fd;background:rgba(66,133,244,.12);border-radius:8px;padding:.5rem .6rem;margin:0 0 .75rem'; document.getElementById('edit-event-id').insertAdjacentElement('afterend', kh); }
+            kh.textContent = '🔗 Kommt aus dem Google Kalender – Datum, Zeit und Ort bitte dort ändern. Abfahrt und Treffpunkt kannst du hier eintragen (oder im Kalender in die Beschreibung schreiben: „Abfahrt 12:30“, „Treffpunkt: Dorfplatz“).';
+            kh.style.display = event.source === 'gcal' ? '' : 'none';
             
             document.getElementById('event-edit-modal').classList.add('active');
         }
@@ -5934,6 +5897,8 @@
                 week: document.getElementById('edit-event-week').value.trim(),
                 date: dateGerman,
                 location: document.getElementById('edit-event-location').value.trim(),
+                abfahrt: document.getElementById('edit-event-abfahrt').value.trim(),
+                treffpunkt: document.getElementById('edit-event-treffpunkt').value.trim(),
                 time: document.getElementById('edit-event-time').value.trim(),
                 typ: document.getElementById('edit-event-typ').value
             };
@@ -5942,7 +5907,7 @@
             
             showLoading();
             try {
-                const result = await apiPost({ action: 'updateEvent', eventId: eventId, event: eventData });
+                const result = await apiPost({ action: 'updateEvent', eventId: eventId, event: eventData, notify: document.getElementById('edit-event-notify').checked });
                 if (result.error) showToast(result.error, true);
                 else {
                     showToast('Event aktualisiert!');
@@ -6310,7 +6275,7 @@
                 
                 content += '<div class="event-card">';
                 content += '<div class="event-title">' + event.name + '</div>';
-                content += '<div class="event-info">📍 ' + (event.location || '-') + ' | 🕐 ' + (event.time || '-') + ' | ' + (event.date || '') + '</div>';
+                content += '<div class="event-info">📍 ' + (event.location || '-') + ' | 🕐 ' + (fmtTime(event.time) || '-') + ' | ' + (event.date || '') + '</div>';
                 content += '<div class="stats">';
                 content += '<div class="stat present">✓ ' + present.length + ' dabei</div>';
                 content += '<div class="stat" style="background: #dbeafe; color: #1e40af;">📅 ' + zugesagt.length + ' zugesagt</div>';
@@ -6399,6 +6364,1045 @@
      • Handys löschen beim Saisonwechsel automatisch alte lokale Daten
      ============================================================ -->
 <!-- ============================================================
+     PUSH-NACHRICHTEN: Einschalten (Standard an), Einstellungen,
+     Nachricht an alle (Verwaltung)
+     ============================================================ -->
+<style>
+  .pu-banner { background:linear-gradient(135deg, rgba(245,197,24,.18), rgba(245,197,24,.06)); border:1px solid var(--accent-yellow,#f5c518); border-radius:12px; padding:.8rem .9rem; margin-bottom:1rem; }
+  .pu-banner b { display:block; margin-bottom:.25rem; }
+  .pu-banner p { font-size:.85rem; color:var(--text-secondary,#94a3b8); margin:0 0 .6rem; }
+  .pu-banner .row { display:flex; gap:.5rem; }
+  .pu-banner .row button { flex:1; }
+  .pu-card h3 { margin:0 0 .6rem; }
+  .pu-row { display:flex; justify-content:space-between; align-items:center; gap:.75rem; padding:.55rem 0; border-bottom:1px solid var(--border-color,#334155); font-size:.92rem; }
+  .pu-row:last-child { border-bottom:none; }
+  .pu-row small { display:block; color:var(--text-secondary,#94a3b8); font-size:.75rem; }
+  .pu-sw { position:relative; width:46px; height:26px; flex:0 0 auto; }
+  .pu-sw input { opacity:0; width:0; height:0; }
+  .pu-sw span { position:absolute; inset:0; background:#334155; border-radius:26px; transition:.2s; cursor:pointer; }
+  .pu-sw span:before { content:''; position:absolute; width:20px; height:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; }
+  .pu-sw input:checked + span { background:var(--accent-green,#22c55e); }
+  .pu-sw input:checked + span:before { transform:translateX(20px); }
+  .pu-note { font-size:.8rem; color:var(--text-secondary,#94a3b8); margin:.4rem 0 .6rem; }
+  .pu-note.warn { color:#fbbf24; }
+  .ev-bus { font-size:.85rem; color:#93c5fd; margin-top:.15rem; }
+</style>
+<script>
+(function () {
+  const CATS = [
+    ['reminders', '⏰ Erinnerung am Vorabend', 'z.B. „Morgen: Probe 19:30 Uhr, Musikheim“'],
+    ['changes', '📢 Termin-Änderungen', 'neue Uhrzeit, Abfahrt, Ort oder Absage'],
+    ['brett', '📋 Brett: Allgemein', 'neue Beiträge für alle'],
+    ['register', '🎵 Brett: mein Register', 'neue Beiträge in deinem Register-Bereich'],
+    ['admin', '📣 Nachrichten vom Vorstand', 'Rundnachrichten an alle']
+  ];
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const standalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const supported = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+  let settings = null;
+
+  const b64ToBytes = s => { const p = '='.repeat((4 - s.length % 4) % 4); const b = (s + p).replace(/-/g, '+').replace(/_/g, '/'); return Uint8Array.from(atob(b), c => c.charCodeAt(0)); };
+
+  async function swReg() {
+    if (!('serviceWorker' in navigator)) return null;
+    try { const r = await navigator.serviceWorker.getRegistration(); if (r) return r; } catch (e) {}
+    try { return await navigator.serviceWorker.register('./sw.js'); } catch (e) {}
+    // nie ewig warten
+    return await Promise.race([navigator.serviceWorker.ready.catch(() => null), new Promise(r => setTimeout(() => r(null), 5000))]);
+  }
+
+  // Abo beim Server eintragen (still, wenn Erlaubnis schon da)
+  async function subscribe() {
+    const reg = await swReg(); if (!reg) throw new Error('Service Worker fehlt');
+    const r = await apiGet('getPushPublicKey'); if (!r || !r.publicKey) throw new Error('Kein Push-Schlüssel vom Server');
+    let sub = await reg.pushManager.getSubscription();
+    const want = r.publicKey;
+    if (sub && store.get('lkt-push-key') !== want) { try { await sub.unsubscribe(); } catch (e) {} sub = null; }
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(want) });
+    const res = await apiPost({ action: 'subscribePush', subscription: sub.toJSON() });
+    if (res.error) throw new Error(res.error);
+    store.set('lkt-push-key', want); store.set('lkt-push-on', '1');
+    return true;
+  }
+
+  async function enable() {
+    if (!supported) { showToast(isIOS && !standalone ? 'Erst die App zum Home-Bildschirm hinzufügen' : 'Dieses Gerät kann keine Push-Nachrichten', true); return false; }
+    let perm = Notification.permission;
+    if (perm === 'default') perm = await Notification.requestPermission();
+    if (perm !== 'granted') { showToast('Benachrichtigungen sind blockiert – in den Handy-Einstellungen erlauben', true); render(); return false; }
+    try { await subscribe(); showToast('🔔 Benachrichtigungen sind an'); }
+    catch (e) { showToast('Push ging nicht: ' + e.message, true); }
+    render(); return true;
+  }
+
+  async function disable() {
+    try {
+      const reg = await swReg(); const sub = reg && await reg.pushManager.getSubscription();
+      await apiPost({ action: 'unsubscribePush', endpoint: sub ? sub.endpoint : '' });
+      if (sub) await sub.unsubscribe();
+    } catch (e) {}
+    store.set('lkt-push-on', '0');
+    showToast('🔕 Benachrichtigungen auf diesem Gerät aus');
+    render();
+  }
+
+  function state() {
+    if (!supported) return isIOS && !standalone ? 'ios-install' : 'unsupported';
+    if (Notification.permission === 'denied') return 'denied';
+    if (Notification.permission === 'granted' && store.get('lkt-push-on') !== '0') return 'on';
+    if (store.get('lkt-push-on') === '0') return 'off';
+    return 'ask';
+  }
+
+  // ---------- Einstellungen-Karte ----------
+  async function render() {
+    const boxes = document.querySelectorAll('.pu-card-slot'); if (!boxes.length) return;
+    const st = state();
+    if (st === 'on' && !settings) { try { const r = await apiGet('getPushSettings'); settings = r.settings || null; } catch (e) {} }
+    let html = '<div class="card pu-card"><h3>🔔 Benachrichtigungen</h3>';
+    if (st === 'ios-install') html += '<p class="pu-note warn">Auf dem iPhone gehen Push-Nachrichten nur, wenn die App auf dem Home-Bildschirm ist: Safari → Teilen → „Zum Home-Bildschirm“. Dann die App von dort öffnen.</p>';
+    else if (st === 'unsupported') html += '<p class="pu-note warn">Dieser Browser kann keine Push-Nachrichten.</p>';
+    else if (st === 'denied') html += '<p class="pu-note warn">Benachrichtigungen sind in den Handy-/Browser-Einstellungen für diese App blockiert. Dort erlauben, dann hier einschalten.</p><button class="btn btn-secondary btn-block" data-pu="on">🔔 Erneut versuchen</button>';
+    else if (st === 'on') {
+      html += '<div class="pu-row"><div>Auf diesem Gerät<small>alle Nachrichten an/aus</small></div><label class="pu-sw"><input type="checkbox" data-pu="master" checked><span></span></label></div>';
+      CATS.forEach(([k, t, d]) => {
+        const on = !settings || settings[k] !== false;
+        html += '<div class="pu-row"><div>' + t + '<small>' + d + '</small></div><label class="pu-sw"><input type="checkbox" data-pu-cat="' + k + '"' + (on ? ' checked' : '') + '><span></span></label></div>';
+      });
+      html += '<button class="btn btn-secondary btn-block" style="margin-top:.6rem" data-pu="test">📨 Test-Nachricht an mich</button>';
+    } else {
+      html += '<p class="pu-note">Erinnerungen am Vorabend, Änderungen bei Terminen und Abfahrt, neue Beiträge am Brett.</p><button class="btn btn-primary btn-block" data-pu="on">🔔 Benachrichtigungen einschalten</button>';
+    }
+    html += '</div>';
+    boxes.forEach(b => { b.innerHTML = html; });
+    renderBanner();
+  }
+
+  async function onClick(e) {
+    const b = e.target.closest('[data-pu]'); if (!b) return;
+    const a = b.dataset.pu;
+    if (a === 'on') enable();
+    else if (a === 'later') { store.set('lkt-push-later', String(Date.now())); renderBanner(); }
+    else if (a === 'test') {
+      try { const r = await apiPost({ action: 'sendTestPush' }); if (r.error) showToast(r.error, true); else showToast(r.sent ? '📨 Test geschickt – kommt gleich' : 'Konnte nicht zugestellt werden', !r.sent); }
+      catch (x) { showToast('Fehler: ' + x.message, true); }
+    }
+  }
+  async function onChange(e) {
+    const t = e.target;
+    if (t.dataset.pu === 'master') { if (!t.checked) disable(); else enable(); return; }
+    const k = t.dataset.puCat; if (!k) return;
+    settings = Object.assign({}, settings || {}, { [k]: t.checked });
+    try { const r = await apiPost({ action: 'savePushSettings', settings: { [k]: t.checked } }); if (r.settings) settings = r.settings; showToast(t.checked ? '✓ an' : '✓ aus'); }
+    catch (x) { showToast('Nicht gespeichert', true); }
+  }
+
+  // ---------- Hinweis oben (Standard: an – einmal fragen) ----------
+  function renderBanner() {
+    const slots = document.querySelectorAll('.pu-banner-slot');
+    const st = state();
+    const later = +(store.get('lkt-push-later') || 0);
+    const show = (st === 'ask' || st === 'ios-install') && Date.now() - later > 3 * 86400000;
+    slots.forEach(s => {
+      if (!show) { s.innerHTML = ''; return; }
+      s.innerHTML = st === 'ios-install'
+        ? '<div class="pu-banner"><b>🔔 Erinnerungen aufs iPhone?</b><p>Dafür die App zum Home-Bildschirm hinzufügen (Safari → Teilen → „Zum Home-Bildschirm“) und von dort öffnen.</p><div class="row"><button class="btn btn-secondary" data-pu="later">Später</button></div></div>'
+        : '<div class="pu-banner"><b>🔔 Benachrichtigungen einschalten?</b><p>Erinnerung am Vorabend, Änderungen bei Terminen/Abfahrt und neue Brett-Beiträge. Jederzeit im Profil abschaltbar.</p><div class="row"><button class="btn btn-secondary" data-pu="later">Später</button><button class="btn btn-primary" data-pu="on">Einschalten</button></div></div>';
+    });
+  }
+
+  // ---------- Verwaltung: Nachricht an alle ----------
+  function renderAdmin() {
+    const box = document.getElementById('pu-admin'); if (!box) return;
+    const p = (currentUser && currentUser.permissions) || {};
+    if (!(p.isAdmin || p.canManageEvents)) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    box.innerHTML = '<div class="card pu-card"><h3>📣 Push-Nachricht an alle</h3><p class="pu-note">Geht an alle, die Benachrichtigungen an haben. Änderungen an Uhrzeit, Abfahrt oder Ort eines Termins meldet die App automatisch.</p>' +
+      '<div class="input-group"><label>Titel</label><input type="text" id="pu-title" maxlength="60" placeholder="z.B. Achtung Abfahrt!"></div>' +
+      '<div class="input-group"><label>Text</label><textarea id="pu-body" rows="3" maxlength="300" placeholder="z.B. Bus fährt heute schon um 12:15 am Dorfplatz."></textarea></div>' +
+      '<button class="btn btn-primary btn-block" id="pu-send">📣 An alle senden</button></div>';
+    let armed = false;
+    box.querySelector('#pu-send').onclick = async ev => {
+      const title = box.querySelector('#pu-title').value.trim(), body = box.querySelector('#pu-body').value.trim();
+      if (!title || !body) { showToast('Titel und Text eingeben', true); return; }
+      if (!armed) { armed = true; ev.target.textContent = '⚠️ Wirklich an alle senden?'; setTimeout(() => { armed = false; ev.target.textContent = '📣 An alle senden'; }, 4000); return; }
+      armed = false; ev.target.textContent = '📣 An alle senden';
+      showLoading();
+      try {
+        const r = await apiPost({ action: 'sendPushToAll', title, body });
+        hideLoading();
+        if (r.error) showToast(r.error, true);
+        else { showToast('📣 ' + r.queued + ' Geräte' + (r.left ? ' (Rest folgt in Kürze)' : '')); box.querySelector('#pu-title').value = ''; box.querySelector('#pu-body').value = ''; }
+      } catch (x) { hideLoading(); showToast('Fehler: ' + x.message, true); }
+    };
+  }
+
+  let inited = false;
+  async function init() {
+    if (!inited) { inited = true; document.addEventListener('click', onClick); document.addEventListener('change', onChange); }
+    // Erlaubnis schon da (Standard an) -> still anmelden / Abo erneuern
+    if (state() === 'on' && navigator.onLine) { try { await subscribe(); } catch (e) {} }
+    render(); renderAdmin();
+  }
+
+  window.Push = { init, render, renderAdmin, enable, disable };
+  // Alte Push-Funktionen ersetzen (die hatten keinen echten Versand)
+  window.initPushNotifications = function () { Push.init(); };
+  window.checkUpcomingEvents = function () {};
+  window.enablePushNotifications = function () { return Push.enable(); };
+})();
+</script>
+
+<!-- ============================================================
+     GOOGLE KALENDER: Einstellungen + Abgleich (Verwaltung)
+     ============================================================ -->
+<style>
+  .kal-card { background:rgba(66,133,244,.08); border:1px solid rgba(66,133,244,.45); border-radius:12px; padding:.85rem; margin-bottom:1rem; }
+  .kal-card h4 { margin:0 0 .4rem; }
+  .kal-card .hint { font-size:.78rem; color:var(--text-secondary,#94a3b8); margin:.2rem 0 .6rem; line-height:1.4; }
+  .kal-card details { font-size:.8rem; color:var(--text-secondary,#94a3b8); margin-bottom:.6rem; }
+  .kal-card details ol { margin:.4rem 0 0 1.1rem; padding:0; }
+  .kal-status { font-size:.82rem; margin-top:.5rem; }
+  .kal-status.err { color:var(--accent-red,#ef4444); }
+  .kal-status.ok { color:var(--accent-green,#22c55e); }
+  .kal-badge { display:inline-block; font-size:.68rem; font-weight:700; padding:.05rem .4rem; border-radius:6px; background:rgba(66,133,244,.2); color:#93c5fd; margin-right:.3rem; vertical-align:middle; }
+  .kal-gone { display:inline-block; font-size:.72rem; font-weight:700; padding:.1rem .45rem; border-radius:6px; background:rgba(239,68,68,.18); color:#fca5a5; margin-right:.3rem; vertical-align:middle; }
+</style>
+<script>
+(function () {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  function fmtWhen(iso) { if (!iso) return 'noch nie'; const d = new Date(iso); return d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }); }
+  function statusText(c) {
+    if (c.lastError) return { cls: 'err', t: '⚠️ ' + c.lastError + ' (' + fmtWhen(c.lastSync) + ')' };
+    if (!c.lastSync) return { cls: '', t: 'Noch nicht abgeglichen.' };
+    const r = c.lastResult || {};
+    return { cls: 'ok', t: '✓ Abgeglichen ' + fmtWhen(c.lastSync) + ' · ' + (r.neu || 0) + ' neu, ' + (r.geaendert || 0) + ' geändert, ' + (r.entfernt || 0) + ' entfernt' };
+  }
+
+  async function render() {
+    const box = document.getElementById('kal-card'); if (!box) return;
+    const p = (currentUser && currentUser.permissions) || {};
+    if (!(p.isAdmin || p.canManageEvents)) { box.style.display = 'none'; return; }
+    box.style.display = '';
+    let c = { url: '', probeWords: 'Probe', ignoreWords: '' };
+    try { const r = await apiGet('getCalendarConfig'); if (r && r.config) c = r.config; } catch (e) {}
+    const st = statusText(c);
+    box.innerHTML =
+      '<h4>🔗 Termine aus Google Kalender</h4>' +
+      '<p class="hint">Termine im Google Kalender eintragen – die App übernimmt sie automatisch (alle 30 Min.). Neue, geänderte und gelöschte Termine werden abgeglichen; Anwesenheiten bleiben immer erhalten.</p>' +
+      '<details><summary>So findest du die Adresse</summary><ol><li>Google Kalender am Computer öffnen</li><li>Links beim Vereinskalender ⋮ → „Einstellungen und Freigabe“</li><li>Ganz unten „Kalender integrieren“ → <b>„Privatadresse im iCal-Format“</b> kopieren</li><li>Hier einfügen → Speichern</li></ol></details>' +
+      '<div class="input-group"><label>iCal-Adresse (geheim)</label><input type="password" id="kal-url" autocomplete="off" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics"></div>' +
+      '<div class="input-group"><label>Als Probe erkennen, wenn der Titel enthält</label><input type="text" id="kal-probe" placeholder="Probe"></div>' +
+      '<div class="input-group"><label>Nicht übernehmen, wenn der Titel enthält (optional)</label><input type="text" id="kal-ignore" placeholder="z.B. Vorstand, Geburtstag"></div>' +
+      '<button class="btn btn-primary btn-block" id="kal-save">💾 Speichern &amp; jetzt abgleichen</button>' +
+      (c.url ? '<button class="btn btn-secondary btn-block" id="kal-sync" style="margin-top:.5rem">🔄 Jetzt abgleichen</button>' : '') +
+      '<div class="kal-status ' + st.cls + '" id="kal-status"></div>';
+    box.querySelector('#kal-url').value = c.url || '';
+    box.querySelector('#kal-probe').value = c.probeWords || 'Probe';
+    box.querySelector('#kal-ignore').value = c.ignoreWords || '';
+    box.querySelector('#kal-status').textContent = st.t;
+    box.querySelector('#kal-save').onclick = save;
+    const sb = box.querySelector('#kal-sync'); if (sb) sb.onclick = sync;
+  }
+
+  async function save() {
+    const url = document.getElementById('kal-url').value.trim();
+    showLoading();
+    try {
+      const r = await apiPost({ action: 'saveCalendarConfig', url, probeWords: document.getElementById('kal-probe').value, ignoreWords: document.getElementById('kal-ignore').value });
+      hideLoading();
+      if (r.error) { showToast(r.error, true); return; }
+      if (url) await sync(); else { showToast('Kalender-Verbindung entfernt'); render(); }
+    } catch (e) { hideLoading(); showToast('Fehler: ' + e.message, true); }
+  }
+
+  async function sync() {
+    showLoading();
+    try {
+      const r = await apiPost({ action: 'syncCalendar' });
+      hideLoading();
+      if (r.error) showToast(r.error, true);
+      else showToast('✓ ' + (r.neu || 0) + ' neu, ' + (r.geaendert || 0) + ' geändert, ' + (r.entfernt || 0) + ' entfernt');
+      if (typeof refreshData === 'function') await refreshData();
+      if (typeof renderEventsManageList === 'function') renderEventsManageList();
+    } catch (e) { hideLoading(); showToast('Fehler: ' + e.message, true); }
+    render();
+  }
+
+  window.Kalender = { render, sync };
+})();
+</script>
+
+<!-- ============================================================
+     BEDIENUNG: "☰ Mehr"-Menü, Aktualisieren-Knopf im Kopf,
+     Eingabe-Fenster statt grauer Systemdialoge, Uhrzeit ohne Sekunden
+     ============================================================ -->
+<style>
+  .nav-in-more { display:none !important; }
+  .nav-more-btn .badge { margin-left:.25rem; }
+  .lktm-back { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:10090; display:flex; align-items:flex-end; justify-content:center; }
+  .lktm-sheet { width:100%; max-width:480px; background:var(--bg-card,#16213e); border-radius:16px 16px 0 0; padding:1rem 1rem calc(1rem + env(safe-area-inset-bottom)); }
+  .lktm-sheet h3 { margin:0 0 .7rem; color:var(--accent-yellow,#f5c518); font-size:1.05rem; }
+  .lktm-grid { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
+  .lktm-grid button { padding:.9rem .5rem; border-radius:12px; border:1px solid var(--border-color,#334155); background:#1a1a2e; color:#fff; font-weight:700; font-size:.95rem; font-family:inherit; cursor:pointer; text-align:left; }
+  .lktm-grid button.on { border-color:var(--accent-yellow,#f5c518); color:var(--accent-yellow,#f5c518); }
+  .lktm-sheet .close { display:block; width:100%; margin-top:.7rem; padding:.8rem; border-radius:12px; border:1px solid var(--border-color,#334155); background:transparent; color:#fff; font-weight:700; font-family:inherit; }
+  .lktm-ask label { display:block; font-size:.85rem; color:var(--text-secondary,#94a3b8); margin-bottom:.35rem; }
+  .lktm-ask textarea, .lktm-ask input { width:100%; box-sizing:border-box; padding:.7rem; border-radius:10px; border:1px solid var(--border-color,#334155); background:#0f172a; color:#fff; font-size:1rem; font-family:inherit; }
+  .lktm-ask .row { display:flex; gap:.5rem; margin-top:.8rem; }
+  .lktm-ask .row button { flex:1; padding:.85rem; border-radius:12px; border:1px solid var(--border-color,#334155); background:#1a1a2e; color:#fff; font-weight:700; font-family:inherit; cursor:pointer; }
+  .lktm-ask .row button.ok { background:var(--accent-yellow,#f5c518); color:#1a1a2e; border-color:var(--accent-yellow,#f5c518); }
+  .lktm-ask .row button.danger { background:var(--accent-red,#ef4444); border-color:var(--accent-red,#ef4444); }
+  /* Aktualisieren-Knopf sitzt jetzt oben im Kopf statt über den Knöpfen */
+  /* Meldungen unten dürfen keine Knöpfe darunter blockieren */
+  .toast { pointer-events:none; }
+  .header .config-btn { position:static; display:inline-flex; align-items:center; justify-content:center; vertical-align:middle; width:34px; height:34px; margin:.5rem 0 0 .4rem; font-size:1rem; padding:0; }
+  /* Reiter: Symbol oben, Text darunter – passt auf jedes Handy */
+  .nav-tab.nav-stack { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-width:0; padding:.45rem .15rem .4rem; font-size:.66rem; position:relative; }
+  .nav-stack .ni { font-size:1.15rem; line-height:1.1; }
+  .nav-stack .nl { max-width:100%; overflow:hidden; text-overflow:ellipsis; }
+  .nav-stack .badge { position:absolute; top:2px; right:12%; margin:0; }
+  .lktm-grid .ni { margin-right:.4rem; }
+</style>
+<script>
+(function () {
+  // ---------- Uhrzeit ohne Sekunden ----------
+  window.fmtTime = function (t) {
+    const s = String(t == null ? '' : t);
+    const m = s.match(/^(\d{1,2}):(\d{2})/);
+    return m ? m[1].padStart(2, '0') + ':' + m[2] : s;
+  };
+
+  // ---------- Termin in der Zukunft? (Datum TT.MM.JJJJ) ----------
+  window.isFutureEvent = function (ev) {
+    if (!ev || !ev.date) return false;
+    const p = String(ev.date).split('.');
+    if (p.length !== 3) return false;
+    const d = new Date(+p[2], +p[1] - 1, +p[0]);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return d > today;
+  };
+
+  // ---------- Eingabe-Fenster (statt prompt) ----------
+  // askText({ title, label, value, placeholder, ok, multiline, extra:{text, danger} }) -> Promise
+  //   Ergebnis: Text (OK), null (Abbrechen) oder '__extra__' (Zusatzknopf)
+  window.askText = function (o) {
+    return new Promise(resolve => {
+      const back = document.createElement('div'); back.className = 'lktm-back';
+      back.innerHTML = '<div class="lktm-sheet lktm-ask"><h3></h3><label></label>' +
+        (o.multiline ? '<textarea rows="3"></textarea>' : '<input type="text">') +
+        '<div class="row"><button data-a="x">Abbrechen</button>' + (o.extra ? '<button data-a="extra" class="' + (o.extra.danger ? 'danger' : '') + '"></button>' : '') + '<button data-a="ok" class="ok"></button></div></div>';
+      back.querySelector('h3').textContent = o.title || '';
+      back.querySelector('label').textContent = o.label || '';
+      const inp = back.querySelector('textarea, input');
+      inp.value = o.value || ''; inp.placeholder = o.placeholder || '';
+      back.querySelector('[data-a="ok"]').textContent = o.ok || 'OK';
+      if (o.extra) back.querySelector('[data-a="extra"]').textContent = o.extra.text;
+      let armed = false;
+      const done = v => { back.remove(); resolve(v); };
+      back.addEventListener('click', e => {
+        if (e.target === back) return done(null);
+        const b = e.target.closest('[data-a]'); if (!b) return;
+        if (b.dataset.a === 'x') done(null);
+        else if (b.dataset.a === 'ok') done(inp.value.trim());
+        else if (b.dataset.a === 'extra') {
+          if (o.extra.confirm && !armed) { armed = true; b.textContent = o.extra.confirm; return; }
+          done('__extra__');
+        }
+      });
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter' && !o.multiline) done(inp.value.trim()); });
+      document.body.appendChild(back);
+      setTimeout(() => inp.focus(), 50);
+    });
+  };
+
+  // ---------- "☰ Mehr" in der Navigation ----------
+  const PRIMARY = {
+    'member-nav': ['events', 'noten', 'scanner', 'brett', 'profile'],
+    'gericht-nav': ['overview', 'my-events', 'attendance', 'brett-gericht', 'noten-gericht']
+  };
+  function setupNav(navId) {
+    const nav = document.getElementById(navId); if (!nav || nav.querySelector('.nav-more-btn')) return;
+    const prim = PRIMARY[navId];
+    const tabs = Array.from(nav.querySelectorAll('.nav-tab'));
+    const extra = tabs.filter(t => !prim.includes(t.dataset.tab));
+    extra.forEach(t => t.classList.add('nav-in-more'));
+    const more = document.createElement('button');
+    more.className = 'nav-tab nav-more-btn'; more.type = 'button';
+    more.innerHTML = '☰ Mehr<span class="badge hidden"></span>';
+    nav.appendChild(more);
+    // Symbol und Text untereinander
+    tabs.concat(more).forEach(t => {
+      const tn = Array.from(t.childNodes).find(n => n.nodeType === 3 && n.textContent.trim());
+      if (!tn) return;
+      const m = tn.textContent.trim().match(/^(\S+)\s+(.+)$/);
+      if (!m) return;
+      const ic = document.createElement('span'); ic.className = 'ni'; ic.textContent = m[1];
+      const lb = document.createElement('span'); lb.className = 'nl'; lb.textContent = m[2];
+      t.insertBefore(ic, tn); t.insertBefore(lb, tn); tn.remove();
+      t.classList.add('nav-stack');
+    });
+    // Primär-Tab angeklickt -> "Mehr" nicht mehr markiert
+    tabs.filter(t => prim.includes(t.dataset.tab)).forEach(t => t.addEventListener('click', () => more.classList.remove('active')));
+    more.addEventListener('click', () => {
+      const avail = extra.filter(t => !t.classList.contains('hidden'));
+      const back = document.createElement('div'); back.className = 'lktm-back';
+      back.innerHTML = '<div class="lktm-sheet"><h3>Mehr</h3><div class="lktm-grid"></div><button class="close">Schließen</button></div>';
+      const grid = back.querySelector('.lktm-grid');
+      avail.forEach(t => {
+        const b = document.createElement('button');
+        b.innerHTML = t.innerHTML; if (t.classList.contains('active')) b.classList.add('on');
+        b.onclick = () => { back.remove(); t.click(); tabs.forEach(x => x.classList.remove('active')); t.classList.add('active'); more.classList.add('active'); };
+        grid.appendChild(b);
+      });
+      back.addEventListener('click', e => { if (e.target === back || e.target.classList.contains('close')) back.remove(); });
+      document.body.appendChild(back);
+    });
+    // Zähler (z.B. neue Anzeigen) aus den versteckten Reitern am "Mehr"-Knopf anzeigen
+    const sync = () => {
+      let n = 0;
+      extra.forEach(t => { if (t.classList.contains('hidden')) return; const bd = t.querySelector('.badge'); if (bd && !bd.classList.contains('hidden')) n += parseInt(bd.textContent, 10) || 0; });
+      const mb = more.querySelector('.badge');
+      // nur ändern, wenn nötig – sonst löst der Beobachter sich selbst endlos aus
+      if (mb.textContent !== String(n)) mb.textContent = String(n);
+      if (mb.classList.contains('hidden') !== !n) mb.classList.toggle('hidden', !n);
+    };
+    extra.forEach(t => new MutationObserver(sync).observe(t, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] }));
+    sync();
+  }
+
+  // Aktualisieren-Knopf in den Kopf verschieben
+  function moveRefresh() {
+    const btn = document.getElementById('config-btn');
+    const header = document.querySelector('#main-app .header');
+    const info = document.getElementById('user-info');
+    if (btn && header && info && btn.parentElement !== header) { info.insertAdjacentElement('afterend', btn); btn.title = 'Aktualisieren'; btn.setAttribute('aria-label', 'Aktualisieren'); }
+  }
+
+  window.openScannerTab = function () {
+    const t = document.querySelector('#member-nav [data-tab="scanner"]'); if (t) t.click();
+  };
+
+  function init() { setupNav('member-nav'); setupNav('gericht-nav'); moveRefresh(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+
+<!-- ============================================================
+     EXPORT: Jeder PDF-/Datei-Export -> echtes PDF + Fenster
+     "Teilen / Speichern", "Herunterladen", "Öffnen & Drucken"
+     (funktioniert auch in der installierten iPhone-App)
+     ============================================================ -->
+<style>
+  .lktx-back { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:10100; display:flex; align-items:flex-end; justify-content:center; }
+  .lktx-sheet { width:100%; max-width:480px; background:var(--bg-card,#16213e); color:var(--text-primary,#fff); border-radius:16px 16px 0 0; padding:1rem 1rem calc(1rem + env(safe-area-inset-bottom)); box-shadow:0 -8px 30px rgba(0,0,0,.4); }
+  .lktx-sheet h3 { margin:0 0 .2rem; font-size:1.05rem; }
+  .lktx-sheet .n { font-size:.8rem; color:var(--text-secondary,#94a3b8); word-break:break-all; margin-bottom:.8rem; }
+  .lktx-sheet button { display:block; width:100%; padding:.85rem; margin-bottom:.5rem; border-radius:12px; border:1px solid var(--border-color,#334155); background:#1a1a2e; color:#fff; font:700 1rem inherit; font-family:inherit; cursor:pointer; }
+  .lktx-sheet button.main { background:var(--accent-yellow,#f5c518); color:#1a1a2e; border-color:var(--accent-yellow,#f5c518); }
+  .lktx-sheet .h { font-size:.78rem; color:var(--text-secondary,#94a3b8); margin:.2rem 0 .7rem; }
+  .lktx-busy { position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:10100; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; }
+  .lktx-busy div { background:var(--bg-card,#16213e); padding:1rem 1.4rem; border-radius:12px; }
+  .lktx-prev { position:fixed; inset:0; z-index:10100; background:#2b2b2b; display:flex; flex-direction:column; }
+  .lktx-prev iframe { flex:1; border:0; background:#fff; }
+  .lktx-prev .bar { display:flex; gap:.5rem; padding:.5rem; padding-top:calc(.5rem + env(safe-area-inset-top)); background:#16213e; }
+  .lktx-prev .bar button { flex:1; padding:.7rem; border-radius:10px; border:1px solid #334155; background:#1a1a2e; color:#fff; font-weight:700; font-family:inherit; }
+</style>
+<script>
+(function () {
+  const H2C = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  function loadScript(src, test) {
+    return new Promise((res, rej) => {
+      if (test()) return res();
+      const s = document.createElement('script'); s.src = src;
+      s.onload = () => test() ? res() : rej(new Error('nicht geladen'));
+      s.onerror = () => rej(new Error('Werkzeug konnte nicht geladen werden (Internet?)'));
+      document.head.appendChild(s);
+    });
+  }
+  function busy(text) {
+    const d = document.createElement('div'); d.className = 'lktx-busy'; d.innerHTML = '<div>⏳ ' + text + '</div>';
+    document.body.appendChild(d); return () => d.remove();
+  }
+  const safeName = s => String(s || 'LKT').replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '_').replace(/_+/g, '_').slice(0, 80);
+
+  // ---------- Datei ausliefern: Teilen / Herunterladen / Öffnen ----------
+  function deliverFile(blob, filename, title) {
+    filename = filename || 'LKT.pdf';
+    const isPdf = /\.pdf$/i.test(filename) || blob.type === 'application/pdf';
+    const file = (() => { try { return new File([blob], filename, { type: blob.type || (isPdf ? 'application/pdf' : 'application/octet-stream') }); } catch (e) { return null; } })();
+    const canShare = !!(file && navigator.canShare && navigator.share && (() => { try { return navigator.canShare({ files: [file] }); } catch (e) { return false; } })());
+    const url = URL.createObjectURL(blob);
+    const back = document.createElement('div'); back.className = 'lktx-back';
+    back.innerHTML = '<div class="lktx-sheet" role="dialog"><h3>' + (isPdf ? '📄 ' : '💾 ') + (title || (isPdf ? 'PDF ist fertig' : 'Datei ist fertig')) + '</h3><div class="n"></div>' +
+      (canShare ? '<button class="main" data-a="share">📤 Teilen / Speichern' + (isPdf ? ' / Drucken' : '') + '</button>' : '') +
+      '<button class="' + (canShare ? '' : 'main') + '" data-a="dl">⬇️ Herunterladen</button>' +
+      (isPdf ? '<button data-a="open">🖨️ Öffnen &amp; Drucken</button>' : '') +
+      '<div class="h">' + (canShare ? (isIOS ? 'iPhone: „Teilen“ → „In Dateien sichern“ oder „Drucken“.' : 'Über „Teilen“ kannst du speichern, drucken oder z.B. per WhatsApp schicken.') : 'Die Datei landet in deinen Downloads.') + '</div>' +
+      '<button data-a="x">Schließen</button></div>';
+    back.querySelector('.n').textContent = filename;
+    const close = () => { back.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000); };
+    back.addEventListener('click', async ev => {
+      if (ev.target === back) return close();
+      const b = ev.target.closest('[data-a]'); if (!b) return;
+      const a = b.dataset.a;
+      if (a === 'x') return close();
+      if (a === 'share') {
+        try { await navigator.share({ files: [file], title: filename }); close(); }
+        catch (e) { if (e && e.name !== 'AbortError') showToast('Teilen nicht möglich – bitte „Herunterladen“', true); }
+      } else if (a === 'dl') {
+        const l = document.createElement('a'); l.href = url; l.download = filename; document.body.appendChild(l); l.click(); l.remove();
+        showToast('⬇️ ' + filename);
+      } else if (a === 'open') {
+        const w = window.__lktxOrigOpen ? window.__lktxOrigOpen.call(window, url, '_blank') : null;
+        if (!w) { const l = document.createElement('a'); l.href = url; l.target = '_blank'; l.rel = 'noopener'; document.body.appendChild(l); l.click(); l.remove(); }
+      }
+    });
+    document.body.appendChild(back);
+  }
+
+  // ---------- Text für jsPDF säubern (Emojis machen Zeichensalat) ----------
+  function cleanText(t) {
+    if (Array.isArray(t)) return t.map(cleanText);
+    if (typeof t !== 'string') return t;
+    return t.replace(/[✓✔✅]/g, '+').replace(/[✗✘❌]/g, '-')
+      .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{FE0F}\u{200D}\u{20E3}]/gu, '')
+      .replace(/^\s+/, '').replace(/ {2,}/g, ' ');
+  }
+
+  // ---------- HTML-Bericht -> PDF (A4, mehrseitig) ----------
+  async function htmlToPdf(html) {
+    await loadScript(H2C, () => !!window.html2canvas);
+    const J = window.jspdf && window.jspdf.jsPDF; if (!J) throw new Error('PDF-Werkzeug fehlt');
+    const ifr = document.createElement('iframe');
+    ifr.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;height:1123px;border:0;background:#fff';
+    document.body.appendChild(ifr);
+    try {
+      const d = ifr.contentDocument; d.open(); d.write(html.replace(/<script[\s\S]*?<\/script>/gi, '')); d.close();
+      await new Promise(r => setTimeout(r, 150));
+      await Promise.all(Array.from(d.images).map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r; })));
+      d.body.style.background = '#fff';
+      ifr.style.height = '50px';   // klein messen, sonst zählt die Fensterhöhe mit
+      await new Promise(r => setTimeout(r, 30));
+      const H = Math.max(50, d.documentElement.scrollHeight, d.body.scrollHeight);
+      ifr.style.height = H + 'px';
+      const canvas = await window.html2canvas(d.body, { scale: 2, backgroundColor: '#ffffff', width: 794, windowWidth: 794, height: H, windowHeight: H, useCORS: true, logging: false });
+      const pdf = new J({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+      const pageH = Math.floor(canvas.width * 297 / 210);
+      for (let y = 0, p = 0; y < canvas.height; y += pageH, p++) {
+        const h = Math.min(pageH, canvas.height - y);
+        if (p > 0 && h < 60) break;   // nur ein Rest-Streifen -> keine leere Seite
+        const c = document.createElement('canvas'); c.width = canvas.width; c.height = pageH;
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+        if (p > 0) pdf.addPage();
+        pdf.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, 210, 297);
+      }
+      return pdf.output('blob');
+    } finally { ifr.remove(); }
+  }
+
+  // Fallback ohne Internet: Vorschau in der App mit Drucken-Knopf
+  function previewHtml(html, title) {
+    const box = document.createElement('div'); box.className = 'lktx-prev';
+    box.innerHTML = '<div class="bar"><button data-a="x">✕ Schließen</button><button data-a="p">🖨️ Drucken</button></div><iframe title="Vorschau"></iframe>';
+    document.body.appendChild(box);
+    const ifr = box.querySelector('iframe'); const d = ifr.contentDocument; d.open(); d.write(html.replace(/<script[\s\S]*?<\/script>/gi, '')); d.close();
+    box.addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (!b) return; if (b.dataset.a === 'x') box.remove(); else { try { ifr.contentWindow.focus(); ifr.contentWindow.print(); } catch (x) { window.print(); } } });
+  }
+
+  async function makeReport(html) {
+    const title = ((html.match(/<title>([^<]*)<\/title>/i) || [])[1] || 'LKT Bericht').trim();
+    const done = busy('PDF wird erstellt…');
+    try {
+      const blob = await htmlToPdf(html);
+      done();
+      deliverFile(blob, safeName(title) + '.pdf', title);
+    } catch (e) {
+      done();
+      showToast('PDF ging nicht (' + e.message + ') – Vorschau zum Drucken', true);
+      previewHtml(html, title);
+    }
+  }
+
+  // Berichte, die bisher in ein leeres Fenster geschrieben wurden, werden abgefangen
+  const origOpen = window.open;
+  window.__lktxOrigOpen = origOpen;
+  window.open = function (url) {
+    if (url && url !== 'about:blank') return origOpen.apply(window, arguments);
+    let buf = '', finished = false;
+    const finish = () => { if (finished) return; finished = true; makeReport(buf); };
+    return {
+      closed: false, focus() {}, print() {}, close() {},
+      document: { write(h) { buf += h; }, writeln(h) { buf += h + '\n'; }, open() {}, close() { setTimeout(finish, 0); } }
+    };
+  };
+
+  // jsPDF: jedes neue Dokument bekommt: Texte ohne Emojis, Speichern -> Teilen-Fenster.
+  // (text/save hängen bei jsPDF am einzelnen Dokument, daher Konstruktor einwickeln.)
+  // Andere Module können über window.__lktPdfHooks eigene Anpassungen anhängen.
+  window.__lktPdfHooks = window.__lktPdfHooks || [];
+  const J = window.jspdf && window.jspdf.jsPDF;
+  if (J && !J.__lktx) {
+    const Wrapped = function () {
+      const doc = new (Function.prototype.bind.apply(J, [null].concat(Array.from(arguments))))();
+      const ot = doc.text, os = doc.save;
+      doc.text = function () { const a = Array.from(arguments); a[0] = cleanText(a[0]); return ot.apply(this, a); };
+      doc.save = function (name) {
+        try { deliverFile(this.output('blob'), name || 'LKT.pdf'); return this; }
+        catch (e) { return os.apply(this, arguments); }
+      };
+      window.__lktPdfHooks.forEach(h => { try { h(doc); } catch (e) {} });
+      return doc;
+    };
+    Object.keys(J).forEach(k => { try { Wrapped[k] = J[k]; } catch (e) {} });
+    Wrapped.API = J.API; Wrapped.prototype = J.prototype; Wrapped.__lktx = true;
+    window.jspdf.jsPDF = Wrapped;
+  }
+
+  // Bilder (z.B. QR-Code) als Datei ausliefern
+  async function deliverDataUrl(dataUrl, filename, title) {
+    const blob = await (await fetch(dataUrl)).blob();
+    deliverFile(blob, filename, title);
+  }
+
+  // Noten-Seiten (Bilder) -> PDF, eine Seite pro Notenblatt
+  async function imagesToPdf(urls) {
+    const J2 = window.jspdf && window.jspdf.jsPDF; if (!J2) throw new Error('PDF-Werkzeug fehlt');
+    let pdf = null;
+    for (const u of urls) {
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Seite fehlt')); i.src = u; });
+      const land = img.naturalWidth > img.naturalHeight;
+      const W = land ? 297 : 210, Hh = land ? 210 : 297;
+      if (!pdf) pdf = new J2({ unit: 'mm', format: 'a4', orientation: land ? 'landscape' : 'portrait' });
+      else pdf.addPage('a4', land ? 'landscape' : 'portrait');
+      const r = Math.min(W / img.naturalWidth, Hh / img.naturalHeight);
+      const w = img.naturalWidth * r, h = img.naturalHeight * r;
+      const c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext('2d').drawImage(img, 0, 0);
+      pdf.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', (W - w) / 2, (Hh - h) / 2, w, h);
+    }
+    return pdf.output('blob');
+  }
+
+  window.lktExport = { deliverFile, deliverDataUrl, imagesToPdf, safeName, makeReport };
+})();
+</script>
+
+<!-- ============================================================
+     NOTENMAPPE: Stimmen ansehen (auch offline) + Hochladen für Admins
+     ============================================================ -->
+<style>
+  .nm-head { display:flex; gap:.5rem; margin-bottom:.75rem; }
+  .nm-head input { flex:1; }
+  .nm-filter { display:flex; gap:.5rem; margin-bottom:.75rem; }
+  .nm-filter button { flex:1; padding:.6rem .4rem; border-radius:10px; border:1px solid var(--border-color,#334155); background:transparent; color:var(--text-secondary,#94a3b8); font-weight:700; font-family:inherit; font-size:.9rem; cursor:pointer; }
+  .nm-filter button.on { border-color:var(--accent-yellow,#f5c518); color:var(--accent-yellow,#f5c518); background:rgba(245,197,24,.12); }
+  .nm-status { font-size:.82rem; color:var(--text-secondary,#94a3b8); margin-bottom:.75rem; display:flex; justify-content:space-between; align-items:center; gap:.5rem; }
+  .nm-status .bar { flex:1; height:5px; background:var(--border-color,#334155); border-radius:3px; overflow:hidden; }
+  .nm-status .bar div { height:100%; background:var(--accent-green,#22c55e); width:0; transition:width .3s; }
+  .nm-piece { background:var(--bg-card,#16213e); border:1px solid var(--border-color,#334155); border-radius:12px; padding:.75rem .85rem; margin-bottom:.6rem; }
+  .nm-piece-title { display:flex; justify-content:space-between; align-items:center; font-weight:700; font-size:1.05rem; margin-bottom:.5rem; }
+  .nm-piece-title button { background:none; border:none; color:var(--text-secondary,#94a3b8); font-size:1.1rem; cursor:pointer; padding:0 .3rem; }
+  .nm-chips { display:flex; flex-wrap:wrap; gap:.4rem; }
+  .nm-chip { padding:.45rem .7rem; border-radius:20px; border:1px solid var(--border-color,#334155); background:rgba(255,255,255,.04); color:var(--text-primary,#fff); font-size:.88rem; font-family:inherit; cursor:pointer; }
+  .nm-chip.mine { border-color:var(--accent-yellow,#f5c518); }
+  .nm-chip .ok { color:var(--accent-green,#22c55e); margin-left:.25rem; }
+  .nm-empty { text-align:center; color:var(--text-secondary,#94a3b8); padding:2rem 1rem; }
+  .nm-viewer { position:fixed; inset:0; z-index:10050; background:#2b2b2b; display:flex; flex-direction:column; }
+  .nm-vbar { display:flex; align-items:center; gap:.5rem; padding:.5rem .6rem; padding-top:calc(.5rem + env(safe-area-inset-top)); background:#16213e; color:#fff; }
+  .nm-vbar .t { flex:1; font-weight:700; font-size:.95rem; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nm-vbar .t small { display:block; font-weight:600; color:#f5c518; font-size:.8rem; }
+  .nm-vbar button { min-width:2.4rem; height:2.4rem; border-radius:8px; border:1px solid #334155; background:#1a1a2e; color:#fff; font-size:1.05rem; font-weight:700; cursor:pointer; }
+  .nm-pages { flex:1; overflow:auto; -webkit-overflow-scrolling:touch; padding:.4rem; }
+  .nm-pages img { display:block; background:#fff; margin:0 auto .4rem; border-radius:4px; max-width:none; }
+  .nm-pages .msg { color:#ddd; text-align:center; padding:2rem 1rem; }
+  .nm-vfoot { display:flex; gap:.5rem; padding:.5rem .6rem; padding-bottom:calc(.5rem + env(safe-area-inset-bottom)); background:#16213e; }
+  .nm-vfoot button { flex:1; padding:.6rem .4rem; border-radius:8px; border:1px solid #334155; background:#1a1a2e; color:#fff; font-size:.82rem; font-weight:700; font-family:inherit; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .nm-vfoot button:disabled { opacity:.35; }
+  .nm-upload { background:var(--bg-card,#16213e); border:1px dashed var(--accent-yellow,#f5c518); border-radius:12px; padding:.85rem; margin-bottom:1rem; }
+  .nm-upload h4 { margin:0 0 .5rem; }
+  .nm-upload .hint { font-size:.8rem; color:var(--text-secondary,#94a3b8); margin:.35rem 0 .6rem; }
+  .nm-rows { max-height:50vh; overflow:auto; margin:.6rem 0; }
+  .nm-row { display:grid; grid-template-columns:1.2rem 1fr; gap:.4rem; align-items:start; padding:.45rem 0; border-bottom:1px solid var(--border-color,#334155); font-size:.82rem; }
+  .nm-row input[type=text], .nm-row select { width:100%; padding:.35rem .45rem; font-size:.85rem; margin-bottom:.25rem; }
+  .nm-row .f { color:var(--text-secondary,#94a3b8); font-size:.72rem; word-break:break-all; }
+  .nm-row .st { font-weight:700; font-size:.75rem; }
+  .nm-row .st.ok { color:var(--accent-green,#22c55e); } .nm-row .st.err { color:var(--accent-red,#ef4444); }
+  .nm-two { display:grid; grid-template-columns:1fr 1fr; gap:.4rem; }
+</style>
+<script>
+(function () {
+  const GRUPPEN = ['Trompete', 'Tenorhorn', 'Posaune', 'Tuba', 'Schlagwerk', 'Partitur', 'Sonstige'];
+  const ICON = { Trompete: '🎺', Tenorhorn: '📯', Posaune: '🎷', Tuba: '🎵', Schlagwerk: '🥁', Partitur: '📖', Sonstige: '📄' };
+  const CACHE = 'lkt-noten-v1';
+  const IDX_KEY = 'lkt-noten-index';
+  const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+  let index = [];
+  let root = null;
+  let filter = 'mine';
+  let search = '';
+  let cachedIds = new Set();
+  let syncing = false;
+
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+  const me = () => (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+  const canManage = () => { const p = me().permissions || {}; return !!(p.isAdmin || p.canManageEvents); };
+  const token = () => me().token || '';
+
+  // Gruppe (Instrument) aus einem Namen erkennen – für Register und Dateinamen
+  function gruppeAus(text) {
+    const t = String(text || '').toLowerCase();
+    if (/partitur|score|direktion/.test(t)) return 'Partitur';
+    if (/snare|trommel|becken|schlag|drum|perc|gro(ß|ss)e|basstrommel|kleine/.test(t)) return 'Schlagwerk';
+    if (/trompet|tromp|trp|flügelhorn|flugelhorn/.test(t)) return 'Trompete';
+    if (/tenor|bariton|euphon/.test(t)) return 'Tenorhorn';
+    if (/posaun|\bpos\b/.test(t)) return 'Posaune';
+    if (/tuba|\bbass\b|^bass/.test(t)) return 'Tuba';
+    return 'Sonstige';
+  }
+  function meineGruppe() {
+    const u = me();
+    if (!u.registerId || typeof registerData === 'undefined') return '';
+    const r = (registerData || []).find(x => x.id === u.registerId);
+    const g = r ? gruppeAus(r.name) : '';
+    return g === 'Sonstige' ? '' : g;
+  }
+
+  // ---------- Daten ----------
+  async function loadIndex() {
+    try { index = JSON.parse(store.get(IDX_KEY) || '[]'); } catch (e) { index = []; }
+    render();
+    if (!navigator.onLine) return;
+    try {
+      const r = await apiGet('getNotenIndex');
+      if (r && r.stuecke) { index = r.stuecke; store.set(IDX_KEY, JSON.stringify(index)); }
+    } catch (e) {}
+    await refreshCached();
+    render();
+    autoSync();
+  }
+
+  async function refreshCached() {
+    cachedIds = new Set();
+    if (!window.caches) return;
+    try {
+      const c = await caches.open(CACHE);
+      (await c.keys()).forEach(req => { const m = req.url.match(/\/noten\/(NB-[\w-]+)$/); if (m) cachedIds.add(m[1]); });
+    } catch (e) {}
+  }
+
+  const pageKey = id => location.origin + '/noten/' + id;
+  async function pageUrl(id) {
+    if (window.caches) {
+      try {
+        const c = await caches.open(CACHE);
+        const hit = await c.match(pageKey(id));
+        if (hit) return URL.createObjectURL(await hit.blob());
+        const res = await fetch(API_URL + '?action=getNotenBild&id=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(token()));
+        if (res.ok && (res.headers.get('content-type') || '').startsWith('image/')) {
+          await c.put(pageKey(id), res.clone());
+          cachedIds.add(id);
+          return URL.createObjectURL(await res.blob());
+        }
+        const j = await res.json().catch(() => ({}));
+        if (j.authError && typeof handleAuthError === 'function') handleAuthError(j);
+        throw new Error(j.error || 'Seite nicht ladbar');
+      } catch (e) { throw e; }
+    }
+    return API_URL + '?action=getNotenBild&id=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(token());
+  }
+
+  function stimmenFuerOffline() {
+    const g = meineGruppe();
+    const out = [];
+    index.forEach(s => s.stimmen.forEach(v => { if (!g || v.gruppe === g) out.push(v); }));
+    return out;
+  }
+
+  // Eigene Stimmen im Hintergrund für offline speichern
+  async function autoSync() {
+    if (syncing || !navigator.onLine || !window.caches) return;
+    const ids = []; stimmenFuerOffline().forEach(v => v.pages.forEach(p => { if (!cachedIds.has(p)) ids.push(p); }));
+    if (!ids.length) { renderStatus(); return; }
+    syncing = true;
+    for (const id of ids) {
+      try { const u = await pageUrl(id); if (u.startsWith('blob:')) URL.revokeObjectURL(u); } catch (e) {}
+      renderStatus();
+    }
+    syncing = false;
+    render();
+  }
+
+  // ---------- Liste ----------
+  function renderStatus() {
+    const el = root && root.querySelector('.nm-status'); if (!el) return;
+    const all = []; stimmenFuerOffline().forEach(v => v.pages.forEach(p => all.push(p)));
+    const have = all.filter(p => cachedIds.has(p)).length;
+    const g = meineGruppe();
+    if (!all.length) { el.innerHTML = ''; return; }
+    el.innerHTML = '<span>' + (have === all.length ? '✅ ' : '📥 ') + (g ? 'Deine Stimme (' + esc(g) + ')' : 'Alle Noten') + ': ' + have + '/' + all.length + ' Seiten offline</span><div class="bar"><div style="width:' + Math.round(have / all.length * 100) + '%"></div></div>';
+  }
+
+  function render() {
+    if (!root) return;
+    const g = meineGruppe();
+    const q = search.trim().toLowerCase();
+    let html = '<div class="section-header"><h2>🎼 Notenmappe</h2></div>';
+    if (canManage()) html += '<button class="btn btn-secondary btn-block" style="margin-bottom:.75rem" data-nm="upload">➕ Noten hochladen</button><div class="nm-upload-slot"></div>';
+    html += '<div class="nm-head input-group" style="margin-bottom:.75rem"><input type="search" placeholder="🔍 Stück suchen" value="' + esc(search) + '" data-nm="search"></div>';
+    html += '<div class="nm-filter"><button data-nm="f-mine" class="' + (filter === 'mine' ? 'on' : '') + '">' + (g ? ICON[g] + ' Meine Stimme' : '🎶 Meine Stimme') + '</button><button data-nm="f-all" class="' + (filter === 'all' ? 'on' : '') + '">📚 Alle Stimmen</button></div>';
+    if (filter === 'mine' && !g) html += '<p class="hint" style="font-size:.82rem;color:var(--text-secondary);margin:-.25rem 0 .75rem">Tipp: Wähle im Profil dein Register, dann siehst du hier nur deine Stimme.</p>';
+    html += '<div class="nm-status"></div>';
+    const list = index.filter(s => !q || s.name.toLowerCase().includes(q));
+    if (!index.length) html += '<div class="nm-empty">Noch keine Noten hochgeladen.' + (canManage() ? '<br>Tippe oben auf „Noten hochladen“.' : '') + '</div>';
+    else if (!list.length) html += '<div class="nm-empty">Kein Stück gefunden.</div>';
+    list.forEach(s => {
+      const st = s.stimmen.filter(v => filter === 'all' || !g || v.gruppe === g);
+      const shown = st.length ? st : s.stimmen;   // wenn es die eigene Stimme nicht gibt: alle zeigen
+      html += '<div class="nm-piece"><div class="nm-piece-title"><span>' + esc(s.name) + '</span>' + (canManage() ? '<button data-nm="menu" data-s="' + s.id + '" title="Bearbeiten">⋯</button>' : '') + '</div><div class="nm-chips">';
+      shown.forEach(v => {
+        const off = v.pages.every(p => cachedIds.has(p));
+        html += '<button class="nm-chip' + (g && v.gruppe === g ? ' mine' : '') + '" data-nm="open" data-s="' + s.id + '" data-v="' + v.id + '">' + ICON[v.gruppe] + ' ' + esc(v.label) + (off ? '<span class="ok">✓</span>' : '') + '</button>';
+      });
+      if (!st.length && filter === 'mine' && g) html += '<span style="font-size:.75rem;color:var(--text-secondary);align-self:center">(keine ' + esc(g) + '-Stimme)</span>';
+      html += '</div></div>';
+    });
+    root.innerHTML = html;
+    renderStatus();
+  }
+
+  function onClick(e) {
+    const b = e.target.closest('[data-nm]'); if (!b || !root.contains(b)) return;
+    const a = b.dataset.nm;
+    if (a === 'f-mine' || a === 'f-all') { filter = a === 'f-mine' ? 'mine' : 'all'; store.set('lkt-noten-filter', filter); render(); }
+    else if (a === 'open') openViewer(b.dataset.s, b.dataset.v);
+    else if (a === 'upload') toggleUpload();
+    else if (a === 'menu') pieceMenu(b.dataset.s);
+  }
+  function onInput(e) {
+    if (e.target.dataset && e.target.dataset.nm === 'search') {
+      search = e.target.value;
+      const pos = e.target.selectionStart;
+      render();
+      const inp = root.querySelector('[data-nm="search"]'); inp.focus(); try { inp.setSelectionRange(pos, pos); } catch (x) {}
+    }
+  }
+
+  async function pieceMenu(sid) {
+    const s = index.find(x => x.id === sid); if (!s) return;
+    const v = await askText({ title: '🎼 ' + s.name, label: 'Name des Stücks', value: s.name, ok: 'Umbenennen', extra: { text: '🗑 Löschen', confirm: '⚠️ Wirklich alles löschen?', danger: true } });
+    if (v === null || (v !== '__extra__' && (!v || v === s.name))) return;
+    showLoading();
+    try {
+      const del = v === '__extra__';
+      const r = del
+        ? await apiPost({ action: 'deleteNotenStueck', stueckId: sid })
+        : await apiPost({ action: 'renameNotenStueck', stueckId: sid, name: v });
+      if (r.error) showToast(r.error, true); else showToast(del ? 'Stück gelöscht' : 'Umbenannt');
+    } catch (e) { showToast('Fehler: ' + e.message, true); }
+    hideLoading();
+    await loadIndex();
+  }
+
+  // ---------- Anzeige ----------
+  let viewer = null, zoom = 100, wakeLock = null, blobs = [];
+  function listForNav() {
+    // Reihenfolge der Stücke für ◀ ▶ (gleiche Gruppe)
+    return index;
+  }
+  async function openViewer(sid, vid) {
+    const s = index.find(x => x.id === sid); if (!s) return;
+    const v = s.stimmen.find(x => x.id === vid); if (!v) return;
+    closeViewer(true);
+    try { zoom = parseInt(store.get('lkt-noten-zoom') || '100', 10) || 100; } catch (e) {}
+    viewer = document.createElement('div');
+    viewer.className = 'nm-viewer';
+    const list = listForNav();
+    const i = list.findIndex(x => x.id === sid);
+    const nb = (dir) => { for (let k = i + dir; k >= 0 && k < list.length; k += dir) { const m = list[k].stimmen.find(x => x.gruppe === v.gruppe && x.label === v.label) || list[k].stimmen.find(x => x.gruppe === v.gruppe); if (m) return { s: list[k], v: m }; } return null; };
+    const prev = nb(-1), next = nb(1);
+    viewer.innerHTML =
+      '<div class="nm-vbar"><button data-x="close" aria-label="Schließen">✕</button><div class="t">' + esc(s.name) + '<small>' + ICON[v.gruppe] + ' ' + esc(v.label) + ' · ' + v.pages.length + ' Seite' + (v.pages.length > 1 ? 'n' : '') + '</small></div>' +
+      '<button data-x="out" aria-label="Kleiner">−</button><button data-x="in" aria-label="Größer">+</button><button data-x="pdf" aria-label="Drucken oder speichern">📤</button>' + (canManage() ? '<button data-x="del" aria-label="Stimme löschen">🗑</button>' : '') + '</div>' +
+      '<div class="nm-pages"><div class="msg">Lade Noten…</div></div>' +
+      '<div class="nm-vfoot"><button data-x="prev"' + (prev ? '' : ' disabled') + '>◀ ' + (prev ? esc(prev.s.name) : '') + '</button><button data-x="next"' + (next ? '' : ' disabled') + '>' + (next ? esc(next.s.name) : '') + ' ▶</button></div>';
+    document.body.appendChild(viewer);
+    viewer.addEventListener('click', async ev => {
+      const b = ev.target.closest('[data-x]'); if (!b) return;
+      const x = b.dataset.x;
+      if (x === 'close') closeViewer();
+      else if (x === 'in' || x === 'out') { zoom = Math.max(100, Math.min(300, zoom + (x === 'in' ? 50 : -50))); store.set('lkt-noten-zoom', String(zoom)); applyZoom(); }
+      else if (x === 'pdf') {
+        const imgs = Array.from(viewer.querySelectorAll('.nm-pages img')).map(i => i.src);
+        if (imgs.length < v.pages.length) { showToast('Noch nicht alle Seiten geladen', true); return; }
+        showLoading();
+        try { const blob = await lktExport.imagesToPdf(imgs); hideLoading(); lktExport.deliverFile(blob, lktExport.safeName(s.name + ' - ' + v.label) + '.pdf', s.name + ' – ' + v.label); }
+        catch (e) { hideLoading(); showToast('PDF ging nicht: ' + e.message, true); }
+      }
+      else if (x === 'prev' && prev) openViewer(prev.s.id, prev.v.id);
+      else if (x === 'next' && next) openViewer(next.s.id, next.v.id);
+      else if (x === 'del') {
+        if (b.dataset.armed !== '1') { b.dataset.armed = '1'; b.textContent = '❗'; showToast('Nochmal tippen = Stimme „' + v.label + '“ löschen'); setTimeout(() => { if (b.isConnected) { b.dataset.armed = ''; b.textContent = '🗑'; } }, 4000); return; }
+        showLoading();
+        const r = await apiPost({ action: 'deleteNotenStimme', stueckId: sid, stimmeId: vid }).catch(e => ({ error: e.message }));
+        hideLoading();
+        if (r.error) showToast(r.error, true); else { showToast('Stimme gelöscht'); closeViewer(); loadIndex(); }
+      }
+    });
+    try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); } catch (e) {}   // Bildschirm bleibt an
+    const box = viewer.querySelector('.nm-pages');
+    const imgs = [];
+    for (let k = 0; k < v.pages.length; k++) {
+      try {
+        const u = await pageUrl(v.pages[k]);
+        if (!viewer || !box.isConnected) return;
+        if (u.startsWith('blob:')) blobs.push(u);
+        if (k === 0) box.innerHTML = '';
+        const img = new Image(); img.alt = 'Seite ' + (k + 1); img.src = u; box.appendChild(img); imgs.push(img);
+        applyZoom();
+      } catch (e) {
+        if (k === 0) box.innerHTML = '';
+        box.insertAdjacentHTML('beforeend', '<div class="msg">⚠️ Seite ' + (k + 1) + ' nicht verfügbar' + (navigator.onLine ? '' : ' – offline und noch nicht gespeichert') + '</div>');
+      }
+    }
+    render();
+  }
+  function applyZoom() { if (viewer) viewer.querySelectorAll('.nm-pages img').forEach(i => { i.style.width = zoom + '%'; }); }
+  function closeViewer(keep) {
+    if (viewer) { viewer.remove(); viewer = null; }
+    blobs.forEach(u => URL.revokeObjectURL(u)); blobs = [];
+    if (wakeLock && !keep) { try { wakeLock.release(); } catch (e) {} wakeLock = null; }
+  }
+
+  // ---------- Hochladen (Admin) ----------
+  let rows = [];
+  function decodeName(s) {
+    return String(s).replace(/#U([0-9a-fA-F]{4})/g, (m, h) => String.fromCharCode(parseInt(h, 16))).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  function labelAus(file, stueck) {
+    let n = decodeName(file.replace(/\.pdf$/i, ''));
+    const m = n.match(/(Bb-|B-)?(Trompete|Tromp|Trp|Flügelhorn|Tenorhorn|Bariton|Euphonium|Posaune|Tuba|Bass(?!trommel)|Snare|Kleine Trommel|Gro(ß|ss)e( Trommel)?|Basstrommel|Becken|Schlagzeug|Partitur|Einwürfe)/i);
+    if (m) n = n.slice(m.index + (m[1] ? m[1].length : 0));
+    else if (stueck) n = n.replace(new RegExp('^' + stueck.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[-–]?\\s*', 'i'), '');
+    n = n.replace(/[\[\]]/g, '').replace(/\s+/g, ' ').trim();
+    return n || file;
+  }
+  function toggleUpload() {
+    const slot = root.querySelector('.nm-upload-slot'); if (!slot) return;
+    if (slot.innerHTML) { slot.innerHTML = ''; rows = []; return; }
+    slot.innerHTML =
+      '<div class="nm-upload"><h4>➕ Noten hochladen</h4>' +
+      '<div class="nm-two"><label class="btn btn-primary" style="text-align:center;cursor:pointer">📁 Ordner wählen<input type="file" data-up="dir" webkitdirectory multiple hidden></label>' +
+      '<label class="btn btn-secondary" style="text-align:center;cursor:pointer">📄 PDFs wählen<input type="file" data-up="files" accept="application/pdf,.pdf" multiple hidden></label></div>' +
+      '<p class="hint">Ordner (am Computer): ein Unterordner pro Stück, darin die PDFs der Stimmen – so wie eure „noten lk“-Mappe. Einzelne PDFs: Stückname unten eintragen. Gleiche Stimme nochmal hochladen = ersetzt die alte.</p>' +
+      '<div class="nm-rows"></div><div class="nm-upbtns"></div></div>';
+    slot.querySelectorAll('input[type=file]').forEach(inp => inp.addEventListener('change', () => pickFiles(inp.files, inp.dataset.up === 'dir')));
+  }
+  function pickFiles(fileList, isDir) {
+    rows = [];
+    Array.from(fileList).forEach(f => {
+      if (!/\.pdf$/i.test(f.name)) return;
+      const parts = (f.webkitRelativePath || f.name).split('/');
+      const stueck = isDir && parts.length >= 2 ? decodeName(parts[parts.length - 2]) : '';
+      const label = labelAus(f.name, stueck);
+      rows.push({ file: f, stueck, label, gruppe: gruppeAus(label), on: true, status: '' });
+    });
+    rows.sort((a, b) => a.stueck.localeCompare(b.stueck, 'de') || GRUPPEN.indexOf(a.gruppe) - GRUPPEN.indexOf(b.gruppe) || a.label.localeCompare(b.label, 'de', { numeric: true }));
+    drawRows();
+  }
+  function drawRows() {
+    const box = root.querySelector('.nm-rows'); const btns = root.querySelector('.nm-upbtns'); if (!box) return;
+    if (!rows.length) { box.innerHTML = '<p class="hint">Keine PDF-Dateien gefunden.</p>'; btns.innerHTML = ''; return; }
+    box.innerHTML = rows.map((r, i) =>
+      '<div class="nm-row"><input type="checkbox" data-r="' + i + '" data-k="on"' + (r.on ? ' checked' : '') + '>' +
+      '<div><input type="text" placeholder="Stück" value="' + esc(r.stueck) + '" data-r="' + i + '" data-k="stueck">' +
+      '<div class="nm-two"><input type="text" value="' + esc(r.label) + '" data-r="' + i + '" data-k="label"><select data-r="' + i + '" data-k="gruppe">' + GRUPPEN.map(g => '<option' + (g === r.gruppe ? ' selected' : '') + '>' + g + '</option>').join('') + '</select></div>' +
+      '<div class="f">' + esc(r.file.webkitRelativePath || r.file.name) + '</div><div class="st ' + (r.status.startsWith('✓') ? 'ok' : r.status.startsWith('⚠') ? 'err' : '') + '">' + esc(r.status) + '</div></div></div>').join('');
+    box.querySelectorAll('[data-r]').forEach(el => el.addEventListener(el.type === 'checkbox' || el.tagName === 'SELECT' ? 'change' : 'input', () => {
+      const r = rows[+el.dataset.r]; const k = el.dataset.k;
+      r[k] = el.type === 'checkbox' ? el.checked : el.value;
+      if (k === 'label') { r.gruppe = gruppeAus(el.value); const sel = box.querySelector('select[data-r="' + el.dataset.r + '"]'); if (sel) sel.value = r.gruppe; }
+    }));
+    const n = rows.filter(r => r.on).length;
+    btns.innerHTML = '<button class="btn btn-primary btn-block" data-up="go">⬆️ ' + n + ' Stimme' + (n === 1 ? '' : 'n') + ' hochladen</button><div class="nm-prog hint"></div>';
+    btns.querySelector('[data-up="go"]').onclick = uploadAll;
+  }
+  function loadPdfJs() {
+    return new Promise((res, rej) => {
+      if (window.pdfjsLib) return res(window.pdfjsLib);
+      const s = document.createElement('script'); s.src = PDFJS + 'pdf.min.js';
+      s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; res(window.pdfjsLib); };
+      s.onerror = () => rej(new Error('PDF-Werkzeug konnte nicht geladen werden (Internet?)'));
+      document.head.appendChild(s);
+    });
+  }
+  async function pdfToJpegs(file) {
+    const lib = await loadPdfJs();
+    const pdf = await lib.getDocument({ data: await file.arrayBuffer() }).promise;
+    const out = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      const page = await pdf.getPage(p);
+      const v1 = page.getViewport({ scale: 1 });
+      const vp = page.getViewport({ scale: Math.min(3, 1600 / v1.width) });
+      const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      out.push(c.toDataURL('image/jpeg', 0.8));
+    }
+    return out;
+  }
+  async function uploadAll() {
+    const todo = rows.filter(r => r.on);
+    if (!todo.length) return;
+    if (todo.some(r => !r.stueck.trim() || !r.label.trim())) { showToast('Bei jeder Zeile Stück und Stimme ausfüllen', true); return; }
+    const prog = root.querySelector('.nm-prog'); const go = root.querySelector('[data-up="go"]'); go.disabled = true;
+    let ok = 0, err = 0;
+    for (let i = 0; i < todo.length; i++) {
+      const r = todo[i];
+      try {
+        prog.textContent = (i + 1) + '/' + todo.length + ': ' + r.stueck + ' – ' + r.label + ' (wird umgewandelt…)';
+        const imgs = await pdfToJpegs(r.file);
+        const ids = [];
+        for (let k = 0; k < imgs.length; k++) {
+          prog.textContent = (i + 1) + '/' + todo.length + ': ' + r.stueck + ' – ' + r.label + ' · Seite ' + (k + 1) + '/' + imgs.length;
+          const up = await apiPost({ action: 'uploadNotenSeite', data: imgs[k] });
+          if (up.error) throw new Error(up.error);
+          ids.push(up.id);
+        }
+        const sv = await apiPost({ action: 'saveNotenStimme', stueck: r.stueck.trim(), label: r.label.trim(), gruppe: r.gruppe, pages: ids });
+        if (sv.error) throw new Error(sv.error);
+        r.status = '✓ ' + imgs.length + ' Seite' + (imgs.length > 1 ? 'n' : '') + (sv.ersetzt ? ' (ersetzt)' : ''); r.on = false; ok++;
+      } catch (e) { r.status = '⚠ ' + e.message; err++; }
+      drawRows();
+    }
+    showToast(err ? ok + ' hochgeladen, ' + err + ' mit Fehler' : '✓ ' + ok + ' Stimmen hochgeladen', !!err);
+    await loadIndex();
+    if (!err) { const slot = root.querySelector('.nm-upload-slot'); if (slot) slot.innerHTML = ''; rows = []; }
+  }
+
+  // ---------- Einstieg ----------
+  window.Noten = {
+    open(el) {
+      if (!el) return;
+      if (root !== el) {
+        root = el;
+        root.addEventListener('click', onClick);
+        root.addEventListener('input', onInput);
+      }
+      filter = store.get('lkt-noten-filter') || 'mine';
+      loadIndex();
+    },
+    gruppeAus, labelAus, decodeName
+  };
+})();
+</script>
+
+<!-- ============================================================
      PROBEN: Termin-Art (Auftritt/Probe) + Statistik-Auswahl
      ============================================================ -->
 <style>
@@ -6413,16 +7417,13 @@
 </style>
 <script>
   // Berechtigung für Gericht-Aktionen am Server (Gericht-Passwort oder eigene PIN mit Admin-Rolle)
-  function authParams() {
-    if (typeof currentUser === 'undefined' || !currentUser) return {};
-    if (currentUser.adminPin) return { adminPin: currentUser.adminPin };
-    if (currentUser.name === 'Admin' && currentUser.rollenId === 'ROLE-ADMIN') return { adminPin: '8356' };
-    return { authName: currentUser.name, authPin: currentUser.pin || '' };
-  }
+  function authParams() { return {}; }   // Berechtigung kommt über den Sitzungsschlüssel
 
   // Termin-Art: alte Termine ohne "typ" sind Auftritte
   function isProbe(e) { return !!e && e.typ === 'probe'; }
-  function typBadge(e) { return isProbe(e) ? '<span class="typ-badge">🎼 Probe</span>' : ''; }
+  function typBadge(e) {
+    return (e && e.gcalRemoved ? '<span class="kal-gone">⚠️ im Kalender gelöscht</span>' : '') + (isProbe(e) ? '<span class="typ-badge">🎼 Probe</span>' : '');
+  }
 
   // Auswahl für alle Statistiken: 'auftritt' | 'probe' | 'alle'
   var statTyp = (function () { try { return localStorage.getItem('lkt-stat-typ') || 'auftritt'; } catch (e) { return 'auftritt'; } })();
@@ -6588,7 +7589,7 @@
   async function api(action, data) {
     const res = await origFetch(apiBase(), {
       method: 'POST', headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(Object.assign({ action }, data || {}))
+      body: JSON.stringify(Object.assign({ action, token: (window.currentUser && currentUser.token) || (JSON.parse(localStorage.getItem('lkt-user') || '{}').token || '') }, data || {}))
     });
     let json;
     try { json = await res.json(); } catch (e) { throw new Error('Server-Antwort nicht lesbar (HTTP ' + res.status + ')'); }
@@ -6650,12 +7651,14 @@
   };
   // jsPDF-Reports
   function patchJsPDF() {
-    const J = window.jspdf && window.jspdf.jsPDF;
-    if (!J || J.__lkts) return;
-    const t = J.API.text, s = J.API.save;
-    J.API.text = function (txt) { const a = Array.from(arguments); a[0] = Array.isArray(txt) ? txt.map(fixYear) : fixYear(txt); return t.apply(this, a); };
-    J.API.save = function (name) { const a = Array.from(arguments); a[0] = fixYear(name); return s.apply(this, a); };
-    J.__lkts = true;
+    // Jahreszahlen in jsPDF-Reports anpassen – pro Dokument (Hook aus dem Export-Modul)
+    if (window.__lktsHooked) return;
+    window.__lktsHooked = true;
+    (window.__lktPdfHooks = window.__lktPdfHooks || []).push(doc => {
+      const t = doc.text, s = doc.save;
+      doc.text = function (txt) { const a = Array.from(arguments); a[0] = Array.isArray(txt) ? txt.map(fixYear) : fixYear(txt); return t.apply(this, a); };
+      doc.save = function (name) { const a = Array.from(arguments); a[0] = fixYear(name); return s.apply(this, a); };
+    });
   }
 
   // ---------- Kopfzeile: Saison-Auswahl + Archiv-Banner ----------
@@ -6769,7 +7772,7 @@
         '<h3>Neue Saison starten</h3>' +
         '<label>Neue Saison</label><input id="lkts-season" inputmode="numeric" maxlength="4" value="' + w.season + '">' +
         '<p class="lkts-muted" style="margin-top:.3rem">Die jetzige Saison ' + state.current + ' bleibt im Archiv anschaubar.</p>' +
-        '<label>Admin-Passwort</label><input id="lkts-key" type="password" autocomplete="off">' +
+        '<label>Deine PIN zur Bestätigung</label><input id="lkts-key" type="password" inputmode="numeric" autocomplete="off">' +
         '<div class="lkts-err" id="lkts-e"></div>' +
         '<button class="lkts-btn gold" id="lkts-n">Weiter</button><button class="lkts-btn ghost" data-close>Abbrechen</button>';
       box.querySelector('#lkts-n').onclick = async () => {
@@ -6777,7 +7780,7 @@
         w.key = box.querySelector('#lkts-key').value;
         const e = box.querySelector('#lkts-e');
         if (!/^\d{4}$/.test(w.season)) return e.textContent = 'Bitte eine Jahreszahl eingeben, z.B. ' + next;
-        if (!w.key) return e.textContent = 'Bitte das Admin-Passwort eingeben';
+        if (!w.key) return e.textContent = 'Bitte deine PIN eingeben';
         e.textContent = 'Prüfe…';
         try {
           const r = await api('resetSeason', { resetKey: w.key, newSeason: w.season, dryRun: true });
@@ -6798,9 +7801,9 @@
         try {
           const r = await api('exportAll', { resetKey: w.key });
           const name = 'LKT_Sicherung_Saison_' + r.saison + '_' + new Date().toISOString().slice(0, 10) + '.json';
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(new Blob([JSON.stringify(r, null, 2)], { type: 'application/json' }));
-          a.download = name; document.body.appendChild(a); a.click(); a.remove();
+          const blob = new Blob([JSON.stringify(r, null, 2)], { type: 'application/json' });
+          if (window.lktExport) lktExport.deliverFile(blob, name, 'Sicherung speichern');
+          else { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
           w.backup = true;
           e.className = 'lkts-ok'; e.textContent = '✓ ' + name;
           box.querySelector('#lkts-n').disabled = false;
