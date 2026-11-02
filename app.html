@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#1a1a2e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="app-version" content="v25">
+    <meta name="app-version" content="v28">
     <title>LKT Tracker 2026</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -219,7 +219,7 @@
     <script>
         // Cache-Buster v11: Automatisches Update bei neuer Version
         (function() {
-            var APP_VERSION = 'v25';
+            var APP_VERSION = 'v28';
             var stored = localStorage.getItem('lkt-app-version');
             if (stored && stored !== APP_VERSION) {
                 if ('caches' in window) {
@@ -7065,12 +7065,92 @@
     if (/tuba|\bbass\b|^bass/.test(t)) return 'Tuba';
     return 'Sonstige';
   }
-  function meineGruppe() {
+  // Eigene Stimme: selbst gewählt (gilt auf allen Geräten), sonst aus dem Register
+  let pref = null;
+  try { pref = JSON.parse(localStorage.getItem('lkt-noten-pref') || 'null'); } catch (e) {}
+  function registerGruppe() {
     const u = me();
     if (!u.registerId || typeof registerData === 'undefined') return '';
     const r = (registerData || []).find(x => x.id === u.registerId);
     const g = r ? gruppeAus(r.name) : '';
     return g === 'Sonstige' ? '' : g;
+  }
+  function meineGruppe() { return (pref && pref.gruppe) || registerGruppe(); }
+  function meineNr() { return (pref && pref.gruppe && pref.nr) || ''; }
+  function meinLabel() { const g = meineGruppe(); return g ? g + (meineNr() ? ' ' + meineNr() : '') : ''; }
+  // Stimmennummer aus "Posaune 2", "Trompete in B 1", "Posaune C 3" …
+  function nrAus(label) { const m = String(label).match(/(?:^|\D)([1-4])(?!.*\d)/); return m ? m[1] : ''; }
+  // Meine Stimme(n) in einem Stück: passende Nummer, sonst alle der Gruppe
+  const stueckWahl = s => { const id = pref && pref.stuecke && pref.stuecke[s.id]; return id ? s.stimmen.find(v => v.id === id) : null; };
+  function meineIn(s) {
+    const w = stueckWahl(s); if (w) return [w];          // für dieses Stück selbst gewählt
+    const g = meineGruppe(); if (!g) return s.stimmen;
+    const inG = s.stimmen.filter(v => v.gruppe === g);
+    const nr = meineNr(); if (!nr) return inG;
+    const exact = inG.filter(v => nrAus(v.label) === nr);
+    return exact.length ? exact : inG.filter(v => !nrAus(v.label)).length ? inG.filter(v => !nrAus(v.label)) : inG;
+  }
+  async function setStueckStimme(s, stimmeId) {
+    pref = Object.assign({ gruppe: '', nr: '' }, pref || {});
+    pref.stuecke = Object.assign({}, pref.stuecke || {});
+    if (stimmeId) pref.stuecke[s.id] = stimmeId; else delete pref.stuecke[s.id];
+    try { localStorage.setItem('lkt-noten-pref', JSON.stringify(pref)); } catch (e) {}
+    render();
+    try { await apiPost({ action: 'setNotenPref', stueckId: s.id, stimmeId: stimmeId || '' }); } catch (e) { showToast('Nicht gespeichert (offline?)', true); }
+    autoSync();
+  }
+  function pickStueck(sid) {
+    const s = index.find(x => x.id === sid); if (!s) return;
+    const cur = stueckWahl(s);
+    const back = document.createElement('div'); back.className = 'lktm-back';
+    back.innerHTML = '<div class="lktm-sheet"><h3>🎼 ' + esc(s.name) + '</h3><p style="font-size:.85rem;color:var(--text-secondary);margin:0 0 .6rem">Welche Stimme spielst du bei diesem Stück?</p>' +
+      '<div class="lktm-grid">' + s.stimmen.map(v => '<button data-v="' + v.id + '" class="' + (cur && cur.id === v.id ? 'on' : '') + '">' + ICON[v.gruppe] + ' ' + esc(v.label) + '</button>').join('') + '</div>' +
+      '<div class="row" style="display:flex;gap:.5rem;margin-top:.8rem"><button class="close" data-x="std" style="flex:1;margin:0">Grundeinstellung' + (meinLabel() ? ' (' + esc(meinLabel()) + ')' : '') + '</button><button class="close" data-x="x" style="flex:0 0 auto;margin:0;padding:.8rem 1rem">✕</button></div></div>';
+    back.addEventListener('click', e => {
+      if (e.target === back) return back.remove();
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.v) { back.remove(); setStueckStimme(s, b.dataset.v); showToast('⭐ ' + s.name + ': ' + (s.stimmen.find(v => v.id === b.dataset.v) || {}).label); }
+      else if (b.dataset.x === 'std') { back.remove(); setStueckStimme(s, ''); showToast(s.name + ': Grundeinstellung'); }
+      else back.remove();
+    });
+    document.body.appendChild(back);
+  }
+
+  async function loadPref() {
+    try { const r = await apiGet('getNotenPref'); if (r && 'pref' in r) { pref = r.pref; try { localStorage.setItem('lkt-noten-pref', JSON.stringify(pref)); } catch (e) {} } } catch (e) {}
+  }
+  function pickStimme() {
+    const G = ['Trompete', 'Tenorhorn', 'Posaune', 'Tuba', 'Schlagwerk'];
+    let g = meineGruppe() || 'Trompete', nr = meineNr();
+    const back = document.createElement('div'); back.className = 'lktm-back';
+    const draw = () => {
+      back.innerHTML = '<div class="lktm-sheet"><h3>🎵 Meine Stimme (Grundeinstellung)</h3>' +
+        '<div class="lktm-grid">' + G.map(x => '<button data-g="' + x + '" class="' + (x === g ? 'on' : '') + '">' + ICON[x] + ' ' + x + '</button>').join('') + '</div>' +
+        '<p style="font-size:.85rem;color:var(--text-secondary);margin:.8rem 0 .4rem">Stimme im Satz</p>' +
+        '<div class="lktm-grid" style="grid-template-columns:repeat(4,1fr)">' + ['', '1', '2', '3'].map(x => '<button data-n="' + x + '" class="' + (x === nr ? 'on' : '') + '" style="text-align:center">' + (x || 'alle') + '</button>').join('') + '</div>' +
+        '<p style="font-size:.75rem;color:var(--text-secondary);margin:.6rem 0 0">Grundeinstellung für alle Stücke. Pro Stück kannst du deine Stimme mit ⇄ in der Liste (oder ⭐ im Vollbild) extra festlegen.</p>' +
+        '<div class="row" style="display:flex;gap:.5rem;margin-top:.8rem"><button class="close" data-x="reset" style="flex:1;margin:0">Wie Register</button><button class="close" data-x="ok" style="flex:1;margin:0;background:var(--accent-yellow,#f5c518);color:#1a1a2e;border-color:var(--accent-yellow,#f5c518)">Übernehmen</button></div></div>';
+    };
+    draw();
+    back.addEventListener('click', async e => {
+      if (e.target === back) return back.remove();
+      const b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.g) { g = b.dataset.g; draw(); return; }
+      if (b.dataset.n !== undefined) { nr = b.dataset.n; draw(); return; }
+      if (b.dataset.x === 'ok' || b.dataset.x === 'reset') {
+        const reset = b.dataset.x === 'reset';
+        back.remove();
+        const keep = (pref && pref.stuecke) || {};
+        pref = reset ? { gruppe: '', nr: '', stuecke: keep } : { gruppe: g, nr, stuecke: keep };
+        try { localStorage.setItem('lkt-noten-pref', JSON.stringify(pref)); } catch (x) {}
+        filter = 'mine'; store.set('lkt-noten-filter', 'mine');
+        render();
+        try { await apiPost({ action: 'setNotenPref', gruppe: reset ? '' : g, nr: reset ? '' : nr }); } catch (x) {}
+        showToast(reset ? 'Grundeinstellung wie im Register' : '🎵 Grundeinstellung: ' + meinLabel());
+        autoSync();
+      }
+    });
+    document.body.appendChild(back);
   }
 
   // ---------- Daten ----------
@@ -7078,6 +7158,7 @@
     try { index = JSON.parse(store.get(IDX_KEY) || '[]'); } catch (e) { index = []; }
     render();
     if (!navigator.onLine) return;
+    await loadPref();
     try {
       const r = await apiGet('getNotenIndex');
       if (r && r.stuecke) { index = r.stuecke; store.set(IDX_KEY, JSON.stringify(index)); }
@@ -7118,9 +7199,8 @@
   }
 
   function stimmenFuerOffline() {
-    const g = meineGruppe();
     const out = [];
-    index.forEach(s => s.stimmen.forEach(v => { if (!g || v.gruppe === g) out.push(v); }));
+    index.forEach(s => meineIn(s).forEach(v => out.push(v)));
     return out;
   }
 
@@ -7145,7 +7225,7 @@
     const have = all.filter(p => cachedIds.has(p)).length;
     const g = meineGruppe();
     if (!all.length) { el.innerHTML = ''; return; }
-    el.innerHTML = '<span>' + (have === all.length ? '✅ ' : '📥 ') + (g ? 'Deine Stimme (' + esc(g) + ')' : 'Alle Noten') + ': ' + have + '/' + all.length + ' Seiten offline</span><div class="bar"><div style="width:' + Math.round(have / all.length * 100) + '%"></div></div>';
+    el.innerHTML = '<span>' + (have === all.length ? '✅ ' : '📥 ') + 'Deine Stimmen' + ': ' + have + '/' + all.length + ' Seiten offline</span><div class="bar"><div style="width:' + Math.round(have / all.length * 100) + '%"></div></div>';
   }
 
   function render() {
@@ -7156,20 +7236,21 @@
     if (canManage()) html += '<button class="btn btn-secondary btn-block" style="margin-bottom:.75rem" data-nm="upload">➕ Noten hochladen</button><div class="nm-upload-slot"></div>';
     html += '<div class="nm-head input-group" style="margin-bottom:.75rem"><input type="search" placeholder="🔍 Stück suchen" value="' + esc(search) + '" data-nm="search"></div>';
     html += '<div class="nm-filter"><button data-nm="f-mine" class="' + (filter === 'mine' ? 'on' : '') + '">' + (g ? ICON[g] + ' Meine Stimme' : '🎶 Meine Stimme') + '</button><button data-nm="f-all" class="' + (filter === 'all' ? 'on' : '') + '">📚 Alle Stimmen</button></div>';
-    if (filter === 'mine' && !g) html += '<p class="hint" style="font-size:.82rem;color:var(--text-secondary);margin:-.25rem 0 .75rem">Tipp: Wähle im Profil dein Register, dann siehst du hier nur deine Stimme.</p>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;font-size:.88rem;margin:-.25rem 0 .75rem"><span>🎵 Grundeinstellung: <b>' + (g ? esc(meinLabel()) : 'alle Stimmen') + '</b><br><small style="color:var(--text-secondary)">pro Stück: ⇄ antippen</small></span><button class="btn btn-secondary" style="padding:.35rem .75rem;font-size:.85rem" data-nm="pick">✏️ ändern</button></div>';
     html += '<div class="nm-status"></div>';
     const list = index.filter(s => !q || s.name.toLowerCase().includes(q));
     if (!index.length) html += '<div class="nm-empty">Noch keine Noten hochgeladen.' + (canManage() ? '<br>Tippe oben auf „Noten hochladen“.' : '') + '</div>';
     else if (!list.length) html += '<div class="nm-empty">Kein Stück gefunden.</div>';
     list.forEach(s => {
-      const st = s.stimmen.filter(v => filter === 'all' || !g || v.gruppe === g);
+      const st = filter === 'all' ? s.stimmen : meineIn(s);
       const shown = st.length ? st : s.stimmen;   // wenn es die eigene Stimme nicht gibt: alle zeigen
-      html += '<div class="nm-piece"><div class="nm-piece-title"><span>' + esc(s.name) + '</span>' + (canManage() ? '<button data-nm="menu" data-s="' + s.id + '" title="Bearbeiten">⋯</button>' : '') + '</div><div class="nm-chips">';
+      const wahl = stueckWahl(s);
+      html += '<div class="nm-piece"><div class="nm-piece-title"><span>' + esc(s.name) + '</span><span style="display:flex;gap:.2rem">' + (s.stimmen.length > 1 ? '<button data-nm="pickst" data-s="' + s.id + '" title="Meine Stimme für dieses Stück">⇄</button>' : '') + (canManage() ? '<button data-nm="menu" data-s="' + s.id + '" title="Bearbeiten">⋯</button>' : '') + '</span></div><div class="nm-chips">';
       shown.forEach(v => {
         const off = v.pages.every(p => cachedIds.has(p));
-        html += '<button class="nm-chip' + (g && v.gruppe === g ? ' mine' : '') + '" data-nm="open" data-s="' + s.id + '" data-v="' + v.id + '">' + ICON[v.gruppe] + ' ' + esc(v.label) + (off ? '<span class="ok">✓</span>' : '') + '</button>';
+        html += '<button class="nm-chip' + (g && meineIn(s).includes(v) ? ' mine' : '') + '" data-nm="open" data-s="' + s.id + '" data-v="' + v.id + '">' + (wahl && wahl.id === v.id ? '⭐ ' : ICON[v.gruppe] + ' ') + esc(v.label) + (off ? '<span class="ok">✓</span>' : '') + '</button>';
       });
-      if (!st.length && filter === 'mine' && g) html += '<span style="font-size:.75rem;color:var(--text-secondary);align-self:center">(keine ' + esc(g) + '-Stimme)</span>';
+      if (!st.length && filter === 'mine' && g) html += '<span style="font-size:.75rem;color:var(--text-secondary);align-self:center">(keine ' + esc(g) + '-Stimme – alle gezeigt)</span>';
       html += '</div></div>';
     });
     root.innerHTML = html;
@@ -7182,6 +7263,8 @@
     if (a === 'f-mine' || a === 'f-all') { filter = a === 'f-mine' ? 'mine' : 'all'; store.set('lkt-noten-filter', filter); render(); }
     else if (a === 'open') openViewer(b.dataset.s, b.dataset.v);
     else if (a === 'upload') toggleUpload();
+    else if (a === 'pick') pickStimme();
+    else if (a === 'pickst') pickStueck(b.dataset.s);
     else if (a === 'menu') pieceMenu(b.dataset.s);
   }
   function onInput(e) {
@@ -7224,11 +7307,12 @@
     viewer.className = 'nm-viewer';
     const list = listForNav();
     const i = list.findIndex(x => x.id === sid);
-    const nb = (dir) => { for (let k = i + dir; k >= 0 && k < list.length; k += dir) { const m = list[k].stimmen.find(x => x.gruppe === v.gruppe && x.label === v.label) || list[k].stimmen.find(x => x.gruppe === v.gruppe); if (m) return { s: list[k], v: m }; } return null; };
+    const isMine = meineIn(s).some(x => x.id === v.id);
+    const nb = (dir) => { for (let k = i + dir; k >= 0 && k < list.length; k += dir) { const mine = isMine ? meineIn(list[k])[0] : null; const m = mine || list[k].stimmen.find(x => x.gruppe === v.gruppe && x.label === v.label) || list[k].stimmen.find(x => x.gruppe === v.gruppe); if (m) return { s: list[k], v: m }; } return null; };
     const prev = nb(-1), next = nb(1);
     viewer.innerHTML =
       '<div class="nm-vbar"><button data-x="close" aria-label="Schließen">✕</button><div class="t">' + esc(s.name) + '<small>' + ICON[v.gruppe] + ' ' + esc(v.label) + ' · ' + v.pages.length + ' Seite' + (v.pages.length > 1 ? 'n' : '') + '</small></div>' +
-      '<button data-x="out" aria-label="Kleiner">−</button><button data-x="in" aria-label="Größer">+</button><button data-x="pdf" aria-label="Drucken oder speichern">📤</button>' + (canManage() ? '<button data-x="del" aria-label="Stimme löschen">🗑</button>' : '') + '</div>' +
+      '<button data-x="star" aria-label="Meine Stimme für dieses Stück" title="Meine Stimme für dieses Stück">' + (stueckWahl(s) && stueckWahl(s).id === v.id ? '⭐' : '☆') + '</button><button data-x="out" aria-label="Kleiner">−</button><button data-x="in" aria-label="Größer">+</button><button data-x="pdf" aria-label="Drucken oder speichern">📤</button>' + (canManage() ? '<button data-x="del" aria-label="Stimme löschen">🗑</button>' : '') + '</div>' +
       '<div class="nm-pages"><div class="msg">Lade Noten…</div></div>' +
       '<div class="nm-vfoot"><button data-x="prev"' + (prev ? '' : ' disabled') + '>◀ ' + (prev ? esc(prev.s.name) : '') + '</button><button data-x="next"' + (next ? '' : ' disabled') + '>' + (next ? esc(next.s.name) : '') + ' ▶</button></div>';
     document.body.appendChild(viewer);
@@ -7237,6 +7321,12 @@
       const x = b.dataset.x;
       if (x === 'close') closeViewer();
       else if (x === 'in' || x === 'out') { zoom = Math.max(100, Math.min(300, zoom + (x === 'in' ? 50 : -50))); store.set('lkt-noten-zoom', String(zoom)); applyZoom(); }
+      else if (x === 'star') {
+        const on = stueckWahl(s) && stueckWahl(s).id === v.id;
+        await setStueckStimme(s, on ? '' : v.id);
+        b.textContent = on ? '☆' : '⭐';
+        showToast(on ? s.name + ': wieder Grundeinstellung' : '⭐ Bei „' + s.name + '“ spielst du ' + v.label);
+      }
       else if (x === 'pdf') {
         const imgs = Array.from(viewer.querySelectorAll('.nm-pages img')).map(i => i.src);
         if (imgs.length < v.pages.length) { showToast('Noch nicht alle Seiten geladen', true); return; }

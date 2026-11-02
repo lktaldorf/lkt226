@@ -1,4 +1,4 @@
-LKT TRACKER v26 – PUSH-NACHRICHTEN, GOOGLE KALENDER, SICHERER LOGIN, NOTENMAPPE: SO WIRD INSTALLIERT
+LKT TRACKER v28 – PUSH-NACHRICHTEN, GOOGLE KALENDER, SICHERER LOGIN, NOTENMAPPE: SO WIRD INSTALLIERT
 ===================================================================
 
 Alle Dateien sind komplett. Einfach ersetzen – nichts suchen, nichts flicken.
@@ -16,7 +16,7 @@ VORHER PRÜFEN (wichtig!)
 2) APP ERSETZEN (GitHub, Repo lktaldorf/demo)
    - "Add file" → "Upload files"
    - app.html, sw.js, notenquiz.html, index.html, manifest.json hineinziehen
-   - "Commit changes", 1–2 Minuten warten. Die Handys holen sich v25 automatisch.
+   - "Commit changes", 1–2 Minuten warten. Die Handys holen sich v28 automatisch.
 
 3) EINMAL NEU ANMELDEN (alle)
    - Beim nächsten Öffnen kommt "Sicherheits-Update: Bitte melde dich einmal
@@ -39,8 +39,15 @@ WAS SICHERER IST
 
 NOTENMAPPE
    Mitglieder: Reiter "🎼 Noten"
-   - "Meine Stimme" zeigt nur die Stimme deines Registers (im Profil
-     einstellen), "Alle Stimmen" zeigt alles. Suche nach Stückname.
+   - Stimme PRO STÜCK: in "Meine Stimme" beim Stück auf ⇄ tippen und die
+     Stimme wählen (z.B. hier Posaune 2, beim nächsten Posaune 1) – oder im
+     Vollbild auf ☆ tippen (wird ⭐). Gewählte Stimmen haben ⭐.
+     ⇄ → "Grundeinstellung" nimmt die Einzelwahl wieder zurück.
+   - "🎵 Grundeinstellung … ✏️ ändern": gilt für Stücke ohne Einzelwahl
+     (Instrument + Stimme im Satz, z.B. Posaune 1). "Wie Register" = nach
+     dem Register aus dem Profil.
+   - Alles gilt auf allen deinen Handys. "Alle Stimmen" zeigt alles.
+   - ◀ ▶ im Vollbild springt zum nächsten Stück in DEINER Stimme.
    - Deine Stimmen werden automatisch fürs Offline-Spielen gespeichert
      (Anzeige "x/y Seiten offline", ✓ an jeder Stimme).
    - Antippen = Vollbild. − / + zum Zoomen, ◀ ▶ blättert zum vorigen/nächsten
