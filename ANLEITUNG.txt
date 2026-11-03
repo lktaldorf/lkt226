@@ -1,4 +1,4 @@
-LKT TRACKER v28 – PUSH-NACHRICHTEN, GOOGLE KALENDER, SICHERER LOGIN, NOTENMAPPE: SO WIRD INSTALLIERT
+LKT TRACKER v31 – OFFLINE, ERINNERUNGSZEIT, BRETT, PUSH, GOOGLE KALENDER, SICHERER LOGIN, NOTENMAPPE: SO WIRD INSTALLIERT
 ===================================================================
 
 Alle Dateien sind komplett. Einfach ersetzen – nichts suchen, nichts flicken.
@@ -16,7 +16,7 @@ VORHER PRÜFEN (wichtig!)
 2) APP ERSETZEN (GitHub, Repo lktaldorf/demo)
    - "Add file" → "Upload files"
    - app.html, sw.js, notenquiz.html, index.html, manifest.json hineinziehen
-   - "Commit changes", 1–2 Minuten warten. Die Handys holen sich v28 automatisch.
+   - "Commit changes", 1–2 Minuten warten. Die Handys holen sich v31 automatisch.
 
 3) EINMAL NEU ANMELDEN (alle)
    - Beim nächsten Öffnen kommt "Sicherheits-Update: Bitte melde dich einmal
@@ -83,6 +83,36 @@ QR-CODES (Pflicht bei Auftritten, freiwillig bei Proben)
    - Reiter "📱 QR-Codes": QR + Code groß, PDF zum Drucken, neuen Code erzeugen.
    - Mitglieder: "📷 Scannen" oder Code eintippen. Proben: auch "Ich bin dabei".
 
+OFFLINE (verbessert in v30)
+   - Die App speichert sich beim ersten Öffnen mit Internet selbst aufs
+     Handy (für alle, nicht erst mit Push). Danach geht sie auch ohne Netz:
+     Termine, Noten (gespeicherte Stimmen), Einchecken (wird nachgereicht).
+   - Wichtig: einmal MIT Internet öffnen, nachdem die neue Version
+     eingespielt ist.
+   - iPhone: am besten als App vom Home-Bildschirm nutzen. Im normalen
+     Safari-Tab löscht Apple den Offline-Speicher, wenn die Seite 7 Tage
+     nicht geöffnet wurde.
+
+BRETT: BEREICHE + DATEIEN (neu in v29)
+   Bereiche verwalten (Admin oder Rolle "Forum-Bereiche erstellen"):
+   - Im Brett rechts neben den Reitern auf ⚙️ tippen (oder Einstellungen →
+     "💬 Forum-Bereiche" → "Bereiche verwalten").
+   - ➕ Neuer Bereich: Name (z.B. "Narrenbaumstellen"), für wen (alle /
+     Register / nur Admins) und optional "Ganz vorne bis" = Datum der
+     Veranstaltung. Bis dahin steht er mit 📌 ganz vorne und ist beim
+     Öffnen des Bretts gleich ausgewählt; danach rutscht er an seinen Platz.
+   - ▲ ▼ ändert die Reihenfolge der Reiter, 📌 setzt/ändert das Datum,
+     ✏️ umbenennen, 🗑 löschen (2× tippen; Beiträge wandern nach Allgemein).
+   Dateien (alle Mitglieder):
+   - Beim neuen Beitrag "📎 Datei anhängen": PDF, Fotos, Excel, Word …
+     bis 6 Dateien, je max. 10 MB. Handyfotos werden automatisch verkleinert.
+   - Im Beitrag: Fotos als Vorschau, Dateien als Knopf → antippen =
+     Teilen / Speichern / Drucken.
+   - Beitrag löschen löscht auch seine Dateien. Nur angemeldete Mitglieder
+     können Dateien sehen.
+   - Neue Beiträge melden sich per Push (Bereich "für alle" an alle,
+     Register-Bereich nur ans Register).
+
 KOSTENLOSE CLOUDFLARE-GRENZEN (v26 darauf abgestimmt)
    Anfragen 100.000/Tag · Lesen 100.000/Tag · Schreiben 1.000/Tag ·
    Speicher 1 GB · 10 ms Rechenzeit pro Aufruf.
@@ -99,14 +129,23 @@ PUSH-NACHRICHTEN (neu in v25)
    Sonst nichts einrichten: Der Worker erzeugt die Push-Schlüssel selbst.
 
    Für Mitglieder:
-   - Oben bei den Terminen erscheint einmal "🔔 Benachrichtigungen
+   - Oben unter dem Kopf (in jedem Reiter) erscheint "🔔 Benachrichtigungen
      einschalten?" → "Einschalten" → Handy fragt → "Erlauben". Danach sind
      alle Nachrichten an (Standard).
+   - "Später" getippt? Jederzeit einschalten: Mitglieder Profil →
+     🔔 Benachrichtigungen, Admins ☰ Mehr → ⚙️ Einstellungen → 🔔.
+     Im Handy-Dialog "Nicht erlauben" getippt? Dann in den Handy-
+     Einstellungen erlauben (iPhone: Einstellungen → Mitteilungen → LKT).
+   - Klappt das Einschalten nicht, bleibt oben ein roter Hinweis mit dem
+     Grund und "Nochmal versuchen" stehen.
    - iPhone: geht nur, wenn die App auf dem Home-Bildschirm ist (Safari →
      Teilen → "Zum Home-Bildschirm") und von dort geöffnet wird (ab iOS 16.4).
    - Profil → "🔔 Benachrichtigungen": alles oder einzeln abschalten:
-       ⏰ Erinnerung am Vorabend   (ab 18 Uhr, z.B. "Morgen: Probe –
-                                    19:30 Uhr, Musikheim · 🚌 Bus fährt …")
+       ⏰ Erinnerung Auftritte     15 / 30 / 60 Min. vorher, am Vorabend
+                                  oder aus – gezählt ab Abfahrt (wenn
+                                  eingetragen), sonst ab Beginn. Standard 60.
+       ⏰ Erinnerung Proben        dieselbe Auswahl, ab Probenbeginn.
+       (alles andere kommt sofort:)
        📢 Termin-Änderungen        (neue Zeit/Abfahrt/Ort, im Kalender gelöscht)
        📋 Brett: Allgemein         (neue Beiträge)
        🎵 Brett: mein Register     (nur Beiträge im eigenen Register-Bereich)

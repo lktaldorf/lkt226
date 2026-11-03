@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lkt-tracker-v28';
+const CACHE_NAME = 'lkt-tracker-v31';
 const urlsToCache = [
     './',
     './app.html',
@@ -18,33 +18,62 @@ const LIBS = [
 ];
 
 self.addEventListener('install', event => {
-    event.waitUntil(
-        caches.open(CACHE_NAME)
-            .then(cache => cache.addAll(urlsToCache).then(() =>
-                // Werkzeuge aus dem Netz zusätzlich offline vorhalten (Fehler hier stören nicht)
-                Promise.all(LIBS.map(u => cache.add(u).catch(() => null)))))
-    );
+    // Jede Datei einzeln speichern – fehlt eine (z.B. ein Icon), klappt der Rest trotzdem
+    event.waitUntil(caches.open(CACHE_NAME).then(cache =>
+        Promise.all(urlsToCache.concat(LIBS).map(u => cache.add(u).catch(() => null)))));
     self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
     event.waitUntil(
-        caches.keys().then(names => 
-            Promise.all(names.filter(n => n.startsWith('lkt-tracker-') && n !== CACHE_NAME).map(n => caches.delete(n)))  // Notenmappe (lkt-noten-*) bleibt erhalten
-        )
+        caches.keys().then(names =>
+            Promise.all(names.filter(n => n.startsWith('lkt-tracker-') && n !== CACHE_NAME).map(n => caches.delete(n))))  // Notenmappe (lkt-noten-*) bleibt erhalten
+            .then(() => self.clients.claim())
     );
 });
 
+const APP_SHELL = new URL('./app.html', self.registration.scope).href;
+
 self.addEventListener('fetch', event => {
-    event.respondWith(
-        caches.match(event.request)
-            .then(response => {
-                if (response) {
-                    return response;
-                }
-                return fetch(event.request);
-            })
-    );
+    const req = event.request;
+    if (req.method !== 'GET') return;                                   // Speichern/Hochladen nie abfangen
+    const url = new URL(req.url);
+    const sameOrigin = url.origin === self.location.origin;
+    const isLib = LIBS.includes(url.href);
+    if (!sameOrigin && !isLib) return;                                  // Worker/Server-Daten: direkt ans Netz
+
+    // Seiten (app.html, index.html …): erst Netz (aktuell), ohne Netz aus dem Speicher
+    if (req.mode === 'navigate' || (sameOrigin && /\.html?$|\/$/.test(url.pathname))) {
+        event.respondWith((async () => {
+            const cache = await caches.open(CACHE_NAME);
+            try {
+                const ctrl = new AbortController();
+                const t = setTimeout(() => ctrl.abort(), 4000);         // schlechtes Netz: nach 4 s aus dem Speicher
+                const res = await fetch(req, { signal: ctrl.signal });
+                clearTimeout(t);
+                if (res && res.ok) cache.put(url.origin + url.pathname, res.clone());
+                return res;
+            } catch (e) {
+                return (await cache.match(req, { ignoreSearch: true }))
+                    || (await cache.match(url.origin + url.pathname))
+                    || (await cache.match(APP_SHELL))
+                    || new Response('<h2 style="font-family:sans-serif;text-align:center;margin-top:30vh">Offline – die App war auf diesem Gerät noch nicht gespeichert.<br>Bitte einmal mit Internet öffnen.</h2>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+            }
+        })());
+        return;
+    }
+
+    // Alles andere (Icons, Werkzeuge): aus dem Speicher, sonst Netz und merken
+    event.respondWith((async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const hit = await cache.match(req, { ignoreSearch: sameOrigin });
+        if (hit) return hit;
+        try {
+            const res = await fetch(req);
+            if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
+            return res;
+        } catch (e) { return hit || Response.error(); }
+    })());
 });
 
 // ============================================================

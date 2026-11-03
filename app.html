@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#1a1a2e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="app-version" content="v28">
+    <meta name="app-version" content="v31">
     <title>LKT Tracker 2026</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -219,7 +219,7 @@
     <script>
         // Cache-Buster v11: Automatisches Update bei neuer Version
         (function() {
-            var APP_VERSION = 'v28';
+            var APP_VERSION = 'v31';
             var stored = localStorage.getItem('lkt-app-version');
             if (stored && stored !== APP_VERSION) {
                 if ('caches' in window) {
@@ -314,7 +314,6 @@
             <!-- Events Tab -->
             <div id="events-tab" class="screen active">
                 <div class="section-header"><h2>📅 Deine Termine</h2></div>
-                <div class="pu-banner-slot"></div>
                 <div id="events-list"></div>
             </div>
             
@@ -329,6 +328,8 @@
                     <h3 style="margin-bottom: 0.75rem; color: var(--accent-yellow);">✏️ Neuer Beitrag</h3>
                     <div class="input-group"><input type="text" id="post-titel" placeholder="Titel"></div>
                     <div class="input-group"><textarea id="post-inhalt" rows="3" placeholder="Was gibt's Neues?"></textarea></div>
+                    <label class="ba-add">📎 Datei anhängen (PDF, Bild, Excel …)<input type="file" multiple hidden onchange="brettPickFiles('member', this)"></label>
+                    <div class="ba-pick" id="ba-pick-member"></div>
                     <button class="btn btn-primary btn-block" onclick="submitBrettPost()">📤 Veröffentlichen</button>
                 </div>
                 <div id="brett-posts-member"></div>
@@ -538,7 +539,6 @@
             <!-- Meine Auftritte Tab (für Admin/Chef zum selbst anmelden) -->
             <div id="my-events-tab" class="screen">
                 <div class="section-header"><h2>📅 Meine Termine</h2></div>
-                <div class="pu-banner-slot"></div>
                 <p style="color: var(--text-secondary); margin-bottom: 1rem;">Künftige Termine: zusagen. Am Termintag: „Ich bin dabei“.</p>
                 <div id="my-events-list"></div>
             </div>
@@ -573,6 +573,8 @@
                     <h3 style="margin-bottom: 0.75rem; color: var(--accent-yellow);">✏️ Neuer Beitrag</h3>
                     <div class="input-group"><input type="text" id="post-titel-gericht" placeholder="Titel"></div>
                     <div class="input-group"><textarea id="post-inhalt-gericht" rows="3" placeholder="Wichtige Mitteilung..."></textarea></div>
+                    <label class="ba-add">📎 Datei anhängen (PDF, Bild, Excel …)<input type="file" multiple hidden onchange="brettPickFiles('gericht', this)"></label>
+                    <div class="ba-pick" id="ba-pick-gericht"></div>
                     <button class="btn btn-primary btn-block" onclick="submitBrettPostGericht()">📤 Veröffentlichen</button>
                 </div>
                 <div id="brett-posts-gericht"></div>
@@ -811,6 +813,7 @@
                         <span class="accordion-icon">▼</span>
                     </button>
                     <div class="accordion-content">
+                        <button class="btn btn-primary btn-block" onclick="openBereichManager()" style="margin-bottom:.75rem">⚙️ Bereiche verwalten (Reihenfolge, 📌 vorne bis …)</button>
                         <div id="forum-bereiche-list"></div>
                         <div class="input-group" style="margin-top: 1rem;">
                             <input type="text" id="new-bereich-name" placeholder="Neuer Bereich-Name">
@@ -4311,7 +4314,7 @@
                 }
                 html += '</div>';
                 html += '<div class="post-meta">👤 ' + escapeHtml(post.autor) + ' • ' + dateStr + '</div>';
-                html += '<div class="post-content">' + escapeHtml(post.inhalt) + '</div>';
+                html += '<div class="post-content">' + escapeHtml(post.inhalt || '') + '</div>' + brettAnhaengeHtml(post);
                 
                 // Kommentare
                 html += '<div class="kommentare-section">';
@@ -4336,12 +4339,21 @@
             });
             
             container.innerHTML = html;
+            brettLoadThumbs(container);
         }
         
         async function submitBrettPost() {
             const titel = document.getElementById('post-titel').value.trim();
             const inhalt = document.getElementById('post-inhalt').value.trim();
-            if (!titel || !inhalt) { showToast('Titel und Inhalt erforderlich', true); return; }
+            const mitDatei = brettHasPicked('member');
+            if (!titel || (!inhalt && !mitDatei)) { showToast('Titel und Text (oder eine Datei) erforderlich', true); return; }
+            let anhaenge = [];
+            if (mitDatei) {
+                showLoading();
+                try { anhaenge = await brettUploadPicked('member'); }
+                catch (e) { hideLoading(); brettClearPicked('member'); showToast('Upload: ' + e.message, true); return; }
+                hideLoading(); brettClearPicked('member');
+            }
             
             // Optimistisches Update - sofort anzeigen
             const tempPost = {
@@ -4350,7 +4362,8 @@
                 titel: titel,
                 inhalt: inhalt,
                 erstelltAm: new Date().toISOString(),
-                bereichId: currentForumBereichId
+                bereichId: currentForumBereichId,
+                anhaenge: anhaenge
             };
             brettPostsData.unshift(tempPost);
             renderBrettPosts('member');
@@ -4360,7 +4373,7 @@
             
             // Im Hintergrund speichern
             try {
-                const result = await apiPost({ action: 'addBrettPost', autor: currentUser.name, titel: titel, inhalt: inhalt, bereichId: currentForumBereichId });
+                const result = await apiPost({ action: 'addBrettPost', autor: currentUser.name, titel: titel, inhalt: inhalt, bereichId: currentForumBereichId, anhaenge: anhaenge });
                 if (result.error) { 
                     showToast(result.error, true);
                     // Entferne temp Post bei Fehler
@@ -4378,7 +4391,15 @@
         async function submitBrettPostGericht() {
             const titel = document.getElementById('post-titel-gericht').value.trim();
             const inhalt = document.getElementById('post-inhalt-gericht').value.trim();
-            if (!titel || !inhalt) { showToast('Titel und Inhalt erforderlich', true); return; }
+            const mitDatei = brettHasPicked('gericht');
+            if (!titel || (!inhalt && !mitDatei)) { showToast('Titel und Text (oder eine Datei) erforderlich', true); return; }
+            let anhaenge = [];
+            if (mitDatei) {
+                showLoading();
+                try { anhaenge = await brettUploadPicked('gericht'); }
+                catch (e) { hideLoading(); brettClearPicked('gericht'); showToast('Upload: ' + e.message, true); return; }
+                hideLoading(); brettClearPicked('gericht');
+            }
             
             // Optimistisches Update
             const tempPost = {
@@ -4387,7 +4408,8 @@
                 titel: titel,
                 inhalt: inhalt,
                 erstelltAm: new Date().toISOString(),
-                bereichId: currentForumBereichId
+                bereichId: currentForumBereichId,
+                anhaenge: anhaenge
             };
             brettPostsData.unshift(tempPost);
             renderBrettPosts('gericht');
@@ -4397,7 +4419,7 @@
             
             // Im Hintergrund speichern
             try {
-                const result = await apiPost({ action: 'addBrettPost', autor: currentUser.name, titel: titel, inhalt: inhalt, bereichId: currentForumBereichId });
+                const result = await apiPost({ action: 'addBrettPost', autor: currentUser.name, titel: titel, inhalt: inhalt, bereichId: currentForumBereichId, anhaenge: anhaenge });
                 if (result.error) { 
                     showToast(result.error, true);
                     brettPostsData = brettPostsData.filter(p => p.id !== tempPost.id);
@@ -5360,6 +5382,12 @@
                 const result = await apiGet('getForumBereiche');
                 forumBereicheData = result.bereiche || [];
                 forumBereiche = forumBereicheData; // Für updateUnreadBadges
+                // Angepinnter Bereich (📌) ist beim ersten Öffnen ausgewählt
+                const vorher = currentForumBereichId;
+                if (!window.__brettPicked && forumBereicheData[0] && forumBereicheData[0].vorne) currentForumBereichId = forumBereicheData[0].id;
+                if (!forumBereicheData.some(b => b.id === currentForumBereichId)) currentForumBereichId = 'FORUM-ALLGEMEIN';
+                // Bereich gewechselt -> passende Beiträge laden (sonst zeigt der Reiter A die Beiträge von B)
+                if (vorher !== currentForumBereichId) setTimeout(() => loadBrettPosts(currentUser.role === 'gericht' ? 'gericht' : 'member'), 0);
                 renderForumBereicheList();
                 renderForumTabs();
                 
@@ -5428,9 +5456,11 @@
                 const isRegister = bereich.typ === 'register' ? 'register-tab' : '';
                 html += '<button class="forum-tab forum-bereich-btn ' + isActive + ' ' + isRegister + '" data-bereich-id="' + bereich.id + '" onclick="selectForumBereich(\'' + bereich.id + '\')">';
                 html += '<span class="bereich-badge hidden" style="position: absolute; top: -5px; right: -5px; background: var(--accent-red); color: white; border-radius: 50%; min-width: 18px; height: 18px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center;">0</span>';
-                html += bereich.name;
+                html += (bereich.vorne ? '📌 ' : '') + escapeHtml(bereich.name);
                 html += '</button>';
             });
+            const pf = currentUser.permissions || {};
+            if (pf.isAdmin || pf.canCreateForumCategories) html += '<button class="forum-tab bm-gear" onclick="openBereichManager()" title="Bereiche verwalten">⚙️</button>';
             
             if (memberContainer) memberContainer.innerHTML = html;
             if (adminContainer) adminContainer.innerHTML = html;
@@ -5440,6 +5470,7 @@
         }
         
         function selectForumBereich(bereichId) {
+            window.__brettPicked = true;
             currentForumBereichId = bereichId;
             renderForumTabs();
             loadBrettPosts(currentUser.role === 'gericht' ? 'gericht' : 'member');
@@ -6364,6 +6395,195 @@
      • Handys löschen beim Saisonwechsel automatisch alte lokale Daten
      ============================================================ -->
 <!-- ============================================================
+     BRETT: Bereiche verwalten (Reihenfolge, "vorne bis"), Dateien anhängen
+     ============================================================ -->
+<style>
+  .bm-item { display:flex; align-items:center; gap:.35rem; padding:.5rem 0; border-bottom:1px solid var(--border-color,#334155); }
+  .bm-item .n { flex:1; min-width:0; }
+  .bm-item .n b { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bm-item .n small { color:var(--text-secondary,#94a3b8); font-size:.75rem; }
+  .bm-item button { min-width:2.2rem; height:2.2rem; border-radius:8px; border:1px solid var(--border-color,#334155); background:#1a1a2e; color:#fff; font-size:.95rem; cursor:pointer; padding:0 .4rem; }
+  .bm-item button:disabled { opacity:.3; }
+  .bm-pin { display:flex; gap:.4rem; align-items:center; padding:.4rem 0 .6rem; }
+  .bm-pin input { flex:1; padding:.45rem; border-radius:8px; border:1px solid var(--border-color,#334155); background:#0f172a; color:#fff; font-family:inherit; }
+  .bm-new { margin-top:.8rem; padding-top:.6rem; border-top:1px dashed var(--border-color,#334155); }
+  .bm-new input, .bm-new select { width:100%; box-sizing:border-box; padding:.6rem; margin-bottom:.45rem; border-radius:10px; border:1px solid var(--border-color,#334155); background:#0f172a; color:#fff; font-family:inherit; font-size:.95rem; }
+  .bm-new label { font-size:.8rem; color:var(--text-secondary,#94a3b8); }
+  .forum-tab.bm-gear { min-width:auto; padding-left:.7rem; padding-right:.7rem; }
+  .ba-pick { display:flex; flex-wrap:wrap; gap:.35rem; margin:-.2rem 0 .6rem; }
+  .ba-pick .f { font-size:.8rem; background:rgba(255,255,255,.06); border:1px solid var(--border-color,#334155); border-radius:16px; padding:.25rem .55rem; display:flex; gap:.35rem; align-items:center; }
+  .ba-pick .f button { background:none; border:none; color:var(--accent-red,#ef4444); font-weight:700; cursor:pointer; padding:0; }
+  .ba-add { display:inline-flex; align-items:center; gap:.35rem; font-size:.88rem; color:var(--accent-yellow,#f5c518); cursor:pointer; margin:-.2rem 0 .6rem; font-weight:700; }
+  .ba-list { display:flex; flex-wrap:wrap; gap:.45rem; margin:.5rem 0 .3rem; }
+  .ba-file { display:inline-flex; align-items:center; gap:.4rem; padding:.45rem .7rem; border-radius:10px; border:1px solid rgba(66,133,244,.45); background:rgba(66,133,244,.1); color:#cfe0ff; font-size:.85rem; cursor:pointer; font-family:inherit; max-width:100%; }
+  .ba-file span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:14rem; }
+  .ba-img { width:96px; height:96px; object-fit:cover; border-radius:10px; border:1px solid var(--border-color,#334155); background:#0f172a; cursor:pointer; }
+</style>
+<script>
+(function () {
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const canManage = () => { const p = (currentUser && currentUser.permissions) || {}; return !!(p.isAdmin || p.canCreateForumCategories); };
+  const fmtSize = n => n > 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+  const iconFor = (t, n) => /^image\//.test(t) ? '🖼️' : /pdf/.test(t) || /\.pdf$/i.test(n) ? '📄' : /sheet|excel|\.xlsx?$|csv/i.test(t + n) ? '📊' : /word|\.docx?$/i.test(t + n) ? '📝' : '📎';
+  const fmtDate = iso => { if (!iso) return ''; const [y, m, d] = iso.split('-'); return d + '.' + m + '.' + y; };
+
+  // ---------- Bereiche verwalten ----------
+  let sheet = null;
+  async function reload() { if (typeof loadForumBereiche === 'function') await loadForumBereiche(); if (sheet) drawManager(); }
+  function drawManager(pinOpenId) {
+    const list = (typeof forumBereicheData !== 'undefined' ? forumBereicheData : []) || [];
+    const box = sheet.querySelector('.lktm-sheet');
+    let html = '<h3>⚙️ Brett-Bereiche</h3><p style="font-size:.8rem;color:var(--text-secondary);margin:0 0 .4rem">Reihenfolge wie die Reiter. 📌 = bis zum Datum ganz vorne.</p>';
+    list.forEach((b, i) => {
+      const sys = b.id === 'FORUM-ALLGEMEIN';
+      html += '<div class="bm-item"><div class="n"><b>' + (b.vorne ? '📌 ' : '') + esc(b.name) + '</b><small>' + (typeof getBereichTypLabel === 'function' ? getBereichTypLabel(b.typ) : esc(b.typ)) + (b.vorneBis ? ' · vorne bis ' + fmtDate(b.vorneBis) + (b.vorne ? '' : ' (vorbei)') : '') + '</small></div>' +
+        '<button data-a="up" data-i="' + i + '"' + (i === 0 ? ' disabled' : '') + ' title="nach vorne">▲</button>' +
+        '<button data-a="down" data-i="' + i + '"' + (i === list.length - 1 ? ' disabled' : '') + ' title="nach hinten">▼</button>' +
+        '<button data-a="pin" data-id="' + b.id + '" title="vorne bis Datum">📌</button>' +
+        '<button data-a="ren" data-id="' + b.id + '" title="umbenennen">✏️</button>' +
+        (sys ? '' : '<button data-a="del" data-id="' + b.id + '" title="löschen">🗑</button>') + '</div>';
+      if (pinOpenId === b.id) html += '<div class="bm-pin"><span style="font-size:.85rem">Ganz vorne bis</span><input type="date" id="bm-pin-date" value="' + (b.vorneBis || '') + '"><button class="btn btn-primary" style="padding:.45rem .7rem" data-a="pinsave" data-id="' + b.id + '">OK</button>' + (b.vorneBis ? '<button class="btn btn-secondary" style="padding:.45rem .7rem" data-a="pinoff" data-id="' + b.id + '">aus</button>' : '') + '</div>';
+    });
+    html += '<div class="bm-new"><b>➕ Neuer Bereich</b><input type="text" id="bm-new-name" maxlength="40" placeholder="z.B. Narrenbaumstellen">' +
+      '<select id="bm-new-typ"><option value="custom">Für alle</option><option value="register">Register-Bereich</option><option value="admin">Nur Admins</option></select>' +
+      '<label>Ganz vorne bis (optional, z.B. Tag der Veranstaltung)</label><input type="date" id="bm-new-pin">' +
+      '<button class="btn btn-primary btn-block" data-a="add">➕ Bereich anlegen</button></div>' +
+      '<button class="close" data-a="x">Schließen</button>';
+    box.innerHTML = html;
+  }
+  async function act(a, el) {
+    const list = forumBereicheData || [];
+    try {
+      if (a === 'up' || a === 'down') {
+        const ids = list.map(b => b.id); const i = +el.dataset.i; const j = a === 'up' ? i - 1 : i + 1;
+        [ids[i], ids[j]] = [ids[j], ids[i]];
+        forumBereicheData = ids.map(id => list.find(b => b.id === id)); drawManager(); renderForumTabs();
+        const r = await apiPost({ action: 'moveForumBereich', order: ids }); if (r.error) showToast(r.error, true);
+        await reload();
+      } else if (a === 'pin') { drawManager(el.dataset.id); }
+      else if (a === 'pinsave' || a === 'pinoff') {
+        const v = a === 'pinoff' ? '' : (document.getElementById('bm-pin-date').value || '');
+        const r = await apiPost({ action: 'updateForumBereich', bereichId: el.dataset.id, vorneBis: v });
+        if (r.error) showToast(r.error, true); else showToast(v ? '📌 vorne bis ' + fmtDate(v) : 'Nicht mehr angepinnt');
+        await reload();
+      } else if (a === 'ren') {
+        const b = list.find(x => x.id === el.dataset.id);
+        const n = await askText({ title: '✏️ Bereich umbenennen', label: 'Name', value: b ? b.name : '', ok: 'Speichern' });
+        if (n) { const r = await apiPost({ action: 'updateForumBereich', bereichId: el.dataset.id, name: n }); if (r.error) showToast(r.error, true); await reload(); }
+      } else if (a === 'del') {
+        if (el.dataset.armed !== '1') { el.dataset.armed = '1'; el.textContent = '❗'; showToast('Nochmal tippen = löschen (Beiträge wandern nach „Allgemein“)'); return; }
+        const r = await apiPost({ action: 'deleteForumBereich', bereichId: el.dataset.id });
+        if (r.error) showToast(r.error, true); else showToast('Bereich gelöscht');
+        if (currentForumBereichId === el.dataset.id) currentForumBereichId = 'FORUM-ALLGEMEIN';
+        await reload();
+      } else if (a === 'add') {
+        const name = document.getElementById('bm-new-name').value.trim();
+        if (!name) { showToast('Name eingeben', true); return; }
+        const r = await apiPost({ action: 'addForumBereich', name, typ: document.getElementById('bm-new-typ').value, vorneBis: document.getElementById('bm-new-pin').value || '', erstelltVon: currentUser.name });
+        if (r.error) { showToast(r.error, true); return; }
+        showToast('✓ Bereich „' + name + '“ angelegt');
+        await reload();
+      }
+    } catch (e) { showToast('Fehler: ' + e.message, true); }
+  }
+  window.openBereichManager = function () {
+    if (!canManage()) return;
+    sheet = document.createElement('div'); sheet.className = 'lktm-back';
+    sheet.innerHTML = '<div class="lktm-sheet" style="max-height:88vh;overflow:auto"></div>';
+    sheet.addEventListener('click', e => {
+      if (e.target === sheet) { sheet.remove(); sheet = null; return; }
+      const b = e.target.closest('[data-a]'); if (!b) return;
+      if (b.dataset.a === 'x') { sheet.remove(); sheet = null; return; }
+      act(b.dataset.a, b);
+    });
+    document.body.appendChild(sheet);
+    drawManager();
+  };
+
+  // ---------- Dateien anhängen (Formular) ----------
+  const picked = { member: [], gericht: [] };
+  function drawPicked(view) {
+    const el = document.getElementById('ba-pick-' + view); if (!el) return;
+    el.innerHTML = picked[view].map((f, i) => '<span class="f">' + iconFor(f.type, f.name) + ' ' + esc(f.name) + ' <small>' + fmtSize(f.size) + '</small><button data-ba-rm="' + view + ':' + i + '" aria-label="entfernen">✕</button></span>').join('');
+  }
+  window.brettPickFiles = function (view, input) {
+    Array.from(input.files || []).forEach(f => { if (picked[view].length < 6) picked[view].push(f); });
+    if ((input.files || []).length + picked[view].length > 6) showToast('Höchstens 6 Dateien pro Beitrag', true);
+    input.value = ''; drawPicked(view);
+  };
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-ba-rm]'); if (!b) return;
+    const [view, i] = b.dataset.baRm.split(':'); picked[view].splice(+i, 1); drawPicked(view);
+  });
+
+  // Fotos verkleinern (Handyfotos sind oft 5 MB+)
+  async function shrinkImage(file) {
+    if (!/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type) || file.size < 600 * 1024) return file;
+    try {
+      const url = URL.createObjectURL(file);
+      const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+      const s = Math.min(1, 2000 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+      const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85));
+      if (!blob || blob.size >= file.size) return file;
+      return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', { type: 'image/jpeg' });
+    } catch (e) { return file; }
+  }
+
+  // Lädt die gewählten Dateien hoch -> Liste für den Beitrag
+  window.brettUploadPicked = async function (view) {
+    const files = picked[view]; const out = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = await shrinkImage(files[i]);
+      if (f.size > 10 * 1024 * 1024) throw new Error('„' + f.name + '“ ist größer als 10 MB');
+      const lt = document.querySelector('.loading-text'); if (lt) lt.textContent = 'Datei ' + (i + 1) + '/' + files.length + ' wird hochgeladen…';
+      const q = 'action=uploadBrettDatei&token=' + encodeURIComponent(currentUser.token || '') + '&name=' + encodeURIComponent(f.name) + '&type=' + encodeURIComponent(f.type || 'application/octet-stream');
+      const res = await fetch(API_URL + (API_URL.includes('?') ? '&' : '?') + q, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: f });
+      const j = await res.json();
+      if (j.error) throw new Error(j.error);
+      out.push({ id: j.id, name: j.name, type: j.type, size: j.size });
+    }
+    return out;
+  };
+  window.brettClearPicked = function (view) { picked[view] = []; drawPicked(view); const lt = document.querySelector('.loading-text'); if (lt) lt.textContent = 'Laden...'; };
+  window.brettHasPicked = view => picked[view].length > 0;
+
+  // ---------- Anhänge anzeigen ----------
+  const blobCache = {};
+  async function fileBlob(id) {
+    if (blobCache[id]) return blobCache[id];
+    const res = await fetch(API_URL + '?action=getBrettDatei&id=' + encodeURIComponent(id) + '&token=' + encodeURIComponent(currentUser.token || ''));
+    if (!res.ok || (res.headers.get('content-type') || '').includes('application/json')) {
+      const j = await res.json().catch(() => ({})); throw new Error(j.error || 'Datei nicht ladbar');
+    }
+    return (blobCache[id] = await res.blob());
+  }
+  window.brettAnhaengeHtml = function (post) {
+    const list = post.anhaenge || []; if (!list.length) return '';
+    let h = '<div class="ba-list">';
+    list.forEach(a => {
+      if (/^image\//.test(a.type)) h += '<img class="ba-img" alt="' + esc(a.name) + '" data-ba-img="' + a.id + '" data-ba-open="' + a.id + '" data-ba-name="' + esc(a.name) + '">';
+      else h += '<button class="ba-file" data-ba-open="' + a.id + '" data-ba-name="' + esc(a.name) + '">' + iconFor(a.type, a.name) + ' <span>' + esc(a.name) + '</span><small>' + fmtSize(a.size) + '</small></button>';
+    });
+    return h + '</div>';
+  };
+  // Vorschaubilder nachladen
+  window.brettLoadThumbs = function (root) {
+    (root || document).querySelectorAll('img[data-ba-img]:not([src])').forEach(async img => {
+      try { img.src = URL.createObjectURL(await fileBlob(img.dataset.baImg)); } catch (e) { img.alt = '⚠️'; }
+    });
+  };
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('[data-ba-open]'); if (!b) return;
+    showLoading();
+    try { const blob = await fileBlob(b.dataset.baOpen); hideLoading(); lktExport.deliverFile(blob, b.dataset.baName || 'Datei', b.dataset.baName); }
+    catch (x) { hideLoading(); showToast(x.message, true); }
+  });
+})();
+</script>
+
+<!-- ============================================================
      PUSH-NACHRICHTEN: Einschalten (Standard an), Einstellungen,
      Nachricht an alle (Verwaltung)
      ============================================================ -->
@@ -6386,11 +6606,11 @@
   .pu-note { font-size:.8rem; color:var(--text-secondary,#94a3b8); margin:.4rem 0 .6rem; }
   .pu-note.warn { color:#fbbf24; }
   .ev-bus { font-size:.85rem; color:#93c5fd; margin-top:.15rem; }
+  .pu-sel { flex:0 0 auto; max-width:45%; padding:.4rem .5rem; border-radius:8px; border:1px solid var(--border-color,#334155); background:#0f172a; color:#fff; font-family:inherit; font-size:.85rem; }
 </style>
 <script>
 (function () {
   const CATS = [
-    ['reminders', '⏰ Erinnerung am Vorabend', 'z.B. „Morgen: Probe 19:30 Uhr, Musikheim“'],
     ['changes', '📢 Termin-Änderungen', 'neue Uhrzeit, Abfahrt, Ort oder Absage'],
     ['brett', '📋 Brett: Allgemein', 'neue Beiträge für alle'],
     ['register', '🎵 Brett: mein Register', 'neue Beiträge in deinem Register-Bereich'],
@@ -6413,8 +6633,27 @@
   }
 
   // Abo beim Server eintragen (still, wenn Erlaubnis schon da)
+  async function activeReg() {
+    await swReg();
+    // Anmeldung geht erst, wenn der Service Worker fertig gestartet ist
+    const reg = await Promise.race([navigator.serviceWorker.ready, new Promise(r => setTimeout(() => r(null), 10000))]);
+    if (!reg || !reg.active) throw Object.assign(new Error('App-Speicher startet noch'), { code: 'sw' });
+    return reg;
+  }
+  // Verständliche Fehlertexte
+  function pushErrorText(e) {
+    const m = String((e && (e.message || e.name)) || e || '');
+    if (e && e.code === 'sw' || /service worker|no active/i.test(m)) return 'Die App startet im Hintergrund noch – bitte in ein paar Sekunden nochmal tippen.';
+    if (e && e.name === 'NotAllowedError' || /denied|not allowed|permission/i.test(m)) return 'Nicht erlaubt. Bitte in den Handy-Einstellungen Mitteilungen für LKT erlauben.';
+    if (e && e.name === 'AbortError' || /push service|registration failed|network/i.test(m)) return 'Push-Dienst nicht erreichbar (Internet?). Bitte nochmal versuchen.';
+    if (/Unknown action|Schlüssel/i.test(m)) return 'Der Server ist noch nicht auf dem neuesten Stand (Worker ersetzen).';
+    if (/anmelden/i.test(m)) return 'Bitte neu anmelden.';
+    return m || 'Unbekannter Fehler';
+  }
+  let lastError = '';
+
   async function subscribe() {
-    const reg = await swReg(); if (!reg) throw new Error('Service Worker fehlt');
+    const reg = await activeReg();
     const r = await apiGet('getPushPublicKey'); if (!r || !r.publicKey) throw new Error('Kein Push-Schlüssel vom Server');
     let sub = await reg.pushManager.getSubscription();
     const want = r.publicKey;
@@ -6431,8 +6670,14 @@
     let perm = Notification.permission;
     if (perm === 'default') perm = await Notification.requestPermission();
     if (perm !== 'granted') { showToast('Benachrichtigungen sind blockiert – in den Handy-Einstellungen erlauben', true); render(); return false; }
-    try { await subscribe(); showToast('🔔 Benachrichtigungen sind an'); }
-    catch (e) { showToast('Push ging nicht: ' + e.message, true); }
+    try { await subscribe(); lastError = ''; showToast('🔔 Benachrichtigungen sind an'); }
+    catch (e) {
+      // Einmal automatisch nachfassen, falls der App-Speicher nur noch nicht bereit war
+      if (e && e.code === 'sw') { await new Promise(r => setTimeout(r, 2500)); try { await subscribe(); lastError = ''; showToast('🔔 Benachrichtigungen sind an'); render(); return true; } catch (e2) { e = e2; } }
+      lastError = pushErrorText(e);
+      store.set('lkt-push-later', '0');
+      showToast('Push: ' + lastError, true);
+    }
     render(); return true;
   }
 
@@ -6450,6 +6695,8 @@
   function state() {
     if (!supported) return isIOS && !standalone ? 'ios-install' : 'unsupported';
     if (Notification.permission === 'denied') return 'denied';
+    if (lastError) return 'error';
+    if (Notification.permission === 'granted' && store.get('lkt-push-on') === '1') return 'on';
     if (Notification.permission === 'granted' && store.get('lkt-push-on') !== '0') return 'on';
     if (store.get('lkt-push-on') === '0') return 'off';
     return 'ask';
@@ -6464,15 +6711,20 @@
     if (st === 'ios-install') html += '<p class="pu-note warn">Auf dem iPhone gehen Push-Nachrichten nur, wenn die App auf dem Home-Bildschirm ist: Safari → Teilen → „Zum Home-Bildschirm“. Dann die App von dort öffnen.</p>';
     else if (st === 'unsupported') html += '<p class="pu-note warn">Dieser Browser kann keine Push-Nachrichten.</p>';
     else if (st === 'denied') html += '<p class="pu-note warn">Benachrichtigungen sind in den Handy-/Browser-Einstellungen für diese App blockiert. Dort erlauben, dann hier einschalten.</p><button class="btn btn-secondary btn-block" data-pu="on">🔔 Erneut versuchen</button>';
+    else if (st === 'error') html += '<p class="pu-note warn">⚠️ ' + lastError + '</p><button class="btn btn-primary btn-block" data-pu="on">🔔 Nochmal versuchen</button>';
     else if (st === 'on') {
       html += '<div class="pu-row"><div>Auf diesem Gerät<small>alle Nachrichten an/aus</small></div><label class="pu-sw"><input type="checkbox" data-pu="master" checked><span></span></label></div>';
+      const opt = (k, def) => { const v = (settings && settings[k]) || def; return [['aus', 'aus'], ['15', '15 Min. vorher'], ['30', '30 Min. vorher'], ['60', '60 Min. vorher'], ['abend', 'am Vorabend (18 Uhr)']].map(([val, t]) => '<option value="' + val + '"' + (val === v ? ' selected' : '') + '>' + t + '</option>').join(''); };
+      const off = settings && settings.reminders === false;
+      html += '<div class="pu-row"><div>⏰ Erinnerung Auftritte<small>vor der Abfahrt (sonst vor Beginn)</small></div><select data-pu-lead="leadAuftritt" class="pu-sel">' + opt('leadAuftritt', off ? 'aus' : '60') + '</select></div>';
+      html += '<div class="pu-row"><div>⏰ Erinnerung Proben<small>vor Probenbeginn</small></div><select data-pu-lead="leadProbe" class="pu-sel">' + opt('leadProbe', off ? 'aus' : '60') + '</select></div>';
       CATS.forEach(([k, t, d]) => {
         const on = !settings || settings[k] !== false;
         html += '<div class="pu-row"><div>' + t + '<small>' + d + '</small></div><label class="pu-sw"><input type="checkbox" data-pu-cat="' + k + '"' + (on ? ' checked' : '') + '><span></span></label></div>';
       });
       html += '<button class="btn btn-secondary btn-block" style="margin-top:.6rem" data-pu="test">📨 Test-Nachricht an mich</button>';
     } else {
-      html += '<p class="pu-note">Erinnerungen am Vorabend, Änderungen bei Terminen und Abfahrt, neue Beiträge am Brett.</p><button class="btn btn-primary btn-block" data-pu="on">🔔 Benachrichtigungen einschalten</button>';
+      html += '<p class="pu-note">Erinnerung vor Auftritt/Probe (Zeit selbst wählbar), Änderungen bei Terminen und Abfahrt, neue Beiträge am Brett – sofort.</p><button class="btn btn-primary btn-block" data-pu="on">🔔 Benachrichtigungen einschalten</button>';
     }
     html += '</div>';
     boxes.forEach(b => { b.innerHTML = html; });
@@ -6483,7 +6735,7 @@
     const b = e.target.closest('[data-pu]'); if (!b) return;
     const a = b.dataset.pu;
     if (a === 'on') enable();
-    else if (a === 'later') { store.set('lkt-push-later', String(Date.now())); renderBanner(); }
+    else if (a === 'later') { lastError = ''; store.set('lkt-push-later', String(Date.now())); render(); }
     else if (a === 'test') {
       try { const r = await apiPost({ action: 'sendTestPush' }); if (r.error) showToast(r.error, true); else showToast(r.sent ? '📨 Test geschickt – kommt gleich' : 'Konnte nicht zugestellt werden', !r.sent); }
       catch (x) { showToast('Fehler: ' + x.message, true); }
@@ -6491,6 +6743,13 @@
   }
   async function onChange(e) {
     const t = e.target;
+    if (t.dataset && t.dataset.puLead) {
+      const k = t.dataset.puLead;
+      settings = Object.assign({}, settings || {}, { [k]: t.value, reminders: true });
+      try { const r = await apiPost({ action: 'savePushSettings', settings: { [k]: t.value, reminders: true } }); if (r.settings) settings = r.settings; showToast(t.value === 'aus' ? '✓ keine Erinnerung' : t.value === 'abend' ? '✓ am Vorabend' : '✓ ' + t.value + ' Min. vorher'); }
+      catch (x) { showToast('Nicht gespeichert', true); }
+      return;
+    }
     if (t.dataset.pu === 'master') { if (!t.checked) disable(); else enable(); return; }
     const k = t.dataset.puCat; if (!k) return;
     settings = Object.assign({}, settings || {}, { [k]: t.checked });
@@ -6503,12 +6762,14 @@
     const slots = document.querySelectorAll('.pu-banner-slot');
     const st = state();
     const later = +(store.get('lkt-push-later') || 0);
-    const show = (st === 'ask' || st === 'ios-install') && Date.now() - later > 3 * 86400000;
+    const show = st === 'error' || ((st === 'ask' || st === 'ios-install') && Date.now() - later > 3 * 86400000);
     slots.forEach(s => {
       if (!show) { s.innerHTML = ''; return; }
-      s.innerHTML = st === 'ios-install'
+      s.innerHTML = st === 'error'
+        ? '<div class="pu-banner" style="border-color:#ef4444"><b>⚠️ Benachrichtigungen gingen nicht</b><p>' + lastError + '</p><div class="row"><button class="btn btn-secondary" data-pu="later">Später</button><button class="btn btn-primary" data-pu="on">Nochmal versuchen</button></div></div>'
+        : st === 'ios-install'
         ? '<div class="pu-banner"><b>🔔 Erinnerungen aufs iPhone?</b><p>Dafür die App zum Home-Bildschirm hinzufügen (Safari → Teilen → „Zum Home-Bildschirm“) und von dort öffnen.</p><div class="row"><button class="btn btn-secondary" data-pu="later">Später</button></div></div>'
-        : '<div class="pu-banner"><b>🔔 Benachrichtigungen einschalten?</b><p>Erinnerung am Vorabend, Änderungen bei Terminen/Abfahrt und neue Brett-Beiträge. Jederzeit im Profil abschaltbar.</p><div class="row"><button class="btn btn-secondary" data-pu="later">Später</button><button class="btn btn-primary" data-pu="on">Einschalten</button></div></div>';
+        : '<div class="pu-banner"><b>🔔 Benachrichtigungen einschalten?</b><p>Erinnerung vor Auftritten und Proben (Zeit selbst wählbar), Änderungen bei Terminen/Abfahrt und neue Brett-Beiträge. Jederzeit abschaltbar.</p><div class="row"><button class="btn btn-secondary" data-pu="later">Später</button><button class="btn btn-primary" data-pu="on">Einschalten</button></div></div>';
     });
   }
 
@@ -6541,8 +6802,13 @@
   let inited = false;
   async function init() {
     if (!inited) { inited = true; document.addEventListener('click', onClick); document.addEventListener('change', onChange); }
+    // Hinweis "Benachrichtigungen einschalten?" oben unter dem Kopf – in jedem Reiter sichtbar
+    if (!document.getElementById('pu-global')) {
+      const header = document.querySelector('#main-app .header');
+      if (header) { const d = document.createElement('div'); d.id = 'pu-global'; d.className = 'pu-banner-slot'; d.style.cssText = 'padding:.75rem 1rem 0'; header.insertAdjacentElement('afterend', d); }
+    }
     // Erlaubnis schon da (Standard an) -> still anmelden / Abo erneuern
-    if (state() === 'on' && navigator.onLine) { try { await subscribe(); } catch (e) {} }
+    if (state() === 'on' && navigator.onLine) { try { await subscribe(); } catch (e) { /* still – beim nächsten Start wieder */ } }
     render(); renderAdmin();
   }
 
@@ -6784,7 +7050,11 @@
     const t = document.querySelector('#member-nav [data-tab="scanner"]'); if (t) t.click();
   };
 
-  function init() { setupNav('member-nav'); setupNav('gericht-nav'); moveRefresh(); }
+  function init() {
+    setupNav('member-nav'); setupNav('gericht-nav'); moveRefresh();
+    // Offline: App-Speicher (Service Worker) für alle anmelden – nicht erst beim Einschalten von Push
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 </script>
