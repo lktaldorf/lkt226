@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#1a1a2e">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="app-version" content="v31">
+    <meta name="app-version" content="v32">
     <title>LKT Tracker 2026</title>
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon-192.png">
@@ -219,7 +219,7 @@
     <script>
         // Cache-Buster v11: Automatisches Update bei neuer Version
         (function() {
-            var APP_VERSION = 'v31';
+            var APP_VERSION = 'v32';
             var stored = localStorage.getItem('lkt-app-version');
             if (stored && stored !== APP_VERSION) {
                 if ('caches' in window) {
@@ -3687,14 +3687,20 @@
                 
                 // Rollen-Dropdown dynamisch füllen
                 const roleSelect = document.getElementById('member-detail-role');
-                let roleHtml = '';
+                // Immer eine Auswahl "ohne Sonderrechte" anbieten – sonst steht ein normales
+                // Mitglied in der Liste auf der ersten Rolle (z. B. Admin) und wird beim Speichern hochgestuft
+                const hatMitgliedRolle = rollenData.some(r => r.id === 'ROLE-MITGLIED');
+                let roleHtml = hatMitgliedRolle ? '' : '<option value="">Mitglied (keine Sonderrechte)</option>';
                 rollenData.forEach(r => {
                     roleHtml += '<option value="' + r.id + '">' + r.name + '</option>';
                 });
                 roleSelect.innerHTML = roleHtml;
-                
-                // Set current role
-                if (member) roleSelect.value = member.rollenId || 'ROLE-MITGLIED';
+
+                // Set current role (unbekannte/gelöschte Rolle = normales Mitglied)
+                if (member) {
+                    const rid = member.rollenId && rollenData.some(r => r.id === member.rollenId) ? member.rollenId : (hatMitgliedRolle ? 'ROLE-MITGLIED' : '');
+                    roleSelect.value = rid;
+                }
                 
                 // Show/hide role editing based on permissions
                 const permissions = currentUser.permissions || {};

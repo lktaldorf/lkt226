@@ -222,3 +222,12 @@ DRUCKEN & SPEICHERN (alle PDFs und Dateien)
 
 NOTEN-QUIZ
    Reiter "🍺 Spiele" → "🎼 Noten-Quiz". Stimme wählbar, 453 Notenzeilen.
+
+========================================
+NEU IN v32 (Fehlerkorrektur)
+========================================
+- Admin ändert Bus/Register oder Profil eines Mitglieds: wurde fälschlich beim Admin selbst gespeichert – behoben.
+  Bitte das EIGENE Profil prüfen und die betroffenen Mitglieder einmal neu speichern.
+- Einstellungen → App-Modi (QR-Scanner an/aus, Strafen an/aus) wurden nicht gespeichert – behoben.
+- Rollen-Auswahl beim Mitglied hat jetzt immer „Mitglied (keine Sonderrechte)“.
+- Geprüft mit einem automatischen Komplett-Test (48 Speichern-Aktionen, Admin und Mitglied).
